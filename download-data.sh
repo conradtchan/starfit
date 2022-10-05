@@ -5,7 +5,7 @@
 # which are not committed to the repository.
 #
 
-server="https://starfit.swin-dev.cloud.edu.au"
+server="https://starfit2.swin-dev.cloud.edu.au"
 data_dir="src/starfit/data"
 data_dirs="db stars ref"
 
