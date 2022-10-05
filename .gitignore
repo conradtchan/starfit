@@ -1,0 +1,6 @@
+*.dat
+*.gz
+*.DS_Store
+/build/
+/src/starfit.egg-info
+__pycache__
