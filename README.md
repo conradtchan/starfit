@@ -15,7 +15,7 @@ pip install .
 ```
 
 # Usage
-`starfit.Single` fits an abundance pattern to a single model from the database. 
+`starfit.Single` fits an abundance pattern to a single model from the database.
 
 Optional arguments:
 - `z_max`: highest element charge number to fit
@@ -31,7 +31,7 @@ s = starfit.Single(
     z_max = 30,
     z_exclude = [3, 24, 30],
     z_lolim = [21, 29],
-    
+
 )
 
 print(s)

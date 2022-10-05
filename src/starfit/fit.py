@@ -62,7 +62,7 @@ class Single(Results, Logged):
             ls=True,
         )
         self.logger.info("Calculation time:")
-        self.logger.info(" {}".format(time2human(time.perf_counter() - t_start)))
+        self.logger.info(f" {time2human(time.perf_counter() - t_start)}")
 
         # Identify the best fit by finding the entry with the smallest error
         self.unsorted_fitness = fitness
@@ -124,10 +124,7 @@ class Double(Results, Logged):
         self.setup_double(fixed, n_top, block_size, cdf)
 
         self.logger.info(
-            "Searching {} models ({} combinations)".format(
-                self.db_size,
-                self.n_solves,
-            )
+            f"Searching {self.db_size} models ({self.n_solves} combinations)"
         )
 
         if not silent:
@@ -331,7 +328,7 @@ class Double(Results, Logged):
                     )
                 )
             print("-----------------------------------------------------------------")
-            print("Evidence = {:4.3e}".format(self.evidence))
+            print(f"Evidence = {self.evidence:4.3e}")
         else:
             sys.stdout.write("\x1b[A")
             sys.stdout.write("\x1b[A")
@@ -343,7 +340,7 @@ class Double(Results, Logged):
                     remain=time2human(self.elapsed / self.frac_done - self.elapsed),
                 )
             )
-            print("Evidence = {:4.3e}".format(self.evidence))
+            print(f"Evidence = {self.evidence:4.3e}")
 
     def save_file(self, file_name):
         with open(file_name, mode="w") as f:
@@ -469,7 +466,7 @@ def _solve(
     ev_const=None,
     hist_bins=None,
     prior_weight=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Local search solve for a set of stars. Used for splitting into different
@@ -495,7 +492,7 @@ def _solve(
         ejecta=ejecta,
         ls=not fixed,
         z_exclude_index=exclude_index,
-        **kwargs
+        **kwargs,
     )
 
     sort = np.argsort(fitness)
@@ -563,13 +560,11 @@ class Direct(Results, Logged):
 
             self.logger.info("Stars fitted:")
             for i in range(stars.shape[0]):
-                self.logger.info("Solution {}:".format(i))
+                self.logger.info(f"Solution {i}:")
                 for j in range(stars.shape[1]):
-                    self.logger.info(
-                        " {:05}:    {:5e}".format(stars[i, j], sol[i, j]["offset"])
-                    )
+                    self.logger.info(f" {stars[i, j]:05}:    {sol[i, j]['offset']:5e}")
 
                 self.logger.info(" Fitness:")
-                self.logger.info("  {:7.3f}".format(fitness[i]))
+                self.logger.info(f"  {fitness[i]:7.3f}")
 
             self.close_logger(timing="Finished in")

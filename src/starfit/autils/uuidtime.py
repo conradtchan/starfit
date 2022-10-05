@@ -39,7 +39,7 @@ class UUID(uuid.UUID):
     def ctimex(self):
         s = self.ctime()
         if s != "":
-            s = "({:s})".format(s)
+            s = f"({s:s})"
         return s
 
     def ip(self):

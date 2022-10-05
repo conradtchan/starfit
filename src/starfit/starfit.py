@@ -60,7 +60,7 @@ class Results(Logged):
             if os.path.isfile(_db):
                 db = _db
             else:
-                raise IOError("file {} not found".format(db))
+                raise IOError(f"file {db} not found")
         # Read a star
         star = Star(filename, silent=self.silent)
         self.star = star
@@ -229,30 +229,19 @@ class Results(Logged):
         # Flip the sign of the error of the lower limits
         eval_data.error[lolim_index_star] = -np.abs(eval_data.error[lolim_index_star])
 
-        self.logger.info(
-            "Matching {} data points up to Z={}:".format(
-                len(eval_data),
-                z_max,
-            )
-        )
+        self.logger.info(f"Matching {len(eval_data)} data points up to Z={z_max}:")
 
         self.logger.info("    " + " ".join([str(ion) for ion in eval_data.element]))
 
         self.logger.info(
-            "with {} upper limits in the data:".format(
-                np.sum(eval_data.error < 0),
-            )
+            f"with {np.sum(eval_data.error < 0)} upper limits in the data:"
         )
         self.logger.info(
             "    "
             + " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]])
         )
 
-        self.logger.info(
-            "and {} lower limits in the models:".format(
-                np.sum(lolim_index_star),
-            )
-        )
+        self.logger.info(f"and {np.sum(lolim_index_star)} lower limits in the models:")
 
         self.logger.info(
             "    " + " ".join([str(ion) for ion in eval_data.element[lolim_index_star]])
@@ -467,16 +456,16 @@ class Results(Logged):
                 index, offset = self.sorted_stars[i][j]
                 text += [
                     [
-                        "{:3.2f}".format(self.sorted_fitness[i]),
-                        "{:6d}".format(index),
-                        "{:3.2f}".format(self.db.fielddata[index][db_field_index[0]]),
-                        "{:3.2f}".format(self.db.fielddata[index][db_field_index[1]]),
+                        f"{self.sorted_fitness[i]:3.2f}",
+                        f"{index:6d}",
+                        f"{self.db.fielddata[index][db_field_index[0]]:3.2f}",
+                        f"{self.db.fielddata[index][db_field_index[1]]:3.2f}",
                         "{:3.2f}".format(
                             math.log10(
                                 self.db.fielddata[index][db_field_index[2]] + 1.0e-99
                             )
                         ),
-                        "1:{:1.0f}".format(1 / offset),
+                        f"1:{1 / offset:1.0f}",
                         "{:3.2f}".format(
                             self.db.fielddata[index][db_field_index[0]]
                             - self.db.fielddata[index][db_field_index[3]]
@@ -509,4 +498,4 @@ class Results(Logged):
         return string
 
     def __repr__(self):
-        return "{:}({:})".format(self.__class__.__name__, self.star.name)
+        return f"{self.__class__.__name__}({self.star.name})"

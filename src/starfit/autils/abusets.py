@@ -149,12 +149,10 @@ class ScaledSolar(AbuModel):
 
         self.is_sorted = self.sun.is_sorted
         self.comment = (
-            "Version {:6s} - {:s}".format(
-                self.version, time.asctime(time.gmtime()) + " UTC"
-            ),
-            "Scaled solar abundances: {:g} solar".format(scale),
-            "Sun: {:s} - {:s}".format(solar, self.sun.filename),
-            "BBN: {:s} - {:s}".format(zero, self.bbn.filename),
+            f"Version {self.version:6s} - {time.asctime(time.gmtime()) + ' UTC':s}",
+            f"Scaled solar abundances: {scale:g} solar",
+            f"Sun: {solar:s} - {self.sun.filename:s}",
+            f"BBN: {zero:s} - {self.bbn.filename:s}",
             "X = {:8G}, Y = {:8G}, Z = {:8G}".format(*self.XYZ()),
         )
         self.logger.info("X = {:8G}, Y = {:8G}, Z = {:8G}".format(*self.XYZ()))
@@ -250,7 +248,7 @@ class ScaledSolarHelium(ScaledSolar):
         super().__init__(scale, **kwargs)
         if helium is None:
             helium = self("He4")
-        self.comment += ("Helium set to mass fraction: : {:g}".format(helium),)
+        self.comment += (f"Helium set to mass fraction: : {helium:g}",)
 
 
 class Asplund2009Data(AbuSet):
@@ -287,7 +285,7 @@ class Asplund2009Data(AbuSet):
             self.logger_file_info(f)
             comment += (
                 "",
-                'Generated from file "{:s}".'.format(filename),
+                f'Generated from file "{filename:s}".',
                 "Original file comments follow:",
                 "",
             )
@@ -314,7 +312,7 @@ class Asplund2009Data(AbuSet):
         abu = abu / abu.sum()
 
         super().__init__(iso=iso, abu=abu, comment=comment)
-        message = "{:3d} isotopes loaded in".format(iso.size)
+        message = f"{iso.size:3d} isotopes loaded in"
         self.close_logger(timing=message)
 
 
@@ -370,7 +368,7 @@ class Mass(Logged):
                     self._append(isotope.Ion(xion), np.double(xabu))
                 else:
                     self.comment += (line[2:],)
-        message = "{:3d} masses loaded in".format(len(self.iso))
+        message = f"{len(self.iso):3d} masses loaded in"
         self.close_logger(timing=message)
 
     def _append(self, iso, abu):
@@ -402,10 +400,7 @@ class Mass(Logged):
         return (
             "mass("
             + ", ".join(
-                [
-                    "{:s}: {:f}".format(iso.Name(), mass)
-                    for iso, mass in zip(self.iso, self.mass)
-                ]
+                [f"{iso.Name():s}: {mass:f}" for iso, mass in zip(self.iso, self.mass)]
             )
             + ")"
         )

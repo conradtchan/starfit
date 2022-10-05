@@ -371,7 +371,7 @@ class Logged(Timed):
         if len(re.findall(".*({.*}).*", timing)) == 1:
             s = timing.format(stime)
         else:
-            s = "{:s} {:s}.".format(timing, stime)
+            s = f"{timing:s} {stime:s}."
         return s
 
     def logger_timing(self, timing=None, timer=None, finish=False):
@@ -395,7 +395,7 @@ class Logged(Timed):
         if message is not None:
             self.logger.info(message)
         self.logger_count -= 1
-        assert self.logger_count >= 0, "logger count is {}".format(self.logger_count)
+        assert self.logger_count >= 0, f"logger count is {self.logger_count}"
         if self.logger_count == 0:
             if self.logger_handler is not None:
                 self.logger.removeHandler(self.logger_handler)
@@ -416,7 +416,7 @@ class Logged(Timed):
         except:
             log_timers = []
         if self._timers[timer] in log_timers:
-            self.logger.error("Cannot close logger timer {}".format(timer))
+            self.logger.error(f"Cannot close logger timer {timer}")
             time = self.get_timer(timer)
             return time
         try:
@@ -436,9 +436,7 @@ class Logged(Timed):
             stat = os.fstat(f.fileno())
             filename = f.name
             filesize = stat.st_size
-            self.logger.info(
-                "Loading {:s} ({:s})".format(filename, byte2human(filesize))
-            )
+            self.logger.info(f"Loading {filename:s} ({byte2human(filesize):s})")
 
     def logger_load_info(self, nvers, ncyc0, ncyc1, nmodels, time=None):
         """
@@ -446,8 +444,8 @@ class Logged(Timed):
         """
         if time is None:
             time = self.get_timer()
-        self.logger.info("         version {:>9s}".format(version2human(nvers)))
-        self.logger.info("first model read {:>9d}".format(int(ncyc0)))
-        self.logger.info(" last model read {:>9d}".format(int(ncyc1)))
-        self.logger.info(" num models read {:>9d}".format(int(nmodels)))
-        self.logger.info("  data loaded in {:>9s}".format(time2human(time)))
+        self.logger.info(f"         version {version2human(nvers):>9s}")
+        self.logger.info(f"first model read {int(ncyc0):>9d}")
+        self.logger.info(f" last model read {int(ncyc1):>9d}")
+        self.logger.info(f" num models read {int(nmodels):>9d}")
+        self.logger.info(f"  data loaded in {time2human(time):>9s}")

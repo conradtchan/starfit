@@ -66,7 +66,7 @@ class Star(Logged):
             if os.path.isfile(_filename):
                 filename = _filename
             else:
-                raise IOError("file {} not found".format(filename))
+                raise IOError(f"file {filename} not found")
 
         # Load BBN data for H reference
         self.BBN_data = BBNAbu(
@@ -220,12 +220,12 @@ class Star(Logged):
             return array
 
         else:
-            raise Exception("Format type {:d} not found".format(data_format))
+            raise Exception(f"Format type {data_format:d} not found")
         pass
 
     # A nice readable name
     def __str__(self):
-        return "{:s}({:s})".format(self.__class__.__name__, self.name)
+        return f"{self.__class__.__name__:s}({self.name:s})"
 
     __repr__ = __str__
 
@@ -305,7 +305,7 @@ def StarTable(
         print(r"\hline")
         # Read those elements from the objects, then sort by charge
         for i, (star, e) in enumerate(zip(stars, el)):
-            print("{:s}".format(starnames[i]), end="")
+            print(f"{starnames[i]:s}", end="")
             for number in z[block * maxcolumns : block * maxcolumns + maxcolumns]:
                 if number in [element.Z for element in e]:
                     row = star.element_abundances[

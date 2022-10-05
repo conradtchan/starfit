@@ -146,7 +146,7 @@ class UTCFormatter(logging.Formatter):
     converter = time.gmtime
 
     def format(self, record):
-        record.nameb = "[{:s}]".format(record.name)
+        record.nameb = f"[{record.name:s}]"
         return super(UTCFormatter, self).format(record)
 
 
@@ -216,7 +216,7 @@ class ClearCache(object):
                 del self.__dict__[d]
             except KeyError:
                 if debug:
-                    print(' [DEBUG] "{}" not found'.format(d))
+                    print(f' [DEBUG] "{d}" not found')
                 pass
 
         for d in cls._del_meth:
@@ -1059,7 +1059,7 @@ def touch(filename, verbose=False, timestamp=None):
     if timestamp is not None:
         xtime = (timestamp,) * 2
     if verbose:
-        print("Touching {}".format(filename))
+        print(f"Touching {filename}")
     try:
         os.utime(filename, xtime)
     except:

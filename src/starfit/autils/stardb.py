@@ -211,7 +211,7 @@ class StarDB(AbuData, Logged):
             """
             Return error message.
             """
-            return "Error reading signature from file {:s}.".format(self.filename)
+            return f"Error reading signature from file {self.filename:s}."
 
     class VersionError(Exception):
         """
@@ -227,7 +227,7 @@ class StarDB(AbuData, Logged):
             """
             Return error message.
             """
-            return "Version Error.".format()
+            return "Version Error."
 
     class IntegrityError(Exception):
         """
@@ -243,7 +243,7 @@ class StarDB(AbuData, Logged):
             """
             Return error message.
             """
-            return "File Integrity Error.".format()
+            return "File Integrity Error."
 
     class DataError(Exception):
         """
@@ -259,7 +259,7 @@ class StarDB(AbuData, Logged):
             """
             Return error message.
             """
-            return "Data seems faulty.".format()
+            return "Data seems faulty."
 
     def __init__(self, filename=None, db=None, **kwargs):
         """
@@ -368,7 +368,7 @@ class StarDB(AbuData, Logged):
         self.name = kwargs.get("name", None)
         self.comments = kwargs.get("comments", np.array([], dtype=np.object))
         self.comments = np.array(self.comments, dtype=np.object)
-        self.comments = np.append(self.comments, "UUID: {}".format(UUID1()))
+        self.comments = np.append(self.comments, f"UUID: {UUID1()}")
 
         self.ions = kwargs.get("ions", None)
         self.data = kwargs.get("data", None)
@@ -470,7 +470,7 @@ class StarDB(AbuData, Logged):
             m = hashlib.sha1()
             m.update(self.data.tobytes())
             m.update(self.fielddata.tobytes())
-            self.comments = self.comments.append("SHA1: {}".format(m.hexdigest()))
+            self.comments = self.comments.append(f"SHA1: {m.hexdigest()}")
 
         self.compute_fielddata()
 
@@ -505,8 +505,8 @@ class StarDB(AbuData, Logged):
 
         self.setup_logger(silent=silent)
         self._open_file(filename)
-        self.logger.info("Loading {:s}".format(self.filename))
-        s = "File size: {}".format(byte2human(self.filesize))
+        self.logger.info(f"Loading {self.filename:s}")
+        s = f"File size: {byte2human(self.filesize)}"
         if self.compressed:
             s += " (compressed)"
         self.logger.info(s + ".")
@@ -962,16 +962,16 @@ class StarDB(AbuData, Logged):
         """
         Print out DB info
         """
-        self.logger.info("Data version: {:6d}".format(int(self.version)))
-        self.logger.info("data set name: {:s}".format(self.name))
+        self.logger.info(f"Data version: {int(self.version):6d}")
+        self.logger.info(f"data set name: {self.name:s}")
 
         self.logger.info("".ljust(58, "="))
         for comment in self.comments:
-            self.logger.info("COMMENT: {:s}".format(comment))
+            self.logger.info(f"COMMENT: {comment:s}")
         self.logger.info("".ljust(58, "="))
 
-        self.logger.info("data sets:      {:6d}".format(int(self.nstar)))
-        self.logger.info("abundance sets: {:6d}".format(int(self.nabu)))
+        self.logger.info(f"data sets:      {int(self.nstar):6d}")
+        self.logger.info(f"abundance sets: {int(self.nabu):6d}")
         self.logger.info("".ljust(58, "-"))
         self.logger.info(
             "abundance type:  {:1d} - {:s}".format(
@@ -998,7 +998,7 @@ class StarDB(AbuData, Logged):
         s = self.abundance_norm
         if s == "":
             s = "(NONE)"
-        self.logger.info("abundance norm:      {:}".format(s))
+        self.logger.info(f"abundance norm:      {s}")
         self.logger.info(
             "abundance data:  {:1d} - {:s}".format(
                 int(self.abundance_data), self.abundance_data_names[self.abundance_data]
@@ -1011,7 +1011,7 @@ class StarDB(AbuData, Logged):
         )
 
         self.logger.info("".ljust(58, "-"))
-        self.logger.info("{:d} data fields: ".format(self.nfield))
+        self.logger.info(f"{self.nfield:d} data fields: ")
 
         l1 = max(len(x) for x in self.fieldnames)
         l2 = 0
@@ -1024,9 +1024,9 @@ class StarDB(AbuData, Logged):
             l5 = max(l5, len(self.type_names[self.fieldtypes[ifield]]))
             flen = int(re_len.findall(self.fieldformats[ifield])[0])
             l2 = max(l2, flen)
-            l3 = max(l3, len("{:d}".format(self.nvalues[ifield])))
+            l3 = max(l3, len(f"{self.nvalues[ifield]:d}"))
 
-        format = "{{:{:d}s}} [{{:>{:d}s}}] ({{:{:d}s}}) <{{:s}}>".format(l1, l4, l5)
+        format = f"{{:{l1:d}s}} [{{:>{l4:d}s}}] ({{:{l5:d}s}}) <{{:s}}>"
         for ifield in range(self.nfield):
             self.logger.info(
                 format.format(
@@ -1068,7 +1068,7 @@ class StarDB(AbuData, Logged):
                 self.fieldnames[ip] + ": ",
                 ("{:" + self.fieldformats[ip] + "}").format(fmin),
                 ("{:" + self.fieldformats[ip] + "}").format(fmax),
-                "{:d}".format(int(self.nvalues[ip])),
+                f"{int(self.nvalues[ip]):d}",
             )
             format = (
                 "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
@@ -1088,7 +1088,7 @@ class StarDB(AbuData, Logged):
                 self.fieldnames[ip] + ": ",
                 ("{:" + self.fieldformats[ip] + "}").format(fmin),
                 ("{:" + self.fieldformats[ip] + "}").format(fmax),
-                "{:d}".format(int(self.nvalues[ip])),
+                f"{int(self.nvalues[ip]):d}",
             )
             format = (
                 "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
@@ -1119,7 +1119,7 @@ class StarDB(AbuData, Logged):
         for ip in xprop.flat:
             self.logger.info(self.fieldnames[ip] + ":")
             if self.nvalues[ip] > maxpropvalues:
-                self.logger.info("(more than {:d} values)".format(maxpropvalues))
+                self.logger.info(f"(more than {maxpropvalues:d} values)")
             else:
                 flen = int(re_len.findall(self.fieldformats[ifield])[0])
                 s = ""
@@ -1137,7 +1137,7 @@ class StarDB(AbuData, Logged):
         m.update(self.data.tobytes())
         m.update(self.fielddata.tobytes())
 
-        self.logger.info("SHA1: {}".format(m.hexdigest()))
+        self.logger.info(f"SHA1: {m.hexdigest()}")
         self.logger.info("".ljust(58, "-"))
 
     def _write(self):

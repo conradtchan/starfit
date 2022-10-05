@@ -743,9 +743,9 @@ class Ion(object, metaclass=MetaSingletonHash):
             return el
         A = str(self.A)
         if self.is_isotope():
-            return "{}-{}".format(el, A)
+            return f"{el}-{A}"
         if self.is_isomer():
-            return "{}-{}{}".format(el, A, self.isomer_name(self.E, m1=True))
+            return f"{el}-{A}{self.isomer_name(self.E, m1=True)}"
         raise Exception("Cannot convert ion to string.")
 
     @classmethod
@@ -758,9 +758,9 @@ class Ion(object, metaclass=MetaSingletonHash):
                 return ""
             return cls.GROUND
         elif E == 1 and m1 is False:
-            return "{:s}".format(cls.ISOMER)
+            return f"{cls.ISOMER:s}"
         else:
-            return "{:s}{:d}".format(cls.ISOMER, E)
+            return f"{cls.ISOMER:s}{E:d}"
 
     def mpl(self):
         if self.is_element():
@@ -819,7 +819,7 @@ class Ion(object, metaclass=MetaSingletonHash):
         if self.F & self.F_GROUP_MASK == self.F_ISOTONE:
             s = "N:"
         if self.A != 0 or (self.F & self.F_GROUP_MASK == self.F_ISOTONE):
-            s += "{:d}".format(self.A)
+            s += f"{self.A:d}"
         if (
             self.A == 1
             and self.Z == 0
@@ -831,7 +831,7 @@ class Ion(object, metaclass=MetaSingletonHash):
                 if self.E == 1:
                     s = "g"
                 else:
-                    s = "g{:d}".format(self.E)
+                    s = f"g{self.E:d}"
             else:
                 s += self.isomer_name(self.E)
         s = self.SPECIAL.get(self.idx, s)
@@ -1090,7 +1090,7 @@ class Ion(object, metaclass=MetaSingletonHash):
         if len(n) > 1:
             e = n[1]
         if len(n) > 2:
-            raise ValueError("Can't understand isotope '{}'.".format(s))
+            raise ValueError(f"Can't understand isotope '{s}'.")
         if len(c) > 0:
             el = c[0]
         if len(el) > 0:
@@ -1106,7 +1106,7 @@ class Ion(object, metaclass=MetaSingletonHash):
                 e = str(len(c[1]))
                 assert c[1].count("*") == len(c[1])
             if not c[1] in ("m", "g") and not c[1][0] == "*":
-                raise ValueError("Can't understand isotope '{}'.".format(s))
+                raise ValueError(f"Can't understand isotope '{s}'.")
 
         if len(c) == 1 and c[0][-1] == "*":
             e = 0
@@ -1189,9 +1189,7 @@ class Ion(object, metaclass=MetaSingletonHash):
         if not self._is_ion(x):
             y = self.__class__(x)
             if y.idx == self.VOID_IDX:
-                raise AttributeError(
-                    "Cannot convert {!r} to {!r}.".format(x, self.__class__)
-                )
+                raise AttributeError(f"Cannot convert {x!r} to {self.__class__!r}.")
             else:
                 x = y
         A = sign1 * self.A + sign2 * x.A
@@ -1259,7 +1257,7 @@ class Ion(object, metaclass=MetaSingletonHash):
         return 1
 
     def __repr__(self):
-        base = "('{:s}')".format(self.Name())
+        base = f"('{self.Name():s}')"
         # if self.__class__ == Ion:
         #     if self.is_isomer():
         #         return 'Isomer' + base

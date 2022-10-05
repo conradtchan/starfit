@@ -71,12 +71,10 @@ def time2human(time, digits=2, cut=True, extended=False, strip=True):
             return "***"
         su = _units[i] + su
 
-    sv = "{:20.15f}".format(xtime).strip()
+    sv = f"{xtime:20.15f}".strip()
     i = sv.find(".")
     l = max(digits + 1, i + 1)
-    format = (
-        "{:" + "{:d}".format(l).strip() + "." + "{:d}".format(l - i - 1).strip() + "f}"
-    )
+    format = "{:" + f"{l:d}".strip() + "." + f"{l - i - 1:d}".strip() + "f}"
     sv = format.format(xtime).strip()
 
     if cut:

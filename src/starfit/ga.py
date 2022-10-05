@@ -71,7 +71,7 @@ class Ga(Results, Logged):
         self.cdf = cdf
         self.max_pop = max_pop
 
-        self.logger.info("Time limit: {}".format(time2human(time_limit)))
+        self.logger.info(f"Time limit: {time2human(time_limit)}")
 
         # If offsets is fixed, there is no offset mutation
         if fixed_offsets:
@@ -91,9 +91,7 @@ class Ga(Results, Logged):
             # frac_mating_pool is a fraction of the number of solutions
             else:
                 raise Exception(
-                    "frac_mating_pool = {:f}, must be greater than 0".format(
-                        frac_mating_pool
-                    )
+                    f"frac_mating_pool = {frac_mating_pool:f}, must be greater than 0"
                 )
         else:
             self.n_winners = pop_size
@@ -150,7 +148,7 @@ class Ga(Results, Logged):
 
         self.gen = gen
         self.logger.info("Best fitness:")
-        self.logger.info(" {}".format(self.sorted_fitness[0]))
+        self.logger.info(f" {self.sorted_fitness[0]}")
         self.close_logger(timing="Finished in")
 
     def _step(self):

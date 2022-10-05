@@ -28,7 +28,7 @@ def mass_string(masses, decimals=None, powers=False):
     for mass in masses:
         if isinstance(mass, str):
             mass = float(mass)
-        xm = "{:.6f}".format(mass).rstrip("0").rstrip(".")
+        xm = f"{mass:.6f}".rstrip("0").rstrip(".")
         if decimals > 0:
             if xm.count(".") == 0:
                 xm += "." + "0" * decimals
@@ -81,8 +81,8 @@ class MissingModels(Exception):
         self.filename = filename
 
     def __str__(self):
-        return "Missing models in file {}: ".format(self.filename) + ", ".join(
-            ["{:d}".format(x) for x in self.models]
+        return f"Missing models in file {self.filename}: " + ", ".join(
+            [f"{x:d}" for x in self.models]
         )
 
 
@@ -96,8 +96,8 @@ class RecordVersionMismatch(Exception):
         self.filename = filename
 
     def __str__(self):
-        return "Missing models in file {}: ".format(self.filename) + ", ".join(
-            ["{:d}".format(x) for x in self.models]
+        return f"Missing models in file {self.filename}: " + ", ".join(
+            [f"{x:d}" for x in self.models]
         )
 
 

@@ -131,7 +131,7 @@ def abuplot(
 
         fielddata = np.copy(db.fielddata)
         field_names = list(fielddata.dtype.names)
-        indexstring = "{}: ".format(index)
+        indexstring = f"{index}: "
         labelfields = []
         for col, name in enumerate(field_names):
             if name == "energy":
@@ -151,9 +151,7 @@ def abuplot(
                 numformat = "{}"
             labelfields += [("{} = " + numformat).format(name, fielddata[index][col])]
 
-        labels += [
-            indexstring + ", ".join(labelfields) + ", dilution = {:4.2f}".format(offset)
-        ]
+        labels += [indexstring + ", ".join(labelfields) + f", dilution = {offset:4.2f}"]
 
         if not nomix:
             texlabels += [

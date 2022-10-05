@@ -16,10 +16,9 @@ c$$$      real*8, parameter :: sqrt2 = 1.4142135623730950488d0
       real*8, parameter :: sqrpi = 1.d0 / sqr2pi
       real*8, parameter :: sqrt2 = sqrt(2.d0)
 
-c     these next two are used for comparison, not calculation, they do not 
-c     need to be as precise as the above 
+c     these next two are used for comparison, not calculation, they do not
+c     need to be as precise as the above
 
       real*8, parameter :: thrsh = 0.67448975d0
 c$$$      real*8, parameter :: root32 = 5.65685424949238058d0
       real*8, parameter :: root32 = sqrt(32.d0)
-

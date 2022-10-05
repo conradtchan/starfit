@@ -17,7 +17,7 @@ def version2human(version, strip=True):
     vr = vr - 10000 * v1
     v2 = vr // 100
     v3 = vr - v2 * 100
-    s = "{:2d}.{:02d}.{:02d}".format(v1, v2, v3)
+    s = f"{v1:2d}.{v2:02d}.{v3:02d}"
     if strip:
         s = s.strip()
     return s

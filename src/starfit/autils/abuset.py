@@ -73,10 +73,10 @@ class IonList(object):
 
     # copy from IonList:
     def __str__(self):
-        return "[{}]".format(",".join((str(i) for i in self._ions)))
+        return f"[{','.join(str(i) for i in self._ions)}]"
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, str(self))
+        return f"{self.__class__.__name__}({str(self)})"
 
     def __getitem__(self, index):
         return self._ions[index]
@@ -167,10 +167,10 @@ class IonSet(object):
         self._ions = np.unique(self._ions)
 
     def __str__(self):
-        return "[{}]".format(",".join((str(i) for i in self._ions)))
+        return f"[{','.join(str(i) for i in self._ions)}]"
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, str(self))
+        return f"{self.__class__.__name__}({str(self)})"
 
     def __getitem__(self, index):
         return self._ions[index]
@@ -203,7 +203,7 @@ class Abu(object):
         self.abu = np.float64(abu)
 
     def __str__(self):
-        return "{!s}:{:>12.5f}".format(self.ion, self.abu)
+        return f"{self.ion!s}:{self.abu:>12.5f}"
 
     def X(self):
         return self.abu
@@ -542,7 +542,7 @@ class AbuSet(Logged):
         sorted=False,
         sentinel=None,
         comp=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize abundance set.
@@ -612,10 +612,7 @@ class AbuSet(Logged):
         return (
             "abu("
             + ", ".join(
-                [
-                    "{:s}: {:8G}".format(iso.Name(), abu)
-                    for iso, abu in zip(self.iso, self.abu)
-                ]
+                [f"{iso.Name():s}: {abu:8G}" for iso, abu in zip(self.iso, self.abu)]
             )
             + ")"
         )
@@ -687,7 +684,7 @@ class AbuSet(Logged):
                     mixture = xdata[1]
                     if self.mixture is None:
                         self.mixture = mixture
-                        self.logger.info('Loading mixture "{:s}".'.format(self.mixture))
+                        self.logger.info(f'Loading mixture "{self.mixture:s}".')
                     if self.mixture == mixture:
                         if xnum < 3:
                             continue
@@ -716,7 +713,7 @@ class AbuSet(Logged):
             self.logger_file_info(f)
             self.comment += (
                 "",
-                'Generated from file "{:s}".'.format(filename),
+                f'Generated from file "{filename:s}".',
                 "Original file comments follow:",
                 "",
             )
@@ -735,7 +732,7 @@ class AbuSet(Logged):
                 else:
                     self.comment += (line[2:].rstrip(),)
         self.filename = filename
-        message = "{:3d} isotopes loaded in".format(len(self.iso))
+        message = f"{len(self.iso):3d} isotopes loaded in"
         self.close_logger(timing=message)
 
     def _new_order(self):
@@ -843,7 +840,7 @@ class AbuSet(Logged):
                 add = True
                 if n == 2:
                     if (A > netw[Z, 0, 1]) and (A < netw[Z, 1, 0]):
-                        self.logger.error("{:s} inside required gap.".format(i.name()))
+                        self.logger.error(f"{i.name():s} inside required gap.")
                         add = False
                 if add:
                     iso[niso] = i
@@ -868,39 +865,32 @@ class AbuSet(Logged):
             f = outfile
 
         f.write(card_cmt + " COMPUTER-GENERATED BURN GENERATOR FILE\n")
-        f.write(card_cmt + " VERSION {:s}".format(version2human(version)) + "\n")
+        f.write(card_cmt + f" VERSION {version2human(version):s}" + "\n")
         f.write(card_cmt + " " + time.asctime(time.gmtime()) + " UTC\n")
         f.write(card_cmt + "\n")
 
         for c in self.comment:
-            f.write("{:s} {:s}\n".format(card_cmt, c))
+            f.write(f"{card_cmt:s} {c:s}\n")
         f.write(card_cmt + "\n")
-        f.write(card_cmt + " define network (Z_max = {:d})\n".format(zmax - 1))
+        f.write(card_cmt + f" define network (Z_max = {zmax - 1:d})\n")
         for i in range(zmax):
             nc = netw_count[i]
             if nc > 0:
                 c = " ".join(["{:3d} {:3d}".format(*netw[i, j, :]) for j in range(nc)])
-                f.write(
-                    "{:s} {:d} {:2s} {:s}\n".format(
-                        card_ntw,
-                        net,
-                        isotope.elements[i],
-                        c,
-                    )
-                )
+                f.write(f"{card_ntw:s} {net:d} {isotope.elements[i]:2s} {c:s}\n")
         f.write(card_cmt + "\n")
         f.write(card_cmt + " define composition " + mixture + "\n")
         for i, a in zip(iso, abu):
-            f.write("{:s} {:s} {:14.8E} {:s}\n".format(card_mix, mixture, a, i.name()))
+            f.write(f"{card_mix:s} {mixture:s} {a:14.8E} {i.name():s}\n")
         f.write(card_cmt + "\n")
         f.write(card_cmt + " specify grid composition (homogeneous star)\n")
         f.write(card_cmt + ' NOTE: call only after all "g" cards in main generator\n')
-        f.write("{:s} {:d} {:s}\n".format(card_grd, net, mixture))
+        f.write(f"{card_grd:s} {net:d} {mixture:s}\n")
 
         if not isinstance(outfile, io.IOBase):
             f.close()
 
-        self.close_logger(timing='BURN generator written to "{:s}" in'.format(f.name))
+        self.close_logger(timing=f'BURN generator written to "{f.name:s}" in')
 
     def write_dat(self, outfile, overwrite=False, silent=False):
         """
@@ -925,22 +915,22 @@ class AbuSet(Logged):
             f = outfile
 
         f.write(card_cmt + " COMPUTER-GENERATED ABUNDANCE DATA FILE\n")
-        f.write(card_cmt + " VERSION {:s}".format(version2human(version)) + "\n")
+        f.write(card_cmt + f" VERSION {version2human(version):s}" + "\n")
         f.write(card_cmt + " " + time.asctime(time.gmtime()) + " UTC\n")
         f.write(card_cmt + "\n")
 
         for c in self.comment:
-            f.write("{:s} {:s}\n".format(card_cmt, c))
+            f.write(f"{card_cmt:s} {c:s}\n")
         f.write(card_cmt + "\n")
         f.write(
             card_cmt
             + "----------------------------------------------------------------------\n"
         )
         for i, a in zip(self.iso, self._X()):
-            f.write("{:6s} {:13.7E}\n".format(i.name(), a))
+            f.write(f"{i.name():6s} {a:13.7E}\n")
         if not isinstance(outfile, io.IOBase):
             f.close()
-        self.close_logger(timing='"{:s}" written in'.format(f.name))
+        self.close_logger(timing=f'"{f.name:s}" written in')
 
     # some property routines
     # ** TODO replace with isotope.Ion.ufunc_* routines
@@ -1124,7 +1114,7 @@ class AbuSet(Logged):
                 self.isotones_Abu,
             ]
         else:
-            raise ValueError("Invalid Data request: '{}'.".format(data))
+            raise ValueError(f"Invalid Data request: '{data}'.")
 
         # selection setup
         if selection is None:
@@ -1239,7 +1229,7 @@ class AbuSet(Logged):
         mode=None,
         missing=np.nan,
         return_selection=False,
-        **kwargs
+        **kwargs,
     ):
         if data is None:
             data = self.abu
@@ -1270,7 +1260,7 @@ class AbuSet(Logged):
                 check=check,
                 convert=convert,
                 missing=missing,
-                **kwargs
+                **kwargs,
             )
         if return_selection:
             if selection is None:

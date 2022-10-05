@@ -58,9 +58,7 @@ class Loader(Logged):
                 # should this be done with a logger?
                 if not kwargs.get("silent", silent):
                     self.logger.error(
-                        ' [{:s}] ERROR: File "{:s}" not found.'.format(
-                            self.name, filename
-                        )
+                        f' [{self.name:s}] ERROR: File "{filename:s}" not found.'
                     )
         # Maybe this should be done as part of the FortranRead class...
         compression_types = ("", ".gz", ".xz", ".bz2")
@@ -76,7 +74,7 @@ class Loader(Logged):
                 return None
             from tkinter.filedialog import askopenfilename
 
-            fd_args = {"title": "Choose {} file".format(self.name)}
+            fd_args = {"title": f"Choose {self.name} file"}
             if len(args) > 0:
                 p = os.path.expanduser(os.path.expandvars(args[0]))
                 if os.path.isdir(p):
@@ -97,9 +95,7 @@ class Loader(Logged):
         try:
             return self.c(*args, **kwargs)
         except IOError:
-            self.logger.error(
-                ' [{:s}] ERROR Loading File "{:s}".'.format(self.name, filename)
-            )
+            self.logger.error(f' [{self.name:s}] ERROR Loading File "{filename:s}".')
             return None
 
 
