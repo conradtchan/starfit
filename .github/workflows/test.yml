@@ -19,7 +19,7 @@ jobs:
     - name: install starfit
       run: |
         ./download-data.sh
-        pip install .
+        pip install .[testing]
 
     - name: run pytest
       run: pytest
