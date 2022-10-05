@@ -62,3 +62,6 @@ To make the same plots as the web version:
 ```
 s.plot()
 ```
+
+# Publishing to PyPI
+Github releases will automatically be published to https://pypi.org/project/starfit/
