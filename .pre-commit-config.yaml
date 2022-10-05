@@ -4,8 +4,8 @@ repos:
     rev: v4.3.0
     hooks:
       - id: check-merge-conflict
-      # - id: no-commit-to-branch
-      #   args: [--branch, master]
+      - id: no-commit-to-branch
+        args: [--branch, master]
       - id: check-yaml
       - id: detect-private-key
       - id: end-of-file-fixer
