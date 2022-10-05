@@ -1,4 +1,4 @@
-name: pre-commit
+name: Git pre-commit checks
 
 on:
   pull_request:
