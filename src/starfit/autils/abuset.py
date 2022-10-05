@@ -28,7 +28,7 @@ class IonList(object):
     """
 
     def __init__(self, ions):
-        self._ions = np.array((), dtype=np.object)
+        self._ions = np.array((), dtype=object)
         self.add(ions)
 
     def add(self, ions=None):
@@ -113,7 +113,7 @@ class IonSet(object):
     """
 
     def __init__(self, *args, **kwargs):
-        self._ions = np.array((), dtype=np.object)
+        self._ions = np.array((), dtype=object)
         self._sort = kwargs.get("sort", True)
         self._type = kwargs.get("type", None)
         assert self._type is None or not issubclass(
@@ -577,11 +577,11 @@ class AbuSet(Logged):
             self.iso, self.abu = self._ion_abu_from_dict(**iso)
         elif iso is None:
             assert abu is None, "Need isotope name"
-            self.iso = np.array([], dtype=np.object)
+            self.iso = np.array([], dtype=object)
             self.abu = np.array([], dtype=np.float64)
         else:
             self.iso = np.array(
-                [isotope.Ion(i) for i in np.atleast_1d(iso)], dtype=np.object
+                [isotope.Ion(i) for i in np.atleast_1d(iso)], dtype=object
             )
             if abu is not None:
                 self.abu = np.array(np.atleast_1d(abu), dtype=np.float64)
@@ -598,7 +598,7 @@ class AbuSet(Logged):
         # todo: add sorting?
         # todo: check uniqueness
         return (
-            np.array([isotope.Ion(i) for i in kwargs.keys()], dtype=np.object),
+            np.array([isotope.Ion(i) for i in kwargs.keys()], dtype=object),
             np.array(list(kwargs.values()), dtype=np.float64),
         )
 
@@ -669,7 +669,7 @@ class AbuSet(Logged):
         self.setup_logger(silent=silent)
         self.comment = stuple(self.comment)
         xre = re.compile("[-+a-zA-Z0-9.]+")
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.abu = np.array([], dtype=np.float64)
         with open(file_name, "r") as f:
             self.logger_file_info(f)
@@ -707,7 +707,7 @@ class AbuSet(Logged):
         self.setup_logger(silent=silent)
         self.comment = stuple(self.comment)
         xre = re.compile("[-+a-zA-Z0-9.]+")
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.abu = np.array([], dtype=np.float64)
         with open(filename, "r") as f:
             self.logger_file_info(f)
@@ -1705,7 +1705,7 @@ class AbuSet(Logged):
         else:
             # # SLOW
             # return np.array([i in self for i in iso],
-            #                 dtype=np.bool)
+            #                 dtype=bool)
             if isinstance(iso, AbuSet):
                 iso = iso.iso
             return self._in1d(iso, self.iso)

@@ -84,7 +84,7 @@ class Star(Logged):
         # Initialize numpy array of size
         data_array = np.recarray(
             (len(data_list),),
-            dtype=[("element", np.object), ("abundance", "f8"), ("error", "f8")],
+            dtype=[("element", object), ("abundance", "f8"), ("error", "f8")],
         )
         # i lines, j elements on each line
         for i, line in enumerate(data_list):
@@ -234,7 +234,7 @@ class Star(Logged):
         self.logger.info("Adding BBN upper limits of H and He into star data")
 
         BBN_abundances = np.recarray(
-            (2,), dtype=[("element", np.object), ("abundance", "f8"), ("error", "f8")]
+            (2,), dtype=[("element", object), ("abundance", "f8"), ("error", "f8")]
         )
         self.BBN_data
         for i, entry in enumerate(BBN_abundances):
@@ -247,7 +247,7 @@ class Star(Logged):
         # Make new recarray that has 2 extra places
         self.element_abundances = np.recarray(
             (2 + self.element_abundances.shape[0],),
-            dtype=[("element", np.object), ("abundance", "f8"), ("error", "f8")],
+            dtype=[("element", object), ("abundance", "f8"), ("error", "f8")],
         )
 
         self.element_abundances[0:2] = BBN_abundances

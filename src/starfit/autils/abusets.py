@@ -45,7 +45,7 @@ class SolAbu(AbuSet):
         if name is None:
             name = self.default
 
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.abu = np.array([], dtype=np.float64)
         self.comment = ()
         self._load_abu(self.path(name, self.default_sets))
@@ -276,7 +276,7 @@ class Asplund2009Data(AbuSet):
         comment = tuple(comment)
 
         xre = re.compile("[-+a-zA-Z0-9.]+")
-        iso = np.array([], dtype=np.object)
+        iso = np.array([], dtype=object)
         abu = np.array([], dtype=np.float64)
 
         filename = os.path.expanduser(filename)
@@ -348,7 +348,7 @@ class Mass(Logged):
         filename = os.path.join(path, "masses_audi_2003.dat")
 
         self.comment = ()
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.mass = np.array([], dtype=np.float64)
 
         xre = re.compile("[-+a-zA-Z0-9.]+")

@@ -1332,90 +1332,88 @@ class Ion(object, metaclass=MetaSingletonHash):
             and (self.E == 1)
         )
 
-    ufunc_A = lambda y: np.array(np.frompyfunc(lambda x: x.A, 1, 1)(y), dtype=np.int)
-    ufunc_Z = lambda y: np.array(np.frompyfunc(lambda x: x.Z, 1, 1)(y), dtype=np.int)
-    ufunc_N = lambda y: np.array(np.frompyfunc(lambda x: x.N, 1, 1)(y), dtype=np.int)
-    ufunc_E = lambda y: np.array(np.frompyfunc(lambda x: x.E, 1, 1)(y), dtype=np.int)
-    ufunc_F = lambda y: np.array(np.frompyfunc(lambda x: x.F, 1, 1)(y), dtype=np.int)
+    ufunc_A = lambda y: np.array(np.frompyfunc(lambda x: x.A, 1, 1)(y), dtype=int)
+    ufunc_Z = lambda y: np.array(np.frompyfunc(lambda x: x.Z, 1, 1)(y), dtype=int)
+    ufunc_N = lambda y: np.array(np.frompyfunc(lambda x: x.N, 1, 1)(y), dtype=int)
+    ufunc_E = lambda y: np.array(np.frompyfunc(lambda x: x.E, 1, 1)(y), dtype=int)
+    ufunc_F = lambda y: np.array(np.frompyfunc(lambda x: x.F, 1, 1)(y), dtype=int)
     ufunc_B = np.frompyfunc(lambda x: x.B, 1, 1)  # these may be larger than int64
 
     ufunc_isomer = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isomer(), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: x.isomer(), 1, 1)(y), dtype=object
     )
     ufunc_isotope = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isotope(), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: x.isotope(), 1, 1)(y), dtype=object
     )
     ufunc_element = lambda y: np.array(
-        np.frompyfunc(lambda x: x.element(), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: x.element(), 1, 1)(y), dtype=object
     )
     ufunc_isobar = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isobar(), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: x.isobar(), 1, 1)(y), dtype=object
     )
     ufunc_isotone = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isotone(), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: x.isotone(), 1, 1)(y), dtype=object
     )
 
     ufunc_isomer_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isomer().idx, 1, 1)(y), dtype=np.int
+        np.frompyfunc(lambda x: x.isomer().idx, 1, 1)(y), dtype=int
     )
     ufunc_isotope_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isotope().idx, 1, 1)(y), dtype=np.int
+        np.frompyfunc(lambda x: x.isotope().idx, 1, 1)(y), dtype=int
     )
     ufunc_element_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.element().idx, 1, 1)(y), dtype=np.int
+        np.frompyfunc(lambda x: x.element().idx, 1, 1)(y), dtype=int
     )
     ufunc_isobar_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isobar().idx, 1, 1)(y), dtype=np.int
+        np.frompyfunc(lambda x: x.isobar().idx, 1, 1)(y), dtype=int
     )
     ufunc_isotone_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.isotone().idx, 1, 1)(y), dtype=np.int
+        np.frompyfunc(lambda x: x.isotone().idx, 1, 1)(y), dtype=int
     )
 
     ufunc_is_ion = lambda y: np.array(
-        np.frompyfunc(lambda x: isinstance(x, Ion), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: isinstance(x, Ion), 1, 1)(y), dtype=bool
     )
 
     ufunc_is_lepton = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_lepton(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_lepton(), 1, 1)(y), dtype=bool
     )
     ufunc_is_isotope = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_isotope(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_isotope(), 1, 1)(y), dtype=bool
     )
     ufunc_is_isobar = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_isobar(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_isobar(), 1, 1)(y), dtype=bool
     )
     ufunc_is_isotone = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_isotone(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_isotone(), 1, 1)(y), dtype=bool
     )
     ufunc_is_element = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_element(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_element(), 1, 1)(y), dtype=bool
     )
     ufunc_is_isomer = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_isomer(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_isomer(), 1, 1)(y), dtype=bool
     )
     ufunc_is_hadron = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_hadron(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_hadron(), 1, 1)(y), dtype=bool
     )
     ufunc_is_nucleus = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_nucleus(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_nucleus(), 1, 1)(y), dtype=bool
     )
     ufunc_is_photon = lambda y: np.array(
-        np.frompyfunc(lambda x: x.is_photon(), 1, 1)(y), dtype=np.bool
+        np.frompyfunc(lambda x: x.is_photon(), 1, 1)(y), dtype=bool
     )
 
     ufunc_type = lambda y: np.array(
         np.frompyfunc(lambda x: x.type, 1, 1)(y), dtype=np.str
     )
 
-    ufunc_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: x.idx, 1, 1)(y), dtype=np.int
-    )
+    ufunc_idx = lambda y: np.array(np.frompyfunc(lambda x: x.idx, 1, 1)(y), dtype=int)
 
     ufunc_ion = lambda y: np.array(
-        np.frompyfunc(lambda x: Ion(x), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: Ion(x), 1, 1)(y), dtype=object
     )
     ufunc_ion_from_idx = lambda y: np.array(
-        np.frompyfunc(lambda x: Ion(idx=x), 1, 1)(y), dtype=np.object
+        np.frompyfunc(lambda x: Ion(idx=x), 1, 1)(y), dtype=object
     )
 
     @CachedAttribute
@@ -1515,7 +1513,7 @@ def ionarr(arr):
         arr = re.split("[^-0-9a-zA-Z*]+", arr)
     if not isinstance(arr, Iterable):
         arr = (arr,)
-    return np.array([Ion(a) for a in arr], dtype=np.object)
+    return np.array([Ion(a) for a in arr], dtype=object)
 
 
 # the following classes need to be fleshed out and used consequnetly

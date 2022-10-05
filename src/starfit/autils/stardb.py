@@ -298,7 +298,7 @@ class StarDB(AbuData, Logged):
         self.dtype_u8 = np.dtype(np.uint64)
         self.dtype_f8 = np.dtype(np.float64)
 
-        self.dtypes = np.zeros(len(self.type_names), dtype=np.object)
+        self.dtypes = np.zeros(len(self.type_names), dtype=object)
         self.dtypes[
             [
                 self.Type.float64,
@@ -366,8 +366,8 @@ class StarDB(AbuData, Logged):
         self.version = self.current_version
 
         self.name = kwargs.get("name", None)
-        self.comments = kwargs.get("comments", np.array([], dtype=np.object))
-        self.comments = np.array(self.comments, dtype=np.object)
+        self.comments = kwargs.get("comments", np.array([], dtype=object))
+        self.comments = np.array(self.comments, dtype=object)
         self.comments = np.append(self.comments, f"UUID: {UUID1()}")
 
         self.ions = kwargs.get("ions", None)
@@ -394,13 +394,13 @@ class StarDB(AbuData, Logged):
         self.fieldflags = kwargs.get("fieldflags", None)
 
         if self.fieldnames is None:
-            self.fieldnames = np.array(self.fielddata.dtype.names, dtype=np.object)
+            self.fieldnames = np.array(self.fielddata.dtype.names, dtype=object)
         else:
-            self.fieldnames = np.array(self.fieldnames, dtype=np.object)
+            self.fieldnames = np.array(self.fieldnames, dtype=object)
         if self.fieldunits is None:
-            self.fieldunits = np.array([""] * self.nfield, dtype=np.object)
+            self.fieldunits = np.array([""] * self.nfield, dtype=object)
         else:
-            self.fieldunits = np.array(self.fieldunits, dtype=np.object)
+            self.fieldunits = np.array(self.fieldunits, dtype=object)
         if self.fieldflags is None:
             self.fieldflags = np.array([0] * self.nfield, dtype=np.uint64)
         else:
@@ -419,9 +419,9 @@ class StarDB(AbuData, Logged):
         else:
             self.fieldtypes = np.array(self.fieldtypes, dtype=np.uint64)
         if self.fieldformats is None:
-            self.fieldformats = np.array(["8.2G"] * self.nfield, dtype=np.object)
+            self.fieldformats = np.array(["8.2G"] * self.nfield, dtype=object)
         else:
-            self.fieldformats = np.array(self.fieldformats, dtype=np.object)
+            self.fieldformats = np.array(self.fieldformats, dtype=object)
 
         assert self.nfield == len(self.fieldnames)
         assert self.nfield == len(self.fieldunits)
@@ -694,11 +694,11 @@ class StarDB(AbuData, Logged):
         loadlen = strlen + 7 - np.mod(strlen + 7, 8)
         maxlen = int(strlen.max())
         if maxlen == 0:
-            value = np.ndarray(dim, dtype=np.object)
+            value = np.ndarray(dim, dtype=object)
             value.reshape(-1)[:] = ""
             return value
         buf = self.file.read(int(loadlen.sum()))
-        value = np.ndarray(dim, dtype=np.object)
+        value = np.ndarray(dim, dtype=object)
         # need check byteswap?
         first = np.ndarray(n_elements, dtype=np.uint64)
         first[0] = 0
@@ -1205,7 +1205,7 @@ class StarDB(AbuData, Logged):
 
     def _compute_index(self, array_limit=2**24):
         nindex = np.ndarray((self.nfield, self.nstar), dtype=np.uint64)
-        vindex = np.ndarray((self.nfield,), dtype=np.object)
+        vindex = np.ndarray((self.nfield,), dtype=object)
         imax = np.ndarray((self.nfield,), dtype=np.uint64)
         for ifield in range(self.nfield):
             vindex[ifield] = scipy.sparse.lil_matrix(
