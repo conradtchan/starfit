@@ -11,6 +11,10 @@ jobs:
     steps:
         - uses: actions/checkout@master
 
+        - name: Download data files
+          run: |
+            ./download-data.sh
+
         - name: Set up Python
           uses: actions/setup-python@v3
           with:
