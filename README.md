@@ -82,5 +82,8 @@ and include these changes in a follow-up commit.
 
 2. Code tests using `pytest`. New tests can be added to the `tests/` directory.
 
+## Adding new data files
+Data files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files, add them to the web server hosting the data files, generate the hash using `shasum`, and add an entry into the hash list.
+
 # Publishing to PyPI
 Github releases will automatically be published to https://pypi.org/project/starfit/
