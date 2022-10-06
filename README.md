@@ -1,11 +1,15 @@
-Python package for matching stellar abundance measurements against a database of model stellar explosions. Can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
+Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/).
+
+StarFit can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
 
 # Installation
+Tested with Python 3.10
+
 ## From PyPI (recommended)
 ```
 pip install starfit
 ```
-The PyPI includes the necessary data files.
+The PyPI package includes the necessary data files.
 
 ## From git repo
 The data files are not included into the Git repo, and must first be downloaded from the web-server before installing from the Git repo.
@@ -65,6 +69,55 @@ list( zip(s.list_db, s.full_abudata[:,i_bestfit]) )
 To make the same plots as the web version:
 ```
 s.plot()
+```
+
+`starfit.Double` fits an abundance pattern to a combination of two models from the database. This takes approximately 1 hour, depending on your machine.
+
+Additional arguments:
+- `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
+```
+s = starfit.Single(
+    filename = 'HE1327-2326.dat',
+    db = 'znuc2012.S4.star.el.y.stardb.gz',
+    combine = [[6, 7, 8]],
+    z_max = 30,
+    z_exclude = [3, 24, 30],
+    z_lolim = [21, 29],
+    upper_lim = True,
+    cdf = True,
+    fixed = False,
+)
+```
+
+`starfit.Ga` fits an abundance pattern to a combination of two or more models from the database. The solution is approximate, but approaches the best solution with increased run time.
+
+Additional arguments:
+- `time_limit`: amount of time (in seconds) to search for solution
+- `sol_size`: number of explosion models to find combinations of
+- `pop_size`: GA parameter - number of solutions in the population
+- `tour_size`: GA parameter - number of solutions per tournament selection
+- `frac_mating_pool`: GA parameter - fraction of solutions in the mating pool
+- `frac_elite`: GA parameter - top fraction of elite solutions
+- `mut_rate_index`: GA parameter - mutation rate of the database index
+- `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
+- `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
+- `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
+
+The default GA parameters should be used unless you really know what you are doing.
+
+```
+s = starfit.Ga(
+    filename = 'HE1327-2326.dat',
+    db = 'znuc2012.S4.star.el.y.stardb.gz',
+    combine = [[6, 7, 8]],
+    z_max = 30,
+    z_exclude = [3, 24, 30],
+    z_lolim = [21, 29],
+    upper_lim = True,
+    cdf = True,
+    time_limit=20,
+    sol_size=3,
+)
 ```
 
 # Contributing to StarFit
