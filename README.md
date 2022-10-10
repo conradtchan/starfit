@@ -6,6 +6,8 @@ Python package for matching stellar abundance measurements against a database of
 
 StarFit can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
 
+An online interface (with a subset of functionality) is available at [starfit.org](https://starfit.org).
+
 # Installation
 Tested with Python 3.10
 
@@ -17,11 +19,23 @@ pip install starfit
 ```
 The PyPI package includes the necessary data files.
 
-## From git repo
+## Developer instructions
 The data files are not included into the Git repo, and must first be downloaded from the web-server before installing from the Git repo.
 ```
+git clone git@github.com:conradtchan/starfit.git
+cd starfit
+
+# Download data files
 ./download-data.sh
-pip install .
+
+# Set environment variable to allow for editable installs
+export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
+
+# "-e" creates an editable install, "[testing]" installs additional dependencies for testing
+pip install -e .[testing]
+
+# Run all tests
+python -m pytest
 ```
 
 # Usage
@@ -82,7 +96,7 @@ s.plot()
 Additional arguments:
 - `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
 ```
-s = starfit.Single(
+s = starfit.Double(
     filename = 'HE1327-2326.dat',
     db = 'znuc2012.S4.star.el.y.stardb.gz',
     combine = [[6, 7, 8]],
