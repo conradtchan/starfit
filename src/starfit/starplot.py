@@ -1,10 +1,19 @@
 """Various plotting routines"""
 
+from distutils.spawn import find_executable
 from itertools import cycle
 
 import matplotlib as mpl
 
-mpl.rc("text", usetex=True)
+if find_executable("latex"):
+    mpl.rc("text", usetex=True)
+else:
+    print(
+        "\nWarning: LaTeX installation not found. Reverting to use of 'mathtext' for plots.\n"
+    )
+    mpl.rc("font", family="serif")
+    mpl.rc("font", serif=["DejaVu Serif", "Computer Modern Roman"])
+    mpl.rc("mathtext", fontset="cm")
 
 import colorsys
 
@@ -103,7 +112,7 @@ def abuplot(
         ax.text(
             0.01,
             0.01,
-            r"\copyright\,www.StarFit.org",
+            r"$\copyright$ www.StarFit.org",
             size="x-small",
             horizontalalignment="left",
             verticalalignment="bottom",
@@ -155,7 +164,7 @@ def abuplot(
 
         if not nomix:
             texlabels += [
-                r"${}\,\mathrm{{M}}_\odot$, ${}\,\mathrm{{B}}$, \,$\log(f_\mathrm{{mix}})={}$".format(
+                r"${} \mathrm{{M}}_\odot$, ${} \mathrm{{B}}$, $\log(f_\mathrm{{mix}})={}$".format(
                     mass_string(fielddata[index]["mass"]),
                     round(fielddata[index]["energy"], 2),
                     round(fielddata[index]["mixing"], 4),
@@ -163,7 +172,7 @@ def abuplot(
             ]
         else:
             texlabels += [
-                r"${}\,\mathrm{{M}}_\odot$, ${}\,\mathrm{{B}}$, \,$\mathrm{{no\ mixing}}$".format(
+                r"${} \mathrm{{M}}_\odot$, ${} \mathrm{{B}}$, $\mathrm{{no\ mixing}}$".format(
                     mass_string(fielddata[index]["mass"]),
                     round(fielddata[index]["energy"], 2),
                 )
