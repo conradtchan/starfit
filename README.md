@@ -121,7 +121,7 @@ s = starfit.Ga(
 ```
 
 # Custom data directory
-Users may optionally specify their own data directory using the environment variable `STARFIT_DATA`:
+Custom stellar data and model database files can always be used by providing a full path in the argument. However, users may optionally specify their own data directory using the environment variable `STARFIT_DATA` for convenience:
 ```
 export STARFIT_DATA='/your/custom/data'
 ```
@@ -132,6 +132,9 @@ db
 ref
 stars
 ```
+Specifying a custom data directory will cause the default data directory to be ignored. This behaviour is intended to prevent ambiguity between file versions. Users opting to use a custom data directory are responsible for managing all of their own versions of data files.
+
+If only one (or a subset) of data files needs to be specified, the default files should be copied from the default directory.
 
 # Contributing to StarFit
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions. Two automated checks (on Github Actions) must be passed:
