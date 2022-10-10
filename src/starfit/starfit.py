@@ -110,7 +110,7 @@ class Results(Logged):
 
         # Prepare the sun
         sun = abusets.SolAbu(
-            name=os.path.join(DATA_DIR, "ref/solas09_sol_surf_present.dat"),
+            name=os.path.join(DATA_DIR, "ref/sollo22.dat"),
             silent=self.silent,
         )
         # Transforms the uncombined element numbers for use in the sun
