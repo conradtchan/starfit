@@ -26,7 +26,7 @@ git clone git@github.com:conradtchan/starfit.git
 cd starfit
 
 # Download data files
-./download-data.sh   
+./download-data.sh
 
 # Set environment variable to allow for editable installs
 export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
