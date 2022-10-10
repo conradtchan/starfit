@@ -1,5 +1,6 @@
 *.dat
 *.gz
+*.xz
 *.DS_Store
 /build/
 /src/starfit.egg-info
