@@ -5,15 +5,26 @@ from itertools import cycle
 
 import matplotlib as mpl
 
-if find_executable("latex"):
+found_latex = find_executable("latex")
+found_dvipng = find_executable("dvipng")
+
+if found_latex and found_dvipng:
     mpl.rc("text", usetex=True)
 else:
-    print(
-        "\nWarning: LaTeX installation not found. Reverting to use of 'mathtext' for plots.\n"
-    )
     mpl.rc("font", family="serif")
     mpl.rc("font", serif=["DejaVu Serif", "Computer Modern Roman"])
     mpl.rc("mathtext", fontset="cm")
+
+if not found_latex:
+    print(
+        "\nWarning: LaTeX installation not found."
+        "Reverting to use of 'mathtext' for plots.\n"
+    )
+if not found_dvipng:
+    print(
+        "\nWarning: dvipng installation not found."
+        "Reverting to use of 'mathtext' for plots.\n"
+    )
 
 import colorsys
 
