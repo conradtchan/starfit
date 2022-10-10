@@ -1,27 +1,27 @@
 #! /bin/env python3
 
 """
-Module for huma-readable byte strings.
+Module for human-readable byte strings.
 """
 
 import sys
 
-_units = ("", "k", "M", "G", "T", "P", "E", "Z", "Y")
+from .util import _div_lim, _Prefixes
 
 
-def byte2human(size, strip=True, SI=False, short=False, length=3):
+def byte2human(size, strip=True, SI_power=False, short=False, length=3):
     """
-    Return string in human-readible format.
+    Return byte string in human-readible format.
     """
     assert 2 < length < 6, "Length out of Range"
     su = "B"
-    if SI:
+    if SI_power:
         prefix = ""
         div = 1000
     else:
         prefix = "i"
         div = 1024
-    div_lim = 1000 * (1 - 0.5 * 10 ** (-length) - 2.0e-15)
+    div_lim = _div_lim(1000)  # 1000 * (1 - 0.5 * 10**(-length) - 2.e-15)
     if short:
         prefix = ""
         su = ""
@@ -35,15 +35,16 @@ def byte2human(size, strip=True, SI=False, short=False, length=3):
     while xsize > div_lim:
         xsize /= div
         i += 1
+    rnd_fac = 1 - 0.5 * 10 ** (-length + 1) - 2.0e-15
     if length == 3:
-        rnd_lim = 10 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
+        rnd_lim = 10 * rnd_fac
         if (xsize >= rnd_lim) or (i == 0):
             sv = f"{int(round(xsize)):3d}"
         else:
             sv = f"{xsize:3.1f}"
     elif length == 4:
-        rnd_lim1 = 100 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
-        rnd_lim2 = 10 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
+        rnd_lim1 = 100 * rnd_fac
+        rnd_lim2 = 10 * rnd_fac
         if (xsize >= rnd_lim1) or (i == 0):
             sv = f"{int(round(xsize)):4d}"
         elif xsize >= rnd_lim2:
@@ -51,9 +52,9 @@ def byte2human(size, strip=True, SI=False, short=False, length=3):
         else:
             sv = f"{xsize:4.2f}"
     elif length == 5:
-        rnd_lim1 = 1000 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
-        rnd_lim2 = 100 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
-        rnd_lim3 = 10 * (1 - 0.5 * 10 ** (-length + 1) - 2.0e-15)
+        rnd_lim1 = 1000 * rnd_fac
+        rnd_lim2 = 100 * rnd_fac
+        rnd_lim3 = 10 * rnd_fac
         if i > 0 and 999 < round(xsize * div) < div:
             xsize *= div
             i -= 1
@@ -70,9 +71,9 @@ def byte2human(size, strip=True, SI=False, short=False, length=3):
     else:
         raise Exception("Length out of Range")
 
-    if i >= len(_units):
+    if i >= len(_Prefixes):
         sv = "*" * length
-    unit = _units[i]
+    unit = _Prefixes[i]
     if i >= 1:
         unit += prefix
     unit = unit + su

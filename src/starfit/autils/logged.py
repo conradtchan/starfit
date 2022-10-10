@@ -7,12 +7,28 @@ import io
 import logging
 import os
 import re
+import time
 from datetime import datetime, timedelta
 
+try:
+    import resource
+except ModuleNotFoundError:
+    # You are using Windows, tough luck
+    class _use:
+        ru_utime = 0.0
+        ru_stime = 0.0
+
+    class resource:
+        @staticmethod
+        def getusage(*args, **kwargs):
+            return _use()
+
+
+import numpy as np
+
+# from fortranfile import FortranReader
 from . import utils
-from .byte2human import byte2human
-from .time2human import time2human
-from .version2human import version2human
+from .human import byte2human, time2human, version2human
 
 
 class Timer(object):
@@ -26,12 +42,17 @@ class Timer(object):
     def _get_time(self):
         return datetime.now()
 
+    def _get_zero_time(self):
+        return timedelta()
+
     def start(self):
         """
         start timer
         """
         assert not self._running
-        assert self._time_offset == timedelta()
+        assert np.all(
+            self._time_offset == self._get_zero_time()
+        ), "timer was run before; use restart"
         self._running = True
         self._time = self._get_time()
 
@@ -47,7 +68,7 @@ class Timer(object):
         """
         reset timer
         """
-        self._time_offset = timedelta()
+        self._time_offset = self._get_zero_time()
         self._running = False
         if start:
             self.start()
@@ -68,6 +89,24 @@ class Timer(object):
             return self._time_offset + self._get_time() - self._time
         else:
             return self._time_offset
+
+
+class ResourceTimer(Timer):
+    """
+    A resource timer
+    """
+
+    def __init__(self, start=True):
+        self.reset(start)
+
+    def _get_time(self):
+        use = resource.getrusage(resource.RUSAGE_SELF)
+        xtime = np.ndarray([time.time(), use.ru_utime, use.ru_stime, 0])
+        xtime[-1] = np.sum(xtime[1:-1])
+        return xtime
+
+    def _get_zero_time(self):
+        return np.zeros(4)
 
 
 class Timed(object):
@@ -104,19 +143,23 @@ class Timed(object):
         """
         return name in self._timers
 
+    def new_timer(self, name=None, start=True):
+        """
+        Add a new timer.  Raise if it timer exists.
+        """
+        assert not self._timers.haskey(name), f"timer {name} already exisits"
+        self._timers[name] = Timer(start)
+
     def add_timer(self, name=None, start=True):
         """
         Add a new timer.  Reset if it timer exists.
         """
-        # assert not self._timers.has_key(name)
         self._timers[name] = Timer(start)
 
     def start_timer(self, name=None):
         """
         Start timer.  Reset if it timer exists.
         """
-        # assert not self._timers.has_key(name)
-        # self.add_timer(name = name, start = True)
         if name in self._timers:
             self._timers[name].start
         else:
@@ -217,7 +260,7 @@ class Logged(Timed):
 
         Specifically, you may specify a named timer that can be used
         otherwise as well and is returned in the with statement (timer
-        name, not timer object).  This way you can have nexted timers,
+        name, not timer object).  This way you can have nested timers,
         should need be.
         """
         kw = dict(kwargs)
@@ -284,6 +327,13 @@ class Logged(Timed):
         level=None,
         format=None,
         timer=None,
+        filename=False,
+        pathname=False,
+        funcname=False,
+        linenumber=False,
+        process=False,
+        name=None,
+        classname=None,
     ):
         """
         Set up logger for output.
@@ -301,8 +351,10 @@ class Logged(Timed):
         self.logger_count += 1
         self.logger_logfile = None
         if self.logger_count == 1:
+            if "_timers" not in self.__dict__:
+                self.setup_timer()
             self._log_timers = []
-            if silent not in [None, True, False]:
+            if silent not in (None, True, False):
                 level = silent
                 silent = False
             if silent is None:
@@ -326,10 +378,27 @@ class Logged(Timed):
 
             self.logger_level = level
             self.logger = logging.getLogger(self.__class__.__name__)
-            root_logger = logging.getLogger("")
+            root_logger = logging.getLogger()
             if len(root_logger.handlers) == 0 and len(self.logger.handlers) == 0:
                 if format is None:
-                    formatter = logging.Formatter(" [%(name)s] %(message)s")
+                    info = ""
+                    if name is not None:
+                        info = name
+                        if classname is True:
+                            info = "%(name)s-" + info
+                    elif classname is not False:
+                        info = "%(name)s"
+                    if funcname:
+                        info += ".%(funcName)s"
+                    if filename:
+                        info = "%(filename)s." + info
+                    elif pathname:
+                        info = "%(pathname)s." + info
+                    if linenumber:
+                        info += ":%(lineno)d"
+                    if process:
+                        info = "%(process)d:" + info
+                    formatter = logging.Formatter(f" [{info}] %(message)s")
                 elif format == "UTC":
                     formatter = utils.UTCFormatter(
                         "%(asctime)s%(msecs)03d %(nameb)12-s %(levelname)s: %(message)s",
@@ -352,7 +421,7 @@ class Logged(Timed):
                 self.logger_handler = None
         else:
             self._log_timers += [(self._log_timer, self._timers[self._log_timer])]
-        self.setup_timer(timer)
+        self.add_timer(timer)
         self._log_timer = timer
 
     @staticmethod
@@ -368,7 +437,7 @@ class Logged(Timed):
         elif timing in (True, None):
             timing = "Runtime:"
         stime = time2human(time)
-        if len(re.findall(".*({.*}).*", timing)) == 1:
+        if len(re.findall(r"({.*})", timing)) == 1:
             s = timing.format(stime)
         else:
             s = f"{timing:s} {stime:s}."
@@ -395,15 +464,43 @@ class Logged(Timed):
         if message is not None:
             self.logger.info(message)
         self.logger_count -= 1
-        assert self.logger_count >= 0, f"logger count is {self.logger_count}"
+        assert self.logger_count >= 0, f"logger count is {self.logger_count:d}"
         if self.logger_count == 0:
             if self.logger_handler is not None:
                 self.logger.removeHandler(self.logger_handler)
             if self.logger_logfile is not None:
                 logging.shutdown()
+            del self.logger
+            del self.logger_handler
+            del self.logger_logfile
         else:
+            self.finish_timer(self._log_timer)
             self._log_timer, timer = self._log_timers.pop()
             self.replace_timer(name=self._log_timer, timer=timer)
+
+    def logger_error(self, message):
+        if hasattr(self, "logger") and self.logger is not None:
+            self.logger.error(message)
+            return
+        self.setup_logger()
+        self.logger.error(message)
+        self.close_logger()
+
+    def logger_info(self, message):
+        if hasattr(self, "logger") and self.logger is not None:
+            self.logger.info(message)
+            return
+        self.setup_logger()
+        self.logger.info(message)
+        self.close_logger()
+
+    def logger_warning(self, message):
+        if hasattr(self, "logger") and self.logger is not None:
+            self.logger.warning(message)
+            return
+        self.setup_logger()
+        self.logger.warning(message)
+        self.close_logger()
 
     def close_timer(self, timer=None, timing=None):
         """
@@ -432,11 +529,20 @@ class Logged(Timed):
         """
         Log file information.
         """
+        # if isinstance(f, FortranReader):
+        #     filename = f.filename
+        #     filesize = f.filesize
+        #     self.logger.info(f'Loading {filename!s} ({byte2human(filesize)})')
+        #     if f.compressed:
+        #         filesize = f.stat.st_size
+        #         self.logger.info(
+        #             f'Compressed file size: {byte2human(filesize)} (modulo {byte2human(2**32)} for gz)')
+        # elif isinstance(f, io.IOBase):
         if isinstance(f, io.IOBase):
             stat = os.fstat(f.fileno())
             filename = f.name
             filesize = stat.st_size
-            self.logger.info(f"Loading {filename:s} ({byte2human(filesize):s})")
+            self.logger.info(f"Loading {filename!s} ({byte2human(filesize)})")
 
     def logger_load_info(self, nvers, ncyc0, ncyc1, nmodels, time=None):
         """
@@ -449,3 +555,45 @@ class Logged(Timed):
         self.logger.info(f" last model read {int(ncyc1):>9d}")
         self.logger.info(f" num models read {int(nmodels):>9d}")
         self.logger.info(f"  data loaded in {time2human(time):>9s}")
+
+
+class logged(Logged, contextlib.ContextDecorator):
+    def __init__(self, **kwargs):
+        self.kw = dict(kwargs)
+        self.message = self.kw.pop("message", None)
+        self.timing = self.kw.pop("timing", False)
+
+    def __enter__(self):
+        self.setup_logger(**self.kw)
+
+    def __exit__(self):
+        self.close_logger(
+            message=self.message,
+            timing=self.timing,
+        )
+
+
+class timed(Logged, contextlib.ContextDecorator):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.timer = self.kw.setdefault("timer", None)
+
+
+def static_logging(func):
+    func = staticmethod(func)
+
+    class logged(Logged):
+        """
+        class to provied logging to static functions
+        """
+
+        def __call__(self, *args, **kwargs):
+            return func(*args, **kwargs)
+
+    logged.__dict__.update(func.__dict__)
+    logged.__dict__["method"] = func.__name__
+    if func.__doc__ is not None:
+        logged.__doc__ = func.__doc__ + "\n" + logged.__doc__
+    logged.__name__ = logged.__name__
+    logged.__module__ = getattr(func, "__module__")
+    return logged

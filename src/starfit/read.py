@@ -50,7 +50,7 @@ import numpy as np
 
 from . import DATA_DIR
 from .autils.abusets import BBNAbu, SolAbu
-from .autils.isotope import Ion
+from .autils.isotope import ion as I
 from .autils.logged import Logged
 
 
@@ -59,6 +59,7 @@ class Star(Logged):
     """All the data read from each file"""
 
     def __init__(self, filename, silent=False):
+        self.silent = silent
         self.setup_logger(silent=silent)
 
         if not os.path.isfile(filename):
@@ -91,13 +92,14 @@ class Star(Logged):
             for j, item in enumerate(line.split()):
                 # Set the corresponding data type
                 if j == 0:
-                    data_array[i][j] = Ion(item)
+                    data_array[i][j] = I(item)
                 else:
                     data_array[i][j] = float(item)
         return data_array
 
     # Read file
     def _read(self, filename):
+        self.setup_logger(silent=self.silent)
         with open(filename, "rt") as f:
             self.logger_file_info(f)
             # Initialize empty array for reading each line
@@ -144,7 +146,7 @@ class Star(Logged):
                 norm = int(content[n])
             except:
                 norm = content[n]
-            self.norm_element = Ion(norm)
+            self.norm_element = I(norm)
         n += 1
         # Number of elements
         self.n_elements = n_elements
@@ -231,6 +233,7 @@ class Star(Logged):
 
     def _bbn(self):
         """Adds BBN data to the star"""
+        self.setup_logger(silent=self.silent)
         self.logger.info("Adding BBN upper limits of H and He into star data")
 
         BBN_abundances = np.recarray(
@@ -238,7 +241,7 @@ class Star(Logged):
         )
         self.BBN_data
         for i, entry in enumerate(BBN_abundances):
-            entry["element"] = Ion(Z=i + 1)
+            entry["element"] = I(Z=i + 1)
             entry["abundance"] = np.log10(self.BBN_data.Y(entry["element"]))
             entry["error"] = -0.1  # This is an upper limit, 0.1 is somewhat arbitrary
 
@@ -297,7 +300,7 @@ def StarTable(
         for element in z[block * maxcolumns : block * maxcolumns + maxcolumns]:
             print(
                 r" & \multicolumn{2}{c|}{\textbf{"
-                + Ion(int(element)).element_symbol()
+                + I(int(element)).element_symbol()
                 + r"}}",
                 end="",
             )

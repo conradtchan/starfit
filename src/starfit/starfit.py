@@ -7,7 +7,7 @@ import numpy as np
 
 from . import DATA_DIR, starplot
 from .autils import abusets
-from .autils.isotope import Ion
+from .autils.isotope import ion as I
 from .autils.logged import Logged
 from .dbtrim import TrimDB as StarDB
 from .fitness import solver
@@ -128,7 +128,7 @@ class Results(Logged):
         if len(combine[0]) > 0:
             self.logger.info("Combining elements:")
             for group in combine:
-                elements = [Ion(z) for z in group]
+                elements = [I(z) for z in group]
                 for ele in elements:
                     assert (
                         ele in star.element_abundances["element"]

@@ -83,8 +83,10 @@ s.plot()
 
 Additional arguments:
 - `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
+- `threads`: Number of threads to use.  Default is t use CPU could (including hyprthreading)
+- `nice`: Nice level of background threads.  Default is 19 (lowest priority).
 ```
-s = starfit.Single(
+s = starfit.Double(
     filename = 'HE1327-2326.dat',
     db = 'znuc2012.S4.star.el.y.stardb.gz',
     combine = [[6, 7, 8]],

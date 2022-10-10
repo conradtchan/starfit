@@ -7,9 +7,10 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
+import psutil
 
+from .autils.human import time2human
 from .autils.logged import Logged
-from .autils.time2human import time2human
 from .solgen._solgen import comb, gen_slice
 from .starfit import Results
 
@@ -93,6 +94,7 @@ class Double(Results, Logged):
         n_top=10,  # How many solutions do we want to see?
         fixed=False,  # Fixed offsets based on ejecta mass?
         threads=None,
+        nice=19,
         cdf=True,
         combine=[[]],
         z_max=30,
@@ -102,7 +104,7 @@ class Double(Results, Logged):
         silent=False,
         save=False,
         webfile=None,
-        block_size=int(1.0e5),
+        block_size=100_000,
         hist_size=5000,
         prior=None,
     ):
@@ -124,7 +126,7 @@ class Double(Results, Logged):
         self.setup_double(fixed, n_top, block_size, cdf)
 
         self.logger.info(
-            f"Searching {self.db_size} models ({self.n_solves} combinations)"
+            f"Searching {self.db_size:_d} models ({self.n_solves:_d} combinations)"
         )
 
         if not silent:
@@ -137,7 +139,7 @@ class Double(Results, Logged):
         self.hist = np.zeros(hist_size)
 
         time_start = time.perf_counter()
-        futures = self.init_futures(threads)
+        futures = self.init_futures(threads=threads, nice=nice)
 
         elapsed = 0
         self.n_solved = 0
@@ -221,7 +223,7 @@ class Double(Results, Logged):
         self.db_size = self.trimmed_db.shape[1]
         # self.db_size = 5
 
-        self.n_solves = int(((self.db_size**2) + self.db_size) / 2)
+        self.n_solves = self.db_size * (self.db_size - 1) // 2
         if self.n_top is None:
             self.n_top = self.n_solves
 
@@ -242,10 +244,14 @@ class Double(Results, Logged):
         self.top_fitness = np.ndarray((sorting_size,), dtype="f8")
         self.top_fitness[:] = 1.0e30
 
-    def init_futures(self, threads):
+    def init_futures(self, threads=None, nice=19):
         if threads is None:
-            threads = 2 * multiprocessing.cpu_count()
-        executor = ProcessPoolExecutor(max_workers=threads)
+            threads = multiprocessing.cpu_count()
+        executor = ProcessPoolExecutor(
+            max_workers=threads,
+            initializer=_set_priority,
+            initargs=(nice,),
+        )
 
         n_combinations = int(comb(self.db_size, self.sol_size))
         n_blocks = int(np.ceil(n_combinations / self.block_size))
@@ -280,8 +286,8 @@ class Double(Results, Logged):
         print("\n")
         print("=================================================================")
         print(
-            "Matching {count:d}^2 combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)".format(
-                count=self.db_size,
+            "Matching {count:_d} combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)".format(
+                count=self.db_size * (self.db_size - 1) // 2,
                 dbname=self.db.name,
                 starname=self.star.name,
                 nel=self.trimmed_db.shape[0],
@@ -453,6 +459,11 @@ class Double(Results, Logged):
                     )
                 )
             f.write("-" * barlen + "\n")
+
+
+def _set_priority(value: int):
+    p = psutil.Process(os.getpid())
+    p.nice(value)
 
 
 def _solve(

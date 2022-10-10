@@ -7,7 +7,9 @@ from abc import abstractmethod
 import numpy as np
 
 from .abuset import AbuSet, IonList
-from .isotope import Ion
+from .isotope import ion as I
+from .isotope import ufunc_Z
+from .utils import index1d
 
 
 class AbuModel(AbuSet):
@@ -743,7 +745,8 @@ class AbuModel(AbuSet):
 
     def __init__(
         self,
-        z=1,
+        z=None,  # default is 1
+        Z=None,
         silent=False,
         check=None,
         molfrac=False,
@@ -751,17 +754,18 @@ class AbuModel(AbuSet):
         massfrac=None,
         metal=None,
         href=False,
+        **kwargs,
     ):
         """
         Generate abundances set using z = Z/Z_sun, the scale relative
         to solar, if z is positive; absolute metallicity Z = -z if z
         is negative.
 
-        molfrac = metallicity my mol fraction
+        molfrac = metallicity by mol fraction
 
-        numfrac = metallicity my number fraction
+        numfrac = metallicity by number fraction
 
-        massfrac = metallicity my mass fraction [default]
+        massfrac = metallicity by mass fraction [default]
 
         metal = normalize to given metal, e.g., 'Fe'
 
@@ -780,15 +784,14 @@ class AbuModel(AbuSet):
             assert self.masses.shape[0] == numiso
 
         if massfrac is True:
-            assert molfrac is False
-            assert numfrac is False
+            assert molfrac is numfrac is False
         else:
             massfrac = not (molfrac or numfrac)
         assert np.count_nonzero([massfrac, molfrac, numfrac]) == 1
 
         if metal is not None:
-            ion_ref = Ion(metal)
-            Z_slice = np.where(Ion.ufunc_Z(np.array(self.ions)) == ion_ref.Z)[0]
+            ion_ref = I(metal)
+            Z_slice = np.where(ufunc_Z(np.array(self.ions)) == ion_ref.Z)[0]
         else:
             Z_slice = None
         self.Z_slice = Z_slice
@@ -804,10 +807,18 @@ class AbuModel(AbuSet):
                 self.solar_abu, Z_slice=self.hydrogen_slice
             )
 
+        if Z is not None:
+            assert z is None
+            z = -Z
+        if z is None:
+            z = 1
+
         # negative values are interpreted as absolute values of z
         # rather than scale factor
         if z < 0:
             z = -z / self.solar_metal
+
+        self.z = z
 
         x = self._find_x(z)
 
@@ -815,9 +826,16 @@ class AbuModel(AbuSet):
 
         self.abu = abu
         self.iso = np.array(self.ions)
+        self._apply_limits(**kwargs)
 
         self.normalize()
         self.is_sorted = True
         self.sort()
 
         self.close_logger(timing="Abundance set generated in")
+
+    def _apply_limits(self, **kwargs):
+        super()._apply_limits(**kwargs)
+        ii = index1d(self.iso, self.ions)
+        self.ions = IonList(self.iso)
+        self.masses = self.masses[ii]
