@@ -140,7 +140,7 @@ and include these changes in a follow-up commit.
 ## Adding new data files
 Data files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files:
 1. Add the new files to the web server hosting the data files at `/var/www/html/data`
-2. Generate the hash using `shasum`
+2. Generate the hash using `shasum -a 256` (or `sha256sum`)
 3. Add an entry into the hash list
 
 When adding new databases into `data/db`, add corresponding labels into the file `data/db/labels`. This label is used in the web application.
