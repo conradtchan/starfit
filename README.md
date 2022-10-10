@@ -120,6 +120,19 @@ s = starfit.Ga(
 )
 ```
 
+# Custom data directory
+Users may optionally specify their own data directory using the environment variable `STARFIT_DATA`:
+```
+export STARFIT_DATA='/your/custom/data'
+```
+The custom data directory should have the same structure as `src/starfit/data`, i.e. it should contain the `db`, `ref`, and `stars` directories:
+```
+❯ ls
+db
+ref
+stars
+```
+
 # Contributing to StarFit
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions. Two automated checks (on Github Actions) must be passed:
 1. Code formatting using pre-commit. To ensure your changes are compliant with this project's linters, we recommend installing pre-commit prior to making any commits locally.
