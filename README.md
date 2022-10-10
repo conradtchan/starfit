@@ -17,11 +17,23 @@ pip install starfit
 ```
 The PyPI package includes the necessary data files.
 
-## From git repo
+## Developer instructions
 The data files are not included into the Git repo, and must first be downloaded from the web-server before installing from the Git repo.
 ```
-./download-data.sh
-pip install .
+git clone git@github.com:conradtchan/starfit.git
+cd starfit
+
+# Download data files
+./download-data.sh   
+
+# Set environment variable to allow for editable installs
+export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
+
+# "-e" creates an editable install, "[testing]" installs additional dependencies for testing
+pip install -e .[testing]
+
+# Run all tests
+python -m pytest
 ```
 
 # Usage
