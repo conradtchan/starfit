@@ -96,7 +96,7 @@ s.plot()
 Additional arguments:
 - `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
 ```
-s = starfit.Single(
+s = starfit.Double(
     filename = 'HE1327-2326.dat',
     db = 'znuc2012.S4.star.el.y.stardb.gz',
     combine = [[6, 7, 8]],
