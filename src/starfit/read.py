@@ -70,7 +70,7 @@ class Star(Logged):
 
         # Load BBN data for H reference
         self.BBN_data = BBNAbu(
-            name=os.path.join(DATA_DIR, "ref/bbnf02.dat"), silent=silent
+            name=os.path.join(DATA_DIR, "ref/bbnc19.dat"), silent=silent
         )
         self._read(filename)
         # Add BBN data
@@ -186,7 +186,7 @@ class Star(Logged):
             return array
         elif data_format == 3:
             # Load the Big Bang hydrogen abundance
-            bbn_ref_file = os.path.join(DATA_DIR, "ref/bbnf02.dat")
+            bbn_ref_file = os.path.join(DATA_DIR, "ref/bbnc19.dat")
             h_ref = BBNAbu(bbn_ref_file, silent=True).Y("H")
             # Load the abundances for the sun
             sun = SolAbu(solar_ref_file, silent=True)

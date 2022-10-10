@@ -1,9 +1,15 @@
+![x](https://github.com/conradtchan/starfit/actions/workflows/test.yml/badge.svg)
+![x](https://github.com/conradtchan/starfit/actions/workflows/pre-commit.yml/badge.svg)
+![x](https://github.com/conradtchan/starfit/actions/workflows/publish.yml/badge.svg)
+
 Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/).
 
 StarFit can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
 
 # Installation
 Tested with Python 3.10
+
+Optional: A working LaTeX installation and dvipng is required to create plots with LaTeX labels (ideal for publication). Otherwise, Matplotlib's default MathText is used, which may not render all symbols correctly.
 
 ## From PyPI (recommended)
 ```
@@ -154,7 +160,7 @@ and include these changes in a follow-up commit.
 ## Adding new data files
 Data files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files:
 1. Add the new files to the web server hosting the data files at `/var/www/html/data`
-2. Generate the hash using `shasum`
+2. Generate the hash using `shasum -a 256` (or `sha256sum`)
 3. Add an entry into the hash list
 
 When adding new databases into `data/db`, add corresponding labels into the file `data/db/labels`. This label is used in the web application.
