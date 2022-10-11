@@ -11,8 +11,8 @@ __all__ = [
 ]
 
 # Lazy creation using module __getattr__
-import human.config
-from human.template import Human
+from .human import config
+from .human.template import Human
 
 _map = {
     "time2human": "time_config",
@@ -31,7 +31,7 @@ if _dynamic:
     def __getattr__(name):
         if name in _map:
             if isinstance(_map[name], str):
-                h = Human(getattr(human.config, _map[name]))
+                h = Human(getattr(config, _map[name]))
                 _map[name] = h
             else:
                 h = _map[name]
@@ -39,7 +39,7 @@ if _dynamic:
         raise AttributeError(f'[{__name__}] "{name}" not found.')
 
 else:
-    from human.config import byte_config, length_config, time_config
+    from .human.config import byte_config, length_config, time_config
 
     time2human = Human(time_config)
     byte2human = Human(byte_config)
