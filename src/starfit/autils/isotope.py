@@ -2460,9 +2460,7 @@ def ufunc_idx_isomer_from_ZNE(Z, N, E):
     return Z * Ion.ZMUL + (N + Z) * Ion.AMUL + F * Ion.FMUL
 
 
-ufunc_ion = lambda y: np.array(
-    np.frompyfunc(lambda x: ion(x), 1, 1)(y), dtype=object
-)
+ufunc_ion = lambda y: np.array(np.frompyfunc(lambda x: ion(x), 1, 1)(y), dtype=object)
 
 
 ufunc_ion_from_ZA = lambda Z, A: np.array(

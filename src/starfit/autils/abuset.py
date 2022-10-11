@@ -1450,9 +1450,7 @@ class AbuSet(Logged):
             self.abu = np.array([], dtype=np.float64)
         else:
             if not (
-                isinstance(iso, np.ndarray)
-                and (iso.ndim > 0)
-                and (iso.dtype == object)
+                isinstance(iso, np.ndarray) and (iso.ndim > 0) and (iso.dtype == object)
             ):
                 iso = np.atleast_1d(I(iso))
             self.iso = iso
