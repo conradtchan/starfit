@@ -24,7 +24,7 @@ _map = {
     "mass2human": "mass_config",
 }
 
-_dynamic = True
+_dynamic = False
 
 if _dynamic:
 
