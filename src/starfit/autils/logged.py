@@ -7,6 +7,7 @@ import io
 import logging
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 
 from . import utils
@@ -343,7 +344,7 @@ class Logged(Timed):
                     self.logger_logfile = logfile
                     self.logger_handler = logging.FileHandler(logfile, "w")
                 else:
-                    self.logger_handler = logging.StreamHandler()
+                    self.logger_handler = logging.StreamHandler(sys.stdout)
                 self.logger_handler.setFormatter(formatter)
                 self.logger.addHandler(self.logger_handler)
                 self.logger.setLevel(level)
