@@ -1,3 +1,3 @@
-from . import abusets, isotope, logged, stardb
+from . import abusets, human, isotope, logged, stardb
 
-__all__ = ["abusets", "isotope", "logged", "stardb"]
+__all__ = ["human", "abusets", "isotope", "logged", "stardb"]

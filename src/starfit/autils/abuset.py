@@ -17,7 +17,7 @@ import numpy as np
 from numpy.linalg import matrix_power
 from scipy.linalg import solve_banded
 
-from . import human, physconst
+from . import physconst
 from .human import version2human
 from .isotope import VOID, VOID_IDX, Elements, elements, get_ufunc, get_ufunc_idx
 from .isotope import ion as I
@@ -51,8 +51,6 @@ from .isotope import (
 )
 from .logged import Logged
 from .utils import CachedAttribute, cachedmethod, index1d, magic, project, stuple
-
-human.version2human()
 
 
 class DuplicateIons(Exception):
