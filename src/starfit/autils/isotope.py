@@ -2303,27 +2303,27 @@ class Ion(object, metaclass=MetaSingletonHash):
         return result
 
 
-ufunc_A = lambda y: np.array(np.frompyfunc(lambda x: x.A, 1, 1)(y), dtype=np.int)
-ufunc_Z = lambda y: np.array(np.frompyfunc(lambda x: x.Z, 1, 1)(y), dtype=np.int)
-ufunc_N = lambda y: np.array(np.frompyfunc(lambda x: x.N, 1, 1)(y), dtype=np.int)
-ufunc_E = lambda y: np.array(np.frompyfunc(lambda x: x.E, 1, 1)(y), dtype=np.int)
-ufunc_F = lambda y: np.array(np.frompyfunc(lambda x: x.F, 1, 1)(y), dtype=np.int)
+ufunc_A = lambda y: np.array(np.frompyfunc(lambda x: x.A, 1, 1)(y), dtype=int)
+ufunc_Z = lambda y: np.array(np.frompyfunc(lambda x: x.Z, 1, 1)(y), dtype=int)
+ufunc_N = lambda y: np.array(np.frompyfunc(lambda x: x.N, 1, 1)(y), dtype=int)
+ufunc_E = lambda y: np.array(np.frompyfunc(lambda x: x.E, 1, 1)(y), dtype=int)
+ufunc_F = lambda y: np.array(np.frompyfunc(lambda x: x.F, 1, 1)(y), dtype=int)
 ufunc_B = np.frompyfunc(lambda x: x.B, 1, 1)  # these may be larger than int64
 
 ufunc_isomer = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isomer(), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: x.isomer(), 1, 1)(y), dtype=object
 )
 ufunc_isotope = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isotope(), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: x.isotope(), 1, 1)(y), dtype=object
 )
 ufunc_element = lambda y: np.array(
-    np.frompyfunc(lambda x: x.element(), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: x.element(), 1, 1)(y), dtype=object
 )
 ufunc_isobar = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isobar(), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: x.isobar(), 1, 1)(y), dtype=object
 )
 ufunc_isotone = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isotone(), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: x.isotone(), 1, 1)(y), dtype=object
 )
 
 ufunc_element_name = lambda y: np.array(
@@ -2337,62 +2337,62 @@ ufunc_element_sym_lc = lambda y: np.array(
 )
 
 ufunc_isomer_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isomer().idx, 1, 1)(y), dtype=np.int
+    np.frompyfunc(lambda x: x.isomer().idx, 1, 1)(y), dtype=int
 )
 ufunc_isotope_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isotope().idx, 1, 1)(y), dtype=np.int
+    np.frompyfunc(lambda x: x.isotope().idx, 1, 1)(y), dtype=int
 )
 ufunc_element_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: x.element().idx, 1, 1)(y), dtype=np.int
+    np.frompyfunc(lambda x: x.element().idx, 1, 1)(y), dtype=int
 )
 ufunc_isobar_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isobar().idx, 1, 1)(y), dtype=np.int
+    np.frompyfunc(lambda x: x.isobar().idx, 1, 1)(y), dtype=int
 )
 ufunc_isotone_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: x.isotone().idx, 1, 1)(y), dtype=np.int
+    np.frompyfunc(lambda x: x.isotone().idx, 1, 1)(y), dtype=int
 )
 
 ufunc_is_ion = lambda y: np.array(
-    np.frompyfunc(lambda x: isinstance(x, Ion), 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: isinstance(x, Ion), 1, 1)(y), dtype=bool
 )
 
 ufunc_is_lepton = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_lepton, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_lepton, 1, 1)(y), dtype=bool
 )
 ufunc_is_isotope = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_isotope, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_isotope, 1, 1)(y), dtype=bool
 )
 ufunc_is_isobar = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_isobar, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_isobar, 1, 1)(y), dtype=bool
 )
 ufunc_is_isotone = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_isotone, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_isotone, 1, 1)(y), dtype=bool
 )
 ufunc_is_element = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_element, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_element, 1, 1)(y), dtype=bool
 )
 ufunc_is_isomer = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_isomer, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_isomer, 1, 1)(y), dtype=bool
 )
 ufunc_is_ionize = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_ionize, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_ionize, 1, 1)(y), dtype=bool
 )
 ufunc_is_nucleus = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_nucleus, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_nucleus, 1, 1)(y), dtype=bool
 )
 ufunc_is_photon = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_photon, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_photon, 1, 1)(y), dtype=bool
 )
 ufunc_is_void = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_void, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_void, 1, 1)(y), dtype=bool
 )
 ufunc_is_vac = lambda y: np.array(
-    np.frompyfunc(lambda x: x.is_vac, 1, 1)(y), dtype=np.bool
+    np.frompyfunc(lambda x: x.is_vac, 1, 1)(y), dtype=bool
 )
 
 ufunc_type = lambda y: np.array(np.frompyfunc(lambda x: x.type, 1, 1)(y), dtype=np.str)
 
-ufunc_idx = lambda y: np.array(np.frompyfunc(lambda x: x.idx, 1, 1)(y), dtype=np.int)
+ufunc_idx = lambda y: np.array(np.frompyfunc(lambda x: x.idx, 1, 1)(y), dtype=int)
 ufunc_idx_ZA = lambda y: ((y // Ion.ZMUL) % Ion.ZMAX, (y // Ion.AMUL) % Ion.AMAX)
 _ufunc_idx_ZAE = lambda y: (
     (y // Ion.ZMUL) % Ion.ZMAX,
@@ -2461,39 +2461,39 @@ def ufunc_idx_isomer_from_ZNE(Z, N, E):
 
 
 ufunc_ion = lambda y: np.array(
-    np.frompyfunc(lambda x: ion(x), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: ion(x), 1, 1)(y), dtype=object
 )
 
 
 ufunc_ion_from_ZA = lambda Z, A: np.array(
-    np.frompyfunc(lambda z, a: ion(Z=z, A=a), 2, 1)(Z, A), dtype=np.object
+    np.frompyfunc(lambda z, a: ion(Z=z, A=a), 2, 1)(Z, A), dtype=object
 )
 
 
 ufunc_ion_from_ZN = lambda Z, N: np.array(
-    np.frompyfunc(lambda z, n: ion(Z=z, N=n), 2, 1)(Z, N), dtype=np.object
+    np.frompyfunc(lambda z, n: ion(Z=z, N=n), 2, 1)(Z, N), dtype=object
 )
 
 
 ufunc_ion_from_ZAE = lambda Z, A, E: np.array(
     np.frompyfunc(lambda z, a, e: ion(Z=z, A=a, E=e, isomer=True), 3, 1)(Z, A, E),
-    dtype=np.object,
+    dtype=object,
 )
 
 
 ufunc_ion_from_ZNE = lambda Z, N, E: np.array(
     np.frompyfunc(lambda z, n, e: ion(Z=z, N=n, E=e, isomer=True), 3, 1)(Z, N, E),
-    dtype=np.object,
+    dtype=object,
 )
 
 
 ufunc_ion_from_kw = lambda y, kw: np.array(
-    np.frompyfunc(lambda x: ion(x, **kw), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: ion(x, **kw), 1, 1)(y), dtype=object
 )
 
 
 ufunc_ion_from_idx = lambda y: np.array(
-    np.frompyfunc(lambda x: ion(idx=x), 1, 1)(y), dtype=np.object
+    np.frompyfunc(lambda x: ion(idx=x), 1, 1)(y), dtype=object
 )
 
 
@@ -2503,7 +2503,7 @@ def ionarr(arr):
         arr = re.split("[^-0-9a-zA-Z*]+", arr)
     if not isinstance(arr, Iterable):
         arr = (arr,)
-    return np.array([ion(a) for a in arr], dtype=np.object)
+    return np.array([ion(a) for a in arr], dtype=object)
 
 
 def ision(x):
@@ -2683,11 +2683,11 @@ class IonFactory:
             args = ()
 
         # allow for ion(A=[...], Z=[...]) format
-        parms = np.array([kwargs.get(k, None) for k in self._parms], dtype=np.object)
+        parms = np.array([kwargs.get(k, None) for k in self._parms], dtype=object)
         if np.any(parms is not None):
             b = np.broadcast(*parms)
             if b.size > 1:
-                ions = np.empty(b.shape, dtype=np.object)
+                ions = np.empty(b.shape, dtype=object)
                 pl = list()
                 vl = list()
                 for k, v in zip(self._parms, parms):
@@ -2857,9 +2857,9 @@ class IonCacheZAE(object):
             if emax is None:
                 emax = 4
             self.ioncache0 = np.full(
-                ((nmax + 1) * (zmax + 1) * (emax + 1)), False, dtype=np.bool
+                ((nmax + 1) * (zmax + 1) * (emax + 1)), False, dtype=bool
             )
-            self.ioncache1 = np.ndarray(self.ioncache0.shape, dtype=np.object)
+            self.ioncache1 = np.ndarray(self.ioncache0.shape, dtype=object)
         else:
             if zmax is None:
                 zmax = clone.zmax
@@ -2910,8 +2910,8 @@ class IonCacheZA(object):
                 zmax = 138
             if nmax is None:
                 nmax = 256
-            self.ioncache0 = np.full(nmax * zmax, False, dtype=np.bool)
-            self.ioncache1 = np.ndarray(self.ioncache0.shape, dtype=np.object)
+            self.ioncache0 = np.full(nmax * zmax, False, dtype=bool)
+            self.ioncache1 = np.ndarray(self.ioncache0.shape, dtype=object)
         else:
             if zmax is None:
                 zmax = clone.zmax

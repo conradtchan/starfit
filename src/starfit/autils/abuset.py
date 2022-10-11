@@ -82,7 +82,7 @@ class IonList(object):
           False - drop
           None - raise exception
         """
-        self._ions = np.array((), dtype=np.object)
+        self._ions = np.array((), dtype=object)
         self.duplicates = duplicates
         self.add(ions)
 
@@ -214,7 +214,7 @@ class IonSet(object):
     """
 
     def __init__(self, *args, **kwargs):
-        self._ions = np.array((), dtype=np.object)
+        self._ions = np.array((), dtype=object)
         self._sort = kwargs.get("sort", True)
         self._type = kwargs.get("type", None)
         assert self._type is None or not isionclass(
@@ -486,7 +486,7 @@ class AbuData(object):
     def from_abusets(cls, abu, molfrac=None):
         if isinstance(abu, (list, tuple)):
             s = (len(abu),)
-            x = np.ndarray(s, dtype=np.object)
+            x = np.ndarray(s, dtype=object)
             x[:] = abu
             abu = x
         elif isinstance(abu, np.ndarray):
@@ -1446,13 +1446,13 @@ class AbuSet(Logged):
             )
         elif iso is None:
             assert abu is None, "Need isotope name"
-            self.iso = np.array([], dtype=np.object)
+            self.iso = np.array([], dtype=object)
             self.abu = np.array([], dtype=np.float64)
         else:
             if not (
                 isinstance(iso, np.ndarray)
                 and (iso.ndim > 0)
-                and (iso.dtype == np.object)
+                and (iso.dtype == object)
             ):
                 iso = np.atleast_1d(I(iso))
             self.iso = iso
@@ -1485,7 +1485,7 @@ class AbuSet(Logged):
         # todo: check uniqueness
 
         # todo - add isotope caching
-        ions = np.array([I(i) for i in abudict.keys()], dtype=np.object)
+        ions = np.array([I(i) for i in abudict.keys()], dtype=object)
         abu = np.array(list(abudict.values()), dtype=np.float64)
         if not allow_negative:
             jj = abu < 0.0
@@ -1700,7 +1700,7 @@ class AbuSet(Logged):
         self.setup_logger(silent=silent)
         self.comment = stuple(self.comment)
         xre = re.compile("[-+a-zA-Z0-9.]+")
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.abu = np.array([], dtype=np.float64)
         filename = Path(filename).expanduser()
         with open(filename, "r") as f:
@@ -1738,7 +1738,7 @@ class AbuSet(Logged):
         self.setup_logger(silent=silent)
         self.comment = stuple(self.comment)
         xre = re.compile("[-+a-zA-Z0-9.]+")
-        self.iso = np.array([], dtype=np.object)
+        self.iso = np.array([], dtype=object)
         self.abu = np.array([], dtype=np.float64)
         filename = Path(filename).expanduser()
         with open(filename, "r") as f:
@@ -2304,7 +2304,7 @@ class AbuSet(Logged):
             # TODO - add/use ion cache
             selection = np.array([I(ix) for ix in selection])
 
-        selections = np.ndarray([len(uis_func), len(selection)], dtype=np.bool)
+        selections = np.ndarray([len(uis_func), len(selection)], dtype=bool)
 
         # pure cases
         # here we test the most likely cases first ...
