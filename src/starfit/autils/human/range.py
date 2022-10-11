@@ -1,9 +1,9 @@
 from copy import copy
 from math import inf, nan
 
-from human.power import Power
-from human.prefix import Prefix
-from human.unit import Unit
+from .power import Power
+from .prefix import Prefix
+from .unit import Unit
 
 
 # keep parts in braces in LaTeX math mode and rest is put into mathrm mode

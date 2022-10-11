@@ -5,12 +5,12 @@ from collections.abc import Iterable
 from itertools import chain
 from math import ceil, floor, inf, log10
 
-from human.config import Config
-from human.power import Power
-from human.prefix import Prefix
-from human.range import Range
-from human.unit import Unit
-from human.value import Value
+from .config import Config
+from .power import Power
+from .prefix import Prefix
+from .range import Range
+from .unit import Unit
+from .value import Value
 
 epsf = 1 - 1 / (2 << 51)
 epsm = 1 + 1 / (2 << 51)

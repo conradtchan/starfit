@@ -9,7 +9,7 @@ import datetime
 import math
 import sys
 
-from human.util import _div_lim, _prefixes, _Prefixes
+from .util import _div_lim, _prefixes, _Prefixes
 
 try:
     import physconst
