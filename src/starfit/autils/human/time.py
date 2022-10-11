@@ -12,18 +12,16 @@ import sys
 from .util import _div_lim, _prefixes, _Prefixes
 
 try:
-    import physconst
+    from ..physconst import YR
 except ImportError:
-    SEC = 31556926
-else:
-    SEC = physconst.SEC
+    YR = 31556926
 
 _unit_base = dict(
     s=1,
     min=60,
     h=3600,
     d=86400,
-    yr=SEC,
+    yr=YR,
 )
 
 
@@ -126,8 +124,8 @@ def time2human(
                 if atime > 24 * 60 * div_lims[3]:
                     xtime /= 24
                     su = "d"
-                    if atime > SEC * div_lims[0]:
-                        xtime = atime / SEC
+                    if atime > YR * div_lims[0]:
+                        xtime = atime / YR
                         su = "yr"
                         i = 0
                         while xtime > div_lims[4]:
