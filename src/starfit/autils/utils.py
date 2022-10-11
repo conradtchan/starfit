@@ -1,18 +1,29 @@
 """
-Provide various utilties not found in Python 2.7 or numpy 1.5
+Provide various utilties
 """
 
+import bz2
+import contextlib
 import copy
-import functools
+import gzip
+import inspect
 import logging
+import lzma
 import operator
 import os
+import pickle
 import struct
 import sys
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, MappingView
+from functools import partial, reduce
+from io import IOBase
+from pathlib import Path
+from types import FunctionType
 
 import numpy as np
+
+from . import physconst
 
 
 def cumsum(list, seed=0):
@@ -64,10 +75,16 @@ def prod(seq):
     """Product of a sequence."""
     if not np.iterable(seq):
         seq = (seq,)
-    return functools.reduce(operator.mul, seq, 1)
+    return reduce(operator.mul, seq, 1)
 
 
-def contract(a, sequence, axis=0, dimension=None):
+def contract(
+    a,
+    sequence,
+    axis=0,
+    dimension=None,
+    dtype=None,
+):
     """
     Contract array from list.
 
@@ -81,10 +98,13 @@ def contract(a, sequence, axis=0, dimension=None):
         for i,j in enumerate(members):
              result[..., j,...] += values[..., i,...]
     """
+    a = np.asarray(a)
+    if dtype is None:
+        dtype = a.dtype
     shape = np.array(a.shape)
     ii = [slice(i) for i in shape]
     jj = copy.deepcopy(ii)
-    if axis == -1:
+    if axis < 0:
         axis += a.ndim
     axis_dimension = np.amax(sequence) + 1
     if dimension is None:
@@ -92,11 +112,11 @@ def contract(a, sequence, axis=0, dimension=None):
     else:
         assert dimension >= axis_dimension, "Target dimension too small."
     shape[axis] = dimension
-    out = np.zeros(shape)
+    out = np.zeros(shape, dtype=dtype)
     for i, j in enumerate(sequence):
         jj[axis] = j
         ii[axis] = i
-        out[jj] += a[ii]
+        out[tuple(jj)] += a[tuple(ii)]
     return out
 
 
@@ -111,10 +131,51 @@ def project(a, values, axis=0, return_values=False, return_inverse=False):
     if return_inverse:
         p.append(kinv)
     if len(p) == 1:
-        p = p[0]
-    else:
-        p = tuple(p)
-    return p
+        return p[0]
+    return tuple(p)
+
+
+def index1d(val, ref):
+    """
+    return the indices of `val` in `ref`.
+    val : array of values for which to find indices
+    ref : reference array in which to search
+
+    This is sort of what you should expect if np.in1d had an optional
+    argument return_index.  Input and output dimensions are flattened.
+
+    Consider use of `np.ravel_multi_index` to find indices in
+    flattened arrays and use of `np.unravel_index` to interpret
+    returned indices as coordinates in multi-D `ref` array.
+    """
+    # this routine needs to be optimised as C, CYTHON, or FORTRAN code
+    ref = np.asarray(ref).flatten()
+    i = np.argsort(ref)
+    l, linv = np.unique(val, return_inverse=True)
+    return i[np.in1d(ref[i], l)][linv]
+
+
+def indexnd(val, ref):
+    """
+    return the indices of `val` in `ref`.
+    val : array of values for which to find indices
+    ref : reference array in which to search
+
+    This is sort of what you should expect if np.in1d had an optional
+    argument return_index.  This is the multi-D version that returns a
+    tuple of indices, one array for each dimension, similar to
+    `np.where`.
+    """
+    ref = np.asarray(ref)
+    rshape = ref.shape
+    ref = ref.flatten()
+    val = np.asarray(val)
+    vshape = val.shape
+    val = val.flatten()  # not actually needed, just for beauty as it is cheap
+    i = np.argsort(ref)
+    l, linv = np.unique(val, return_inverse=True)
+    result = i[np.in1d(ref[i], l)][linv]
+    return np.unravel_index(result.reshape(vshape), rshape)
 
 
 def isinslice(index, Slice):
@@ -196,9 +257,6 @@ class ClearCache(object):
         try:
             cls._del_attr
         except:
-            import inspect
-            import types
-
             my_name = inspect.stack()[0][3]
             cls._del_attr = []
             cls._del_meth = []
@@ -208,7 +266,7 @@ class ClearCache(object):
                 D = getattr(cls, d)
                 if isinstance(D, CachedAttribute):
                     cls._del_attr += [d]
-                if isinstance(D, types.FunctionType) and hasattr(D, "clear"):
+                if isinstance(D, FunctionType) and hasattr(D, "clear"):
                     cls._del_meth += [d]
 
         for d in cls._del_attr:
@@ -428,7 +486,7 @@ def make_cached_attribute(self, func, name=None, doc=None, args=None, kw=None):
             return np.array([x.output[idx] for x in self.data])
 
         make_cached_attribute(self.__class__,
-                              functools.partial(var,idx=21),
+                              partial(var,idx=21),
                               'xh','central XH')
     """
     if args is None:
@@ -448,6 +506,7 @@ def make_cached_attribute(self, func, name=None, doc=None, args=None, kw=None):
     f.__func__ = f
     f.__self__ = None
     f = CachedAttribute(f, name)
+    # from types import MethodType
     # def __get__(self, instance, owner):
     #     return MethodType(self, instance, owner)
     # f.__get__ = __get__
@@ -459,12 +518,23 @@ class OutFile(object):
     Contex Manager: Open file if filename is given or use file.
     """
 
-    def __init__(self, outfile, silent=False, overwrite=False):
+    def __init__(self, outfile=None, silent=False, overwrite=False):
         """
-        TODO - open os.stdout if file does not exist?
+        open `stdout` if file does not exist.
         """
         # self.setup_logger(silent = silent)
-        self.f = outfile
+        if outfile is None:
+            self.f = sys.stdout
+            self.open = False
+            return
+        self.open = isinstance(outfile, IOBase)
+        if not self.open:
+            filename = os.path.expanduser(os.path.expandvars(outfile))
+            assert overwrite or not os.path.exists(filename)
+            f = open(filename, "w")
+        else:
+            f = outfile
+        self.f = f
 
     def __enter__(self):
         return self.f
@@ -480,7 +550,7 @@ def xz_file_size(filename):
     Return file size of xz xompressed files.
 
     The file format is documented at
-    "http://tukaani.org/xz/xz-file-format.txt"
+    `http://tukaani.org/xz/xz-file-format.txt`
     """
 
     def decode(buffer, index=0):
@@ -549,7 +619,7 @@ class MultiLoop(object):
           {mass: (1,2)} --> {mass: 1}, {mass: 2}
           {('A','B'): X} --> {'A': X}, {'B': X}
         maybe should have separate keywords for
-          list/tuple and dictionary resolution (depeth)
+          list/tuple and dictionary resolution (depth)
     """
 
     no_resolve_ = (str, set)
@@ -626,130 +696,148 @@ class MultiLoop(object):
                 kwargs_new[kw] = v.item
         return [method(*args_new, **kwargs_new)]
 
-
-def loopmethod(
-    descend=1,
-    no_resolve=(str, set),
-    no_resolve_add=tuple(),
-):
-    """
-    Decorator to compute a looped method.
-
-    Use:
-    @loopmethod(kwargs)
-    method_to_loop
-
-    If descend is False, stope at first level, otherwise descend
-    down nested lists, sets, and tuples.
-
-    Call:
-    self.method_to_loop(*args,**kwargs)
-
-    Returns list of results.
-
-    kwargs:
-    descend:
-        a keyword parameter that decides what to do with nested
-        iterables
-    no_resolve:
-        overwrite classes not to resolve
-    no_resolve_add
-        add classes not to resolve
-    """
-    if no_resolve is None:
-        no_resolve = tuple
-    if not isinstance(no_resolve, Iterable):
-        no_resolve = tuple((no_resolve,))
-    if not isinstance(no_resolve_add, Iterable):
-        no_resolve_add = tuple((no_resolve_add,))
-    no_resolve = tuple(no_resolve) + tuple(no_resolve_add)
-
-    def loop_method(method):
+    @staticmethod
+    def clean(kwargs, extra=None):
         """
-        Decorator to compute a looped method.
-
-        Use:
-        @loopedmethod
-        method_to_loop
-
-        Call:
-        self.method_to_loop(*args,**kwargs)
-
+        clean out MultiLoop kw arguments
         """
+        kw = kwargs.copy()
+        if extra is not None:
+            if isinstance(extra, str):
+                extra = (extra,)
+        else:
+            extra = tuple()
+        extra += ("loop_descend", "no_resolve", "no_resolve_add")
+        for x in extra:
+            kw.pop(x, None)
+        return kw
 
-        class _container(object):
-            def __init__(self, item, level):
-                self.item = item
-                self.level = level
 
-        # @wraps(method)
-        def looped_method(self, *args, **kwargs):
-            """
-            Loop over all Iterables in *args and **kwargs except strings and sets.
-            """
-            kwargs_new = kwargs.copy()
-            args_new = args.copy()
-            result = []
-            for iv, v in enumerate(args):
-                if isinstance(v, no_resolve):
-                    continue
-                level = 1
-                if isinstance(v, _container):
-                    if v.level == descend:
-                        continue
-                    level = v.level + 1
-                    v = v.item
-                if isinstance(v, dict):
-                    if len(v) <= 1:
-                        continue
-                    for k, i in v.items():
-                        args_new[iv] = {k: i}
-                        result += looped_method(self, *args_new, **kwargs_new)
-                    return result
-                if isinstance(v, Iterable):
-                    for i in v:
-                        args_new[iv] = _container(i, level)
-                        result += looped_method(self, *args_new, **kwargs_new)
-                    return result
-            for kw, v in kwargs.items():
-                if isinstance(v, no_resolve):
-                    continue
-                level = 1
-                if isinstance(v, _container):
-                    if v.level == descend:
-                        continue
-                    level = v.level + 1
-                    v = v.item
-                if isinstance(v, dict):
-                    if len(v) <= 1:
-                        continue
-                    for k, i in v.items():
-                        kwargs_new[kw] = {k: i}
-                        result += looped_method(self, *args_new, **kwargs_new)
-                    return result
-                if isinstance(v, Iterable):
-                    for i in v:
-                        kwargs_new[kw] = _container(i, level)
-                        result += looped_method(self, *args_new, **kwargs_new)
-                    return result
-            # get rid of containers
-            for iv, v in enumerate(args_new):
-                if isinstance(v, _container):
-                    args_new[iv] = v.item
-            for kw, v in kwargs_new.items():
-                if isinstance(v, _container):
-                    kwargs_new[kw] = v.item
-            return [method(self, *args_new, **kwargs_new)]
+# def loopmethod(
+#         descend=1,
+#         no_resolve=(str, set),
+#         no_resolve_add=tuple(),
+# ):
+#     """
+#     Decorator to compute a looped method.
 
-        looped_method.__dict__.update(method.__dict__)
-        looped_method.__dict__["method"] = method.__name__
-        if method.__doc__ is not None:
-            looped_method.__doc__ = method.__doc__ + "\n" + looped_method.__doc__
-        looped_method.__name__ = method.__name__
-        looped_method.__module__ = getattr(method, "__module__")
-        return looped_method
+#     Use:
+#     @loopmethod(kwargs)
+#     method_to_loop
 
-    return loop_method
+#     If descend is False, stope at first level, otherwise descend
+#     down nested lists, sets, and tuples.
+
+#     Call:
+#     self.method_to_loop(*args,**kwargs)
+
+#     Returns list of results.
+
+#     kwargs:
+#     descend:
+#         a keyword parameter that decides what to do with nested
+#         iterables
+#     no_resolve:
+#         overwrite classes not to resolve
+#     no_resolve_add
+#         add classes not to resolve
+#     """
+#     if descend <= 0:
+#         return [method(self, *args, **kwargs)]
+#     if no_resove is None:
+#         no_resolve = tuple
+#     if not isinstance(no_resolve, Iterable):
+#         no_resolve = tuple((no_resolve,))
+#     if not isinstance(no_resolve_add, Iterable):
+#         no_resolve_add = tuple((no_resolve_add,))
+#     no_resolve = tuple(no_resolve) + tuple(no_resolve_add)
+
+#     def loop_method(method):
+#         """
+#         Decorator to compute a looped method.
+
+#         Use:
+#         @loopedmethod
+#         method_to_loop
+
+#         Call:
+#         self.method_to_loop(*args,**kwargs)
+
+#         """
+
+#         class _container(object):
+#             def __init__(self, item, level):
+#                 self.item = item
+#                 self.level = level
+
+#         # @wraps(method)
+#         def looped_method(self, *args, **kwargs):
+#             """
+#             Loop over all Iterables in *args and **kwargs except strings and sets.
+#             """
+#             kwargs_new = kwargs.copy()
+#             args_new = args.copy()
+#             result = []
+#             for iv, v in enumerate(args):
+#                 if isinstance(v, no_resolve):
+#                     continue
+#                 level = 1
+#                 if isinstance(v, _container):
+#                     if v.level == descend:
+#                         continue
+#                     level = v.level + 1
+#                     v = v.item
+#                 if isinstance(v, dict):
+#                     if len(v) <= 1:
+#                         continue
+#                     for k, i in v.items():
+#                         args_new[iv] = {k: i}
+#                         result += looped_method(self, *args_new, **kwargs_new)
+#                     return result
+#                 if isinstance(v, Iterable):
+#                     for i in v:
+#                         args_new[iv] = _container(i, level)
+#                         result += looped_method(self, *args_new, **kwargs_new)
+#                     return result
+#             for kw, v in kwargs.items():
+#                 if isinstance(v, no_resolve):
+#                     continue
+#                 level = 1
+#                 if isinstance(v, _container):
+#                     if v.level == descend:
+#                         continue
+#                     level = v.level + 1
+#                     v = v.item
+#                 if isinstance(v, dict):
+#                     if len(v) <= 1:
+#                         continue
+#                     for k, i in v.items():
+#                         kwargs_new[kw] = {k: i}
+#                         result += looped_method(self, *args_new, **kwargs_new)
+#                     return result
+#                 if isinstance(v, Iterable):
+#                     for i in v:
+#                         kwargs_new[kw] = _container(i, level)
+#                         result += looped_method(self, *args_new, **kwargs_new)
+#                     return result
+#             # get rid of containers
+#             for iv, v in enumerate(args_new):
+#                 if isinstance(v, _container):
+#                     args_new[iv] = v.item
+#             for kw, v in kwargs_new.items():
+#                 if isinstance(v, _container):
+#                     kwargs_new[kw] = v.item
+#             return [method(self, *args_new, **kwargs_new)]
+
+#         looped_method.__dict__.update(method.__dict__)
+#         looped_method.__dict__["method"] = method.__name__
+#         if method.__doc__ is not None:
+#             looped_method.__doc__ = method.__doc__ + "\n" + looped_method.__doc__
+#         looped_method.__name__ = method.__name__
+#         looped_method.__module__ = getattr(method, "__module__")
+#         return looped_method
+
+#     return loop_method
 
 
 # class test(object):
@@ -776,11 +864,21 @@ def float2str(f, precision=13):
     """
     Use g format but add '.' to be compatible with KEPLER
     """
-    s = ("{:." + str(precision) + "g}").format(f)
+    if abs(f) > 1000:
+        s = ("{:." + str(precision) + "e}").format(f)
+        while s.find("0e") > 0:
+            s = s.replace("0e", "e")
+    else:
+        s = ("{:." + str(precision) + "g}").format(f)
     if (s.find(".") == -1) and (s.find("e") == -1):
         s += "."
     if (s.find(".") == -1) and (s.find("e") != -1):
         s = s.replace("e", ".e")
+    s = s.replace("e+", "e")
+    if s.find("e0") < len(s) - 2:
+        s = s.replace("e0", "e")
+    if s.find("e-0") < len(s) - 2:
+        s = s.replace("e-0", "e-")
     return s
 
 
@@ -850,9 +948,6 @@ def stuple(*args):
     return out
 
 
-from . import physconst
-
-
 def ergs2mbol(ergs):
     return +4.77 - np.log10(ergs / physconst.XLSUN) * 2.5
 
@@ -908,20 +1003,21 @@ class MetaSingletonHash(type):
         return cache.setdefault(key, obj)
 
 
-import bz2
-import gzip
-import lzma
-
-
 def text_file(
     filename=None,
+    mode=None,
     compress=None,
     return_filename=False,
     return_compress=False,
 ):
+    if mode is None:
+        if compress:
+            mode = "w"
+        else:
+            mode = "r"
     if filename:
         filename = os.path.expandvars(os.path.expanduser(filename))
-        if compress:
+        if compress is True:
             compress = "xz"
         if compress:
             if not (
@@ -935,13 +1031,13 @@ def text_file(
         else:
             compress = False
         if filename.endswith(".gz"):
-            fout = gzip.open(filename, "wt", encoding="ASCII")
+            fout = gzip.open(filename, mode + "t", encoding="ASCII")
         elif filename.endswith(".bz2"):
-            fout = bz2.open(filename, "wt", encoding="ASCII")
+            fout = bz2.open(filename, mode + "t", encoding="ASCII")
         elif filename.endswith(".xz"):
-            fout = lzma.open(filename, "wt", encoding="ASCII")
+            fout = lzma.open(filename, mode + "t", encoding="ASCII")
         else:
-            fout = open(filename, "w", -1)
+            fout = open(filename, mode + "t", -1)
     else:
         fout = sys.stdout
         compress = False
@@ -972,6 +1068,37 @@ class TextFile(object):
     def write(self, *args, **kwargs):
         self.file.write(*args, **kwargs)
 
+    def writable(self):
+        return self.file.writable()
+
+    def writelines(self, *args, **kwargs):
+        self.file.writelines(*args, **kwargs)
+
+    def read(self, *args, **kwargs):
+        return self.file.read(*args, **kwargs)
+
+    def readable(self):
+        return self.file.readable()
+
+    def readline(self, *args, **kwargs):
+        return self.file.readline(*args, **kwargs)
+
+    def readlines(self, *args, **kwargs):
+        return self.file.readlines(*args, **kwargs)
+
+    def tell(self):
+        return self.file.tell()
+
+    def seekable(self, *args, **kwargs):
+        return self.file.seekable(*args, **kwargs)
+
+    def seek(self, *args, **kwargs):
+        self.file.seek(*args, **kwargs)
+
+    @property
+    def encoding(self):
+        return self.file.encoding
+
     def close(self):
         if self.file != sys.stdout:
             self.file.close()
@@ -992,14 +1119,16 @@ class TextFile(object):
 
 def iterable(x):
     """
-    convert things to an iterable, but omit strings
+    convert things to an iterable, but omit strings and Paths
 
     May need to add other types.
     """
-    if isinstance(x, str):
+    if isinstance(x, (str, Path)):
         x = (x,)
     if isinstance(x, np.ndarray) and len(x.shape) == 0:
         x = (x,)
+    if isinstance(x, MappingView):
+        x = tuple(x)
     if not isinstance(x, (Iterable, np.ndarray)):
         x = (x,)
     return x
@@ -1018,9 +1147,6 @@ def is_iterable(x):
     if isinstance(x, np.ndarray) and len(x.shape) == 0:
         return False
     return isinstance(x, (Iterable, np.ndarray)) and not isinstance(x, str)
-
-
-import contextlib
 
 
 @contextlib.contextmanager
@@ -1123,3 +1249,93 @@ def scan_nan(nan):
     quiet = nan & 0x0008000000000000 != 0
     payload = nan & 0x0007FFFFFFFFFFFF
     return payload, sign, quiet
+
+
+def test_pickle(obj, /, _name=None):
+    trouble = dict()
+    if _name is not None:
+        name = f"{_name}."
+    else:
+        name = ""
+    if hasattr(obj, "__dict__"):
+        for k, v in obj.__dict__.items():
+            n = f"{name}{k}"
+            print(f'tryng to pickle "{n}" ... ', end="")
+            try:
+                pickle.dumps(v)
+            except Exception as e:
+                print("FAILED")
+                trouble[n] = e
+                trouble.update(test_pickle(v, _name=n))
+            else:
+                print("passed")
+    if _name is not None:
+        return trouble
+    if len(trouble) == 0:
+        print("\ntryng to pickle passed object ... ", end="")
+        try:
+            pickle.dumps(obj)
+        except Exception as e:
+            print("FAILED")
+            trouble[f'passed object "{obj!r}"'] = e
+        else:
+            print("passed")
+    if len(trouble) > 0:
+        print("\nFailures:")
+        for k, v in trouble.items():
+            print(f"{k}: {v!r}")
+    else:
+        print("\nAll Passed.")
+
+
+def cpickle(item, filename):
+    filename = Path(filename).expanduser()
+    if filename.suffix == ".gz":
+        f = gzip.open(filename, "wb")
+    elif filename.suffix == ".bz":
+        f = bz2.BZ2File(filename, "wb")
+    elif filename.suffix == ".xz":
+        f = lzma.LZMAFile(filename, "wb")
+    else:
+        f = open(filename, "wb")
+    pickle.dump(item, f)
+    f.close()
+
+
+def cload(filename):
+    filename = Path(filename).expanduser()
+    if filename.suffix == ".gz":
+        f = gzip.open(filename, "rb")
+    elif filename.suffix == ".bz":
+        f = bz2.BZ2File(filename, "rb")
+    elif filename.suffix == ".xz":
+        f = lzma.LZMAFile(filename, "rb")
+    else:
+        f = open(filename, "rb")
+    item = pickle.load(f)
+    f.close()
+    return item
+
+
+########################################################################
+
+
+class Magic(np.ndarray):
+    def __call__(self, *args, **kwargs):
+        if len(args) == len(kwargs) == 0:
+            return np.array(self)
+        return self._func(*args, **kwargs)
+
+
+def magic(func, single=False):
+    def f(self):
+        val = func(self)
+        if single:
+            if func.__code__.co_argcount == 1:
+                return val
+        mag = Magic(val.shape, dtype=val.dtype)
+        mag[()] = val[()]
+        mag._func = partial(func, self)
+        return mag
+
+    return property(f)

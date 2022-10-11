@@ -4,8 +4,8 @@ import time
 
 import numpy as np
 
+from .autils.human import time2human
 from .autils.logged import Logged
-from .autils.time2human import time2human
 from .starfit import Results
 
 

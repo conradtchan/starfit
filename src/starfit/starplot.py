@@ -31,7 +31,7 @@ import colorsys
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .autils.isotope import Ion
+from .autils.isotope import ion as I
 from .autils.keputils import mass_string
 
 
@@ -332,10 +332,10 @@ def abuplot(
         for row, group in enumerate(combine):
             if len(group) > 0:
                 if zor == group[0]:
-                    strings = [str(Ion(z)) for z in combine[row]]
+                    strings = [str(I(z)) for z in combine[row]]
                     label = "+".join(strings)
         if label is None:
-            label = Ion(int(z)).element_symbol()
+            label = I(int(z)).element_symbol()
 
         ax.annotate(
             label,

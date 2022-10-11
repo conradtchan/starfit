@@ -3,27 +3,31 @@ Classes for reading and writing STARDB files.
 """
 
 import bz2
-import collections
 import gzip
 import hashlib
+import lzma
 import os
 import re
 import sys
 import textwrap
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from copy import copy
 from enum import IntEnum
+from pathlib import Path
 
 import numpy as np
 import scipy.sparse
 
-from . import isotope
-from .abuset import AbuData
-from .byte2human import byte2human
+from .abuset import AbuData, IonList
+from .human import byte2human
+from .isotope import ion as I
 from .loader import _loader, loader
 from .logged import Logged
-from .utils import CachedAttribute, prod
+from .utils import CachedAttribute, prod, xz_file_size
 from .uuidtime import UUID1
+
+# used to replace '^' as anker point
+_db_path = "~/starfit_data/db"
 
 
 class StarDB(AbuData, Logged):
@@ -280,6 +284,15 @@ class StarDB(AbuData, Logged):
         else:
             self._from_data(**kw)
 
+    def abu(self):
+        """
+        Overwrite inherited routine.
+
+        There is more different kinsd of data than the orignial
+        version can handle.
+        """
+        return self.data
+
     def _set_dtypes(self):
         self.swapbyteorder = self.byteorder != self.native_byteorder
         try:
@@ -309,7 +322,7 @@ class StarDB(AbuData, Logged):
 
     def _from_db(self, db=None, **kwargs):
         """
-        Initialize form existing db.
+        Initialize from existing db.
 
         similar to copy but allow derived class initializtion
         """
@@ -366,7 +379,9 @@ class StarDB(AbuData, Logged):
         self.version = self.current_version
 
         self.name = kwargs.get("name", None)
-        self.comments = kwargs.get("comments", np.array([], dtype=object))
+        self.comments = kwargs.get("comments", tuple())
+        if isinstance(self.comments, str):
+            self.comments = (self.comments,)
         self.comments = np.array(self.comments, dtype=object)
         self.comments = np.append(self.comments, f"UUID: {UUID1()}")
 
@@ -384,8 +399,11 @@ class StarDB(AbuData, Logged):
         self.nabu = self.data.shape[1]
         self.nfield = len(self.fielddata.dtype)
 
+        if not isinstance(self.ions, IonList):
+            self.ions = IonList(self.ions)
+
         assert self.nstar == self.fielddata.shape[0]
-        assert self.nabu == self.ions.shape[0]
+        assert self.nabu == len(self.ions)
 
         self.fieldnames = kwargs.get("fieldnames", None)
         self.fieldunits = kwargs.get("fieldunits", None)
@@ -434,9 +452,7 @@ class StarDB(AbuData, Logged):
         self.abundance_unit = kwargs.get(
             "abundance_unit", self.AbundanceUnit.mol_fraction
         )
-        self.abundance_total = kwargs.get(
-            "abundance_totoal", self.AbundanceTotal.ejecta
-        )
+        self.abundance_total = kwargs.get("abundance_total", self.AbundanceTotal.ejecta)
         self.abundance_norm = kwargs.get("abundance_norm", None)
         self.abundance_data = kwargs.get(
             "abundance_data", self.AbundanceData.all_ejecta
@@ -496,7 +512,7 @@ class StarDB(AbuData, Logged):
         self._close()
         self.byteorder = saved_byteorder
         self.swapbyteorder = self.byteorder != self.native_byteorder
-        self.close_logger(timing="Data written in")
+        self.close_logger(timing=f"File {filename!s} written in")
 
     def _from_file(self, filename=None, silent=False, **kwargs):
         """
@@ -504,6 +520,11 @@ class StarDB(AbuData, Logged):
         """
 
         self.setup_logger(silent=silent)
+        if (s := str(filename)).startswith("^"):
+            s = s[1:]
+            if s.startswith("/"):
+                s = s[1:]
+            filename = Path(_db_path) / s
         self._open_file(filename)
         self.logger.info(f"Loading {self.filename:s}")
         s = f"File size: {byte2human(self.filesize)}"
@@ -559,6 +580,19 @@ class StarDB(AbuData, Logged):
                 self.file.seek(0, os.SEEK_END)
                 self.filesize = self.file.tell()
                 self.file.seek(pos, os.SEEK_SET)
+        elif self.filename.endswith(".xz"):
+            self.compressed = True
+            self.compress_mode = "xz"
+            if mode == "read":
+                self.filesize = xz_file_size(self.filename)
+            self.file = lzma.LZMAFile(self.filename, access)
+        else:
+            self.file = open(self.filename, access, -1)
+            self.stat = os.fstat(self.file.fileno())
+            if mode == "read":
+                self.filesize = self.stat.st_size
+            self.compressed = False
+            self.compress_mode = ""
 
     def _check_signature(self):
         """
@@ -873,6 +907,10 @@ class StarDB(AbuData, Logged):
         for i in range(self.nfield):
             self.fieldformats[i] = self._idlformat2pyformat(fieldformats[i])
 
+        # l1 = max(len(x) for x in self.fieldnames)
+        # l2 = max(len(x) for x in self.fieldunits)
+        # l3 = max(len(x) for x in self.type_names)
+
         abu_Z = self._read_uin(self.nabu)
         if self.version < 10100:
             abu_A = np.zeros(self.nabu, dtype=np.uint64)
@@ -884,35 +922,30 @@ class StarDB(AbuData, Logged):
         if self.abundance_type == 0:
             self.ions = np.array(
                 [
-                    isotope.Ion(Z=int(abu_Z[i]), A=int(abu_A[i]), E=int(abu_E[i]))
+                    I(Z=int(abu_Z[i]), A=int(abu_A[i]), E=int(abu_E[i]))
                     for i in range(self.nabu)
                 ]
             )
         elif self.abundance_type == 1:
             self.ions = np.array(
-                [
-                    isotope.Ion(Z=int(abu_Z[i]), A=int(abu_A[i]))
-                    for i in range(self.nabu)
-                ]
+                [I(Z=int(abu_Z[i]), A=int(abu_A[i])) for i in range(self.nabu)]
             )
         elif self.abundance_type == 2:
-            self.ions = np.array(
-                [isotope.Ion(Z=int(abu_Z[i])) for i in range(self.nabu)]
-            )
+            self.ions = np.array([I(Z=int(abu_Z[i])) for i in range(self.nabu)])
         elif self.abundance_type == 3:
-            self.ions = np.array(
-                [isotope.Ion(A=int(abu_A[i])) for i in range(self.nabu)]
-            )
+            self.ions = np.array([I(A=int(abu_A[i])) for i in range(self.nabu)])
         elif self.abundance_type == 4:
-            self.ions = np.array(
-                [isotope.Ion(N=int(abu_A[i])) for i in range(self.nabu)]
-            )
+            self.ions = np.array([I(N=int(abu_A[i])) for i in range(self.nabu)])
         else:
             self.logger.error("anundance type not defined.")
             raise self.DataError()
 
         # load field data
-        self.fielddata = self._read_stu(self.nstar, self.fieldnames, self.fieldtypes)
+        self.fielddata = self._read_stu(
+            self.nstar,
+            self.fieldnames,
+            self.fieldtypes,
+        )
 
         # load actual data
         self.data = self._read_dbl((self.nabu, self.nstar))
@@ -939,9 +972,11 @@ class StarDB(AbuData, Logged):
         """
         compute field reference values
         """
+
         nvalues = np.zeros(self.nfield, dtype=np.uint64)
         values = np.ndarray((self.nfield, self.nstar), dtype=np.float64)
         ivalues = np.ndarray((self.nfield, self.nstar), dtype=np.uint64)
+        values[:] = np.nan
         for ifield in range(self.nfield):
             # values
             v = self.fielddata[self.fieldnames[ifield]]
@@ -1282,7 +1317,7 @@ class StarDB(AbuData, Logged):
         """
         return slice of star indices for given parameters
         """
-        if len(args) == 1 and isinstance(args[0], collections.Mapping):
+        if len(args) == 1 and isinstance(args[0], Mapping):
             fields = args[0]
         else:
             fields = kwargs
@@ -1292,8 +1327,7 @@ class StarDB(AbuData, Logged):
         for i, f in enumerate(self.fieldnames):
             val = fields.get(f, None)
             if val is not None:
-                # j, = np.where(np.isclose(self.values[i], fields[f]))
-                j = np.abs(self.values[i] - fields[f]).argmin()
+                j = np.abs(self.values[i, : self.nvalues[i]] - fields[f]).argmin()
                 vfilter[i] = int(j)
         mask = np.tile(True, self.nstar)
         for i, j in vfilter.items():

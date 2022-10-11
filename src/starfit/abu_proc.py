@@ -1,5 +1,6 @@
-import isotope
 import numpy as np
+
+from .autils.isotope import ion as I
 
 
 def ap(combine, star, db, z_max, upper_lim, z_exclude, z_lolim):
@@ -16,22 +17,18 @@ def ap(combine, star, db, z_max, upper_lim, z_exclude, z_lolim):
 
     if combine == 1:
         ab = []
-        ab += [
-            10 ** eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("C")])]
-        ]  # 0
-        ab += [
-            10 ** eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("N")])]
-        ]  # 1
+        ab += [10 ** eval_data.abundance[np.in1d(eval_data.element, [I("C")])]]  # 0
+        ab += [10 ** eval_data.abundance[np.in1d(eval_data.element, [I("N")])]]  # 1
 
-        eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("C")])] = np.log10(
+        eval_data.abundance[np.in1d(eval_data.element, [I("C")])] = np.log10(
             ab[0] + ab[1]
         )
 
         er = []
-        er += [eval_data.error[np.in1d(eval_data.element, [isotope.Ion("C")])]]  # 0
-        er += [eval_data.error[np.in1d(eval_data.element, [isotope.Ion("N")])]]  # 1
+        er += [eval_data.error[np.in1d(eval_data.element, [I("C")])]]  # 0
+        er += [eval_data.error[np.in1d(eval_data.element, [I("N")])]]  # 1
 
-        eval_data.error[np.in1d(eval_data.element, [isotope.Ion("C")])] = np.log10(
+        eval_data.error[np.in1d(eval_data.element, [I("C")])] = np.log10(
             (
                 (ab[0] * (10 ** er[0] - 1) ** 2 + ab[1] * (10 ** er[1] - 1) ** 2)
                 / (ab[0] + ab[1])
@@ -39,36 +36,30 @@ def ap(combine, star, db, z_max, upper_lim, z_exclude, z_lolim):
             + 1
         )
 
-        eval_data = eval_data[np.invert(np.in1d(eval_data.element, [isotope.Ion("N")]))]
+        eval_data = eval_data[np.invert(np.in1d(eval_data.element, [I("N")]))]
 
-        full_abudata[np.in1d(db.ions, [isotope.Ion("C")])] += full_abudata[
-            np.in1d(db.ions, [isotope.Ion("N")])
+        full_abudata[np.in1d(db.ions, [I("C")])] += full_abudata[
+            np.in1d(db.ions, [I("N")])
         ]
-        cut_abudata = full_abudata[np.invert(np.in1d(db.ions, [isotope.Ion("N")]))]
-        cut_ions = full_ions[np.invert(np.in1d(db.ions, [isotope.Ion("N")]))]
+        cut_abudata = full_abudata[np.invert(np.in1d(db.ions, [I("N")]))]
+        cut_ions = full_ions[np.invert(np.in1d(db.ions, [I("N")]))]
 
     if combine == 2:
         ab = []
-        ab += [
-            10 ** eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("C")])]
-        ]  # 0
-        ab += [
-            10 ** eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("N")])]
-        ]  # 1
-        ab += [
-            10 ** eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("O")])]
-        ]  # 2
+        ab += [10 ** eval_data.abundance[np.in1d(eval_data.element, [I("C")])]]  # 0
+        ab += [10 ** eval_data.abundance[np.in1d(eval_data.element, [I("N")])]]  # 1
+        ab += [10 ** eval_data.abundance[np.in1d(eval_data.element, [I("O")])]]  # 2
 
-        eval_data.abundance[np.in1d(eval_data.element, [isotope.Ion("C")])] = np.log10(
+        eval_data.abundance[np.in1d(eval_data.element, [I("C")])] = np.log10(
             ab[0] + ab[1] + ab[2]
         )
 
         er = []
-        er += [eval_data.error[np.in1d(eval_data.element, [isotope.Ion("C")])]]  # 0
-        er += [eval_data.error[np.in1d(eval_data.element, [isotope.Ion("N")])]]  # 1
-        er += [eval_data.error[np.in1d(eval_data.element, [isotope.Ion("O")])]]  # 2
+        er += [eval_data.error[np.in1d(eval_data.element, [I("C")])]]  # 0
+        er += [eval_data.error[np.in1d(eval_data.element, [I("N")])]]  # 1
+        er += [eval_data.error[np.in1d(eval_data.element, [I("O")])]]  # 2
 
-        eval_data.error[np.in1d(eval_data.element, [isotope.Ion("C")])] = np.log10(
+        eval_data.error[np.in1d(eval_data.element, [I("C")])] = np.log10(
             (
                 (
                     ab[0] * (10 ** er[0] - 1) ** 2
@@ -80,20 +71,14 @@ def ap(combine, star, db, z_max, upper_lim, z_exclude, z_lolim):
             + 1
         )
 
-        eval_data = eval_data[
-            np.invert(np.in1d(eval_data.element, [isotope.Ion("N"), isotope.Ion("O")]))
-        ]
+        eval_data = eval_data[np.invert(np.in1d(eval_data.element, [I("N"), I("O")]))]
 
-        full_abudata[np.in1d(db.ions, [isotope.Ion("C")])] += (
-            full_abudata[np.in1d(db.ions, [isotope.Ion("N")])]
-            + full_abudata[np.in1d(db.ions, [isotope.Ion("O")])]
+        full_abudata[np.in1d(db.ions, [I("C")])] += (
+            full_abudata[np.in1d(db.ions, [I("N")])]
+            + full_abudata[np.in1d(db.ions, [I("O")])]
         )
-        cut_abudata = full_abudata[
-            np.invert(np.in1d(db.ions, [isotope.Ion("N"), isotope.Ion("O")]))
-        ]
-        cut_ions = full_ions[
-            np.invert(np.in1d(db.ions, [isotope.Ion("N"), isotope.Ion("O")]))
-        ]
+        cut_abudata = full_abudata[np.invert(np.in1d(db.ions, [I("N"), I("O")]))]
+        cut_ions = full_ions[np.invert(np.in1d(db.ions, [I("N"), I("O")]))]
     else:
         cut_abudata = full_abudata
         cut_ions = full_ions
@@ -110,12 +95,10 @@ def ap(combine, star, db, z_max, upper_lim, z_exclude, z_lolim):
 
     if combine == 1:
         # Without the combined elements (for example, if we are doing CN, then we get rid of N)
-        z_list3 = z_list2[np.invert(np.in1d(z_list2, [isotope.Ion("N")]))]
+        z_list3 = z_list2[np.invert(np.in1d(z_list2, [I("N")]))]
     elif combine == 2:
         # Without the combined elements (for example, if we are doing CN, then we get rid of N)
-        z_list3 = z_list2[
-            np.invert(np.in1d(z_list2, [isotope.Ion("N"), isotope.Ion("O")]))
-        ]
+        z_list3 = z_list2[np.invert(np.in1d(z_list2, [I("N"), I("O")]))]
     else:
         z_list3 = z_list2
     # Excluded z, in the star's index
