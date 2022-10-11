@@ -10,10 +10,10 @@ from collections.abc import Iterable, Mapping
 import numpy as np
 import yaml
 
-from .human.prefix import Prefix, _BinPrefixes, _binPrefixes
-from .human.prefix import _Prefixes2 as _Prefixes
-from .human.prefix import _prefixes2 as _prefixes
-from .human.unit import Unit, Units
+from .prefix import Prefix, _BinPrefixes, _binPrefixes
+from .prefix import _Prefixes2 as _Prefixes
+from .prefix import _prefixes2 as _prefixes
+from .unit import Unit, Units
 
 
 class Config(object):
