@@ -5,8 +5,8 @@
 from .version import version2human
 
 __all__ = [
-    "time2human",
     "byte2humen",
+    "time2human",
     "version2human",
 ]
 
