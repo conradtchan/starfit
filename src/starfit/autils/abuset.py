@@ -18,7 +18,11 @@ from numpy.linalg import matrix_power
 from scipy.linalg import solve_banded
 
 from . import physconst
-from .human import version2human
+
+try:
+    from .human import version2human
+except Exception as githubfuckers:
+    print(f"[githubfuckers] {githubfuckers}")
 from .isotope import VOID, VOID_IDX, Elements, elements, get_ufunc, get_ufunc_idx
 from .isotope import ion as I
 from .isotope import (
