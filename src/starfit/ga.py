@@ -36,7 +36,6 @@ class Ga(Results, Logged):
         cdf=True,
         seed=None,
         silent=False,
-        interpolate=False,
         max_pop=10000,
     ):
 
@@ -55,7 +54,6 @@ class Ga(Results, Logged):
             z_max,
             upper_lim,
             z_lolim,
-            interpolate,
         )
 
         self.sol_size = sol_size
@@ -263,49 +261,6 @@ class Ga(Results, Logged):
         else:
             self.max_pop = self.pop_size
             s = o
-
-        self.s = s
-        self.f = f
-
-        iev = self.likelihood(f)
-        self.evidence = np.sum(iev)
-
-        growth_condition = (
-            iev[int(self.pop_size * self.frac_elite)] * self.n_comb()
-            > (self.evidence / self.pop_size) ** 2
-        )
-        if growth_condition and (self.pop_size < self.max_pop):
-            self._enlarge()
-
-    def _enlarge(self):
-        """Double the population size"""
-        db_size = self.db.data.transpose().shape[1]
-        old_pop_size = self.pop_size
-        self.pop_size *= 2
-        s = np.ndarray(
-            (self.pop_size, self.sol_size), dtype=[("index", "int"), ("offset", "f8")]
-        )
-        f = np.ndarray(
-            (self.pop_size),
-        )
-        s[:old_pop_size] = self.s
-        s[old_pop_size:] = self._populate(db_size, old_pop_size, self.sol_size)
-        f[:old_pop_size] = self.f
-        f[old_pop_size:] = self._fitness(
-            self.trimmed_db,
-            self.eval_data,
-            self.exclude_index,
-            s[old_pop_size:],
-            fixed_offsets=self.fixed_offsets,
-            ejecta=self.ejecta,
-            cdf=self.cdf,
-            ls=self.local_search,
-        )
-
-        # Order by fitness
-        sort = np.argsort(f)
-        s = s[sort]
-        f = f[sort]
 
         self.s = s
         self.f = f
