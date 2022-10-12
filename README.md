@@ -2,6 +2,8 @@
 ![x](https://github.com/conradtchan/starfit/actions/workflows/pre-commit.yml/badge.svg)
 ![x](https://github.com/conradtchan/starfit/actions/workflows/publish.yml/badge.svg)
 
+![GitHub commits since latest release (by SemVer including pre-releases)](https://img.shields.io/github/commits-since/conradtchan/starfit/latest/master?include_prereleases)
+
 Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/).
 
 StarFit can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
