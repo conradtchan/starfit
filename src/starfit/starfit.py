@@ -9,7 +9,7 @@ from . import DATA_DIR, starplot
 from .autils import abusets
 from .autils.isotope import ion as I
 from .autils.logged import Logged
-from .dbtrim import TrimDB as StarDB
+from .autils.stardb import StarDB
 from .fitness import solver
 from .read import Star
 
@@ -44,23 +44,25 @@ class Results(Logged):
     def _setup(
         self,
         filename,
-        db,
+        dbname,
         combine,
         z_exclude,
         z_max,
         upper_lim,
         z_lolim,
-        interpolate=False,
     ):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
         """
-        if not os.path.isfile(db):
-            _db = os.path.join(DATA_DIR, "db", db)
-            if os.path.isfile(_db):
-                db = _db
+        if not os.path.isfile(dbname):
+            _dbpath = os.path.join(DATA_DIR, "db", dbname)
+            if os.path.isfile(_dbpath):
+                dbpath = _dbpath
             else:
-                raise IOError(f"file {db} not found")
+                raise IOError(f"file {dbname} not found")
+        else:
+            dbpath = dbname
+
         # Read a star
         star = Star(filename, silent=self.silent)
         self.star = star
@@ -69,13 +71,9 @@ class Results(Logged):
         # db.data[element,entry]
         # For element 1-83
         # Entry 1-16800
-        db = StarDB(db, silent=self.silent)
-        if interpolate:
-            self.logger.info("Using interpolated database")
-            db.inter_db(new_energy=interpolate[0], new_mixing=interpolate[1])
-        self.db = db
+        self.db = StarDB(dbpath, silent=self.silent)
 
-        self.ejecta = db.fielddata["mass"] - db.fielddata["remnant"]
+        self.ejecta = self.db.fielddata["mass"] - self.db.fielddata["remnant"]
 
         self.combine = combine
         self.z_max = z_max
@@ -99,11 +97,11 @@ class Results(Logged):
         dbions = self.db.ions
 
         # The full set of abundance data from the database
-        full_abudata = np.copy(db.data.transpose())
-        full_ions = np.copy(db.ions)
+        full_abudata = np.copy(self.db.data.transpose())
+        full_ions = np.copy(self.db.ions)
 
         # List of every every element in the DB
-        list_db = np.array([ion for ion in db.ions])
+        list_db = np.array([ion for ion in self.db.ions])
 
         # List of every element in the DB less than zmax
         list_zmax = list_db[np.where(np.array([ion.Z for ion in list_db]) <= z_max)]
@@ -116,7 +114,7 @@ class Results(Logged):
         # Transforms the uncombined element numbers for use in the sun
         index_sun = np.in1d(list_db, list_zmax, assume_unique=True)
         sunions = dbions[index_sun]
-        sun_full = sun.Y(db.ions[index_sun])
+        sun_full = sun.Y(self.db.ions[index_sun])
         sun_star = sun.Y(eval_data.element[:])
 
         # Combine elements
@@ -312,69 +310,6 @@ class Results(Logged):
                 np.arange(db_size - self.sol_size + 1, db_size + 1).astype("f8")
             ) / math.factorial(self.sol_size)
         return self._n_comb
-
-    def ev_const(
-        self,
-    ):
-        try:
-            self._ev_const
-        except:
-            n_el = np.sum(np.invert(self.exclude_index))
-            self._ev_const = (
-                1
-                / np.sqrt(2 * np.pi) ** (n_el - 2)
-                * np.abs(np.product(self.eval_data["error"]))
-            )
-        return self._ev_const
-
-    def likelihood(self, fitness):
-        n_el = np.sum(np.invert(self.exclude_index))
-        return self.ev_const() * np.exp(-0.5 * (n_el - 2) * fitness)
-
-    def log_likelihood_unscaled(self, fitness):
-        n_el = np.sum(np.invert(self.exclude_index))
-        return -0.5 * (n_el - 2) * fitness
-
-    def dbmf(
-        self,
-    ):
-        '''Calculate the "database mass function"'''
-        masses = self.db.grid()[2][0, 0, :]["mass"]
-        n = len(masses)
-        midpoints = np.ndarray((n + 1))
-        midpoints[1:-1] = 0.5 * (masses[:-1] + masses[1:])
-        midpoints[0] = masses[0] - (midpoints[1] - masses[0])
-        midpoints[-1] = masses[-1] + (masses[-1] - midpoints[-2])
-        width = midpoints[1:] - midpoints[:-1]
-
-        density = 1 / width / n
-
-        return masses, density
-
-    def get_prior_weight(self, prior_name=None):
-        """Get weight for prior (same as rejection rate)"""
-        weight = np.ones(self.db.data.shape[0])
-
-        if prior_name is not None:
-            mass, dens = self.dbmf()
-            uniform_rate = 1 / dens
-
-            if prior_name == "uniform":
-                distribution = np.ones_like(mass)
-            elif prior_name == "log_uniform":
-                distribution = 1 / mass
-            elif prior_name == "salpeter":
-                distribution = mass ** (-2.35)
-
-            # Reshaping to map onto the database
-            weight = weight.reshape(self.db.grid()[1].shape)
-            weight[:, :, :] = uniform_rate[np.newaxis, np.newaxis, :] * distribution
-            weight = weight.reshape(-1)
-
-        # Normalize to sum to 1
-        weight = weight / np.sum(weight)
-
-        return weight
 
     def run(
         self,

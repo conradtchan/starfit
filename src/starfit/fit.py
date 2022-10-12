@@ -29,8 +29,6 @@ class Single(Results, Logged):
         upper_lim=True,
         silent=False,
         cdf=True,
-        interpolate=False,
-        prior=None,
     ):
         self.silent = silent
         super().__init__("Single")
@@ -43,7 +41,6 @@ class Single(Results, Logged):
             z_max,
             upper_lim,
             z_lolim,
-            interpolate,
         )
 
         self.gene_size = 1
@@ -70,8 +67,6 @@ class Single(Results, Logged):
         sort_index = np.argsort(fitness)
         self.sorted_fitness = fitness[sort_index]
         self.sorted_stars = stars[sort_index]
-
-        self.evidence = np.sum(self.likelihood(fitness) * self.get_prior_weight(prior))
 
         self.logger.info("Best solution:")
         self.logger.info(" " + str(self.sorted_stars[0, 0]))
@@ -105,8 +100,6 @@ class Double(Results, Logged):
         save=False,
         webfile=None,
         block_size=100_000,
-        hist_size=5000,
-        prior=None,
     ):
         self.silent = silent
         Results.__init__(self, "Double")
@@ -121,8 +114,6 @@ class Double(Results, Logged):
             z_lolim,
         )
 
-        self.prior = prior
-
         self.setup_double(fixed, n_top, block_size, cdf)
 
         self.logger.info(
@@ -134,35 +125,19 @@ class Double(Results, Logged):
 
         self.working_arrays()
 
-        self.hist_bins = np.linspace(-3000, 0, hist_size + 1)
-
-        self.hist = np.zeros(hist_size)
-
         time_start = time.perf_counter()
         futures = self.init_futures(threads=threads, nice=nice)
 
         elapsed = 0
         self.n_solved = 0
 
-        self.evidence = 0
-        errors = self.eval_data["error"][np.invert(self.exclude_index)]
-        n_el = len(errors)
-
-        self.ev_const = (
-            1 / np.sqrt(2 * np.pi) ** (n_el - 2) * np.abs(np.product(errors))
-        )
-
         for n, future in enumerate(as_completed(futures)):
             (
                 local_stars,
                 local_fitness,
-                local_ev,
                 n_local_solved,
-                local_hist,
             ) = future.result()
             return_len = len(local_stars)
-
-            self.evidence += local_ev
 
             self.top_stars[2 * self.n_top - return_len :, :] = local_stars
             self.top_fitness[2 * self.n_top - return_len :] = local_fitness
@@ -170,8 +145,6 @@ class Double(Results, Logged):
             sort = np.argsort(self.top_fitness)
             self.top_stars = self.top_stars[sort, :]
             self.top_fitness = self.top_fitness[sort]
-
-            self.hist += local_hist
 
             self.n_solved += n_local_solved
             self.frac_done = self.n_solved / self.n_solves
@@ -232,8 +205,6 @@ class Double(Results, Logged):
         else:
             self.block_size = block_size
 
-        self.prior_weight = self.get_prior_weight(self.prior)
-
         self.cdf = cdf
 
     def working_arrays(self):
@@ -270,9 +241,6 @@ class Double(Results, Logged):
                 ejecta=self.ejecta,
                 cdf=self.cdf,
                 return_size=self.n_top,
-                ev_const=self.ev_const(),
-                hist_bins=self.hist_bins,
-                prior_weight=self.prior_weight,
             )
             for i in range(n_blocks)
         ]
@@ -334,7 +302,6 @@ class Double(Results, Logged):
                     )
                 )
             print("-----------------------------------------------------------------")
-            print(f"Evidence = {self.evidence:4.3e}")
         else:
             sys.stdout.write("\x1b[A")
             sys.stdout.write("\x1b[A")
@@ -346,7 +313,6 @@ class Double(Results, Logged):
                     remain=time2human(self.elapsed / self.frac_done - self.elapsed),
                 )
             )
-            print(f"Evidence = {self.evidence:4.3e}")
 
     def save_file(self, file_name):
         with open(file_name, mode="w") as f:
@@ -474,9 +440,6 @@ def _solve(
     fixed=False,
     ejecta=None,
     return_size=None,
-    ev_const=None,
-    hist_bins=None,
-    prior_weight=None,
     **kwargs,
 ):
     """
@@ -512,20 +475,11 @@ def _solve(
 
     n_local_solved = len(fitness)
 
-    n_el = np.sum(np.invert(exclude_index))
-    log_ev = -0.5 * (n_el - 2) * fitness
-    ev = (
-        ev_const * np.exp(log_ev) * np.product(prior_weight[solutions["index"]], axis=1)
-    )
-    ev_tot = np.sum(ev)
-
-    local_hist = np.histogram(log_ev, bins=hist_bins)[0]
-
     if return_size is not None:
         solutions = solutions[:return_size, :]
         fitness = fitness[:return_size]
 
-    return solutions, fitness, ev_tot, n_local_solved, local_hist
+    return solutions, fitness, n_local_solved
 
 
 class Direct(Results, Logged):
