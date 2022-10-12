@@ -73,7 +73,7 @@ class Star(Logged):
         self.BBN_data = BBNAbu(
             name=os.path.join(DATA_DIR, "ref/bbnc19.dat"), silent=silent
         )
-        self._read(filename, silent=silent)
+        self._read(filename)
         # Add BBN data
         self._bbn()
         # Sort star
