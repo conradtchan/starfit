@@ -1473,6 +1473,7 @@ class AbuSet(Logged):
             molfrac = False
         self.molfrac = molfrac
         self._init = False
+        self.silent = silent
 
     def setattr(self, attr, value):
         self.__dict__[attr] = value
@@ -1540,9 +1541,10 @@ class AbuSet(Logged):
             self.iso = self.iso[ii]
             self.abu = self.abu[ii]
         self.normalize()
-        print(
-            f" [{self.__class__.__name__}] Returning set with {len(self.abu)} isotopes."
-        )
+        if not self.silent:
+            print(
+                f" [{self.__class__.__name__}] Returning set with {len(self.abu)} isotopes."
+            )
 
     def _append(self, iso, abu):
         # todo: add sorting? - YES

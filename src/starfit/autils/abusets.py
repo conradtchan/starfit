@@ -96,7 +96,7 @@ class SolAbu(AbuSet):
         """
         Create abundance from set name.
         """
-        super().__init__()
+        super().__init__(silent=silent)
 
         if name is None:
             name = self.default
@@ -146,7 +146,7 @@ class SolAbu(AbuSet):
         return filename
 
     def _load_abu(self, filename):
-        self._from_dat(filename, silent=False)
+        self._from_dat(filename, silent=self.silent)
 
 
 def bbncoc(filename, write=False):
