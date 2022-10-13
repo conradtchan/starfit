@@ -262,6 +262,11 @@ class Ga(Results, Logged):
             self.max_pop = self.pop_size
             s = o
 
+        # Trim solution vector to even size
+        if len(f) %2 != 0:
+            f = f[:-1]
+            s = s[:-1]
+    
         self.s = s
         self.f = f
 
