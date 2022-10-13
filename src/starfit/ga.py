@@ -266,7 +266,7 @@ class Ga(Results, Logged):
         if len(f) % 2 != 0:
             f = f[:-1]
             s = s[:-1]
-    
+
         self.s = s
         self.f = f
 
