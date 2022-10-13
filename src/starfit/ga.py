@@ -263,7 +263,7 @@ class Ga(Results, Logged):
             s = o
 
         # Trim solution vector to even size
-        if len(f) %2 != 0:
+        if len(f) % 2 != 0:
             f = f[:-1]
             s = s[:-1]
     
