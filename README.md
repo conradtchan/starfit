@@ -162,7 +162,13 @@ Specifying a custom data directory will cause the default data directory to be i
 If only one (or a subset) of data files needs to be specified, the default files should be copied from the default directory.
 
 # Contributing to StarFit
-Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions. Two automated checks (on Github Actions) must be passed:
+Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
+```
+git checkout -b <new_brnach>
+git push -u origin <new_branch>
+```
+
+Two automated checks (on Github Actions) must be passed:
 1. Code formatting using pre-commit. To ensure your changes are compliant with this project's linters, we recommend installing pre-commit prior to making any commits locally.
 ```
 pip install pre-commit
