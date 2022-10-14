@@ -35,7 +35,7 @@ cd starfit
 export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
 
 # "-e" creates an editable install, "[testing]" installs additional dependencies for testing
-pip install -e .[testing]
+pip3 install -e .[testing]
 
 # Run all tests
 python -m pytest
