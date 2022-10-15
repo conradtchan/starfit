@@ -1,17 +1,25 @@
 """Results objects from the various algorithms"""
 
 import math
-import os
+from pathlib import Path
+from string import capwords
 
 import numpy as np
 
-from . import DATA_DIR, starplot
+from . import DATA_DIR, SOLAR, starplot
 from .autils import abusets
 from .autils.isotope import ion as I
 from .autils.logged import Logged
 from .autils.stardb import StarDB
 from .fitness import solver
 from .read import Star
+
+# uniform and brief units
+_unit_translate = {
+    "solar masses": "Msun",
+    "M_sun": "Msun",
+    "He core fraction": "He core",
+}
 
 
 class Results(Logged):
@@ -45,18 +53,21 @@ class Results(Logged):
         self,
         filename,
         dbname,
-        combine,
-        z_exclude,
-        z_max,
-        upper_lim,
-        z_lolim,
+        *,
+        combine=[],
+        z_exclude=[],
+        z_min=1,
+        z_max=30,
+        upper_lim=[],
+        z_lolim=[],
     ):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
         """
-        if not os.path.isfile(dbname):
-            _dbpath = os.path.join(DATA_DIR, "db", dbname)
-            if os.path.isfile(_dbpath):
+        dbname = Path(dbname).expanduser()
+        if not dbname.is_file():
+            _dbpath = Path(DATA_DIR) / "db" / dbname
+            if _dbpath.is_file():
                 dbpath = _dbpath
             else:
                 raise IOError(f"file {dbname} not found")
@@ -73,17 +84,27 @@ class Results(Logged):
         # Entry 1-16800
         self.db = StarDB(dbpath, silent=self.silent)
 
-        self.ejecta = self.db.fielddata["mass"] - self.db.fielddata["remnant"]
+        if "mass" in self.db.fieldnames:
+            ejecta = np.array(self.db.fielddata["mass"])
+            if "remnant" in self.db.fieldnames:
+                ejecta -= self.db.fielddata["remnant"]
+        else:
+            ejecta = np.tile(1.0e0, self.fielddata.shape[0])
 
+        self.ejecta = ejecta
         self.combine = combine
+        self.z_min = z_min
         self.z_max = z_max
         self.upper_lim = upper_lim
         self.z_lolim = z_lolim
         self.z_exclude = z_exclude
 
-        # Remove elements with Z > zmax
+        # Remove elements with Z > z_max and Z < z_min
         mask_zmax = np.array(
-            [ion.Z <= z_max for ion in star.element_abundances.element]
+            [
+                ion.Z <= z_max and ion.Z >= z_min
+                for ion in star.element_abundances.element
+            ]
         )
         eval_data = star.element_abundances[mask_zmax]
         # eval_data = eval_data #The other one gets chopped and changed
@@ -103,22 +124,29 @@ class Results(Logged):
         # List of every every element in the DB
         list_db = np.array([ion for ion in self.db.ions])
 
-        # List of every element in the DB less than zmax
-        list_zmax = list_db[np.where(np.array([ion.Z for ion in list_db]) <= z_max)]
+        # List of every element in the DB less than z_max and greater than z_min
+        zdb = np.array([ion.Z for ion in list_db])
+        list_ztrim = list_db[(zdb <= z_max) & (zdb >= z_min)]
 
         # Prepare the sun
+        solar = Path(SOLAR).expanduser().resolve()
+        if not solar.is_file():
+            solar = Path(DATA_DIR) / "ref" / SOLAR
+            if not solar.is_file():
+                raise AttributeError(f"solar data '{solar}' not found.")
         sun = abusets.SolAbu(
-            name=os.path.join(DATA_DIR, "ref/sollo22.dat"),
+            name=solar,
             silent=self.silent,
         )
+
         # Transforms the uncombined element numbers for use in the sun
-        index_sun = np.in1d(list_db, list_zmax, assume_unique=True)
+        index_sun = np.in1d(list_db, list_ztrim, assume_unique=True)
         sunions = dbions[index_sun]
         sun_full = sun.Y(self.db.ions[index_sun])
         sun_star = sun.Y(eval_data.element[:])
 
         # Combine elements
-        list_comb = list_zmax
+        list_comb = list_ztrim
         comb_abudata = full_abudata
         comb_ions = full_ions
         # Structure of list:
@@ -227,7 +255,9 @@ class Results(Logged):
         # Flip the sign of the error of the lower limits
         eval_data.error[lolim_index_star] = -np.abs(eval_data.error[lolim_index_star])
 
-        self.logger.info(f"Matching {len(eval_data)} data points up to Z={z_max}:")
+        self.logger.info(
+            f"Matching {len(eval_data)} data points from Z={z_min} to Z={z_max}:"
+        )
 
         self.logger.info("    " + " ".join([str(ion) for ion in eval_data.element]))
 
@@ -249,7 +279,7 @@ class Results(Logged):
         self.trimmed_db = trimmed_db
         self.full_abudata = full_abudata
         self.list_db = list_db
-        self.list_zmax = list_zmax
+        self.list_ztrim = list_ztrim
         self.list_comb = list_comb
         self.exclude_index = exclude_index
         self.lolim_index_all = lolim_index_all
@@ -377,58 +407,57 @@ class Results(Logged):
             history=self.history,
         )
 
-    def text_result(self, n=20, print_text=True):
+    def text_result(self, n=20, format="unicode"):
         """Print data of best fit."""
         text = []
-        text += [["Chi**2", "Index", "Mass", "Energy", "Mixing", "Dilution", "Ejecta"]]
-        text += [["", "", "M_sun", "B", "log(M_He)", "", "log(M_sun)"]]
-        db_field_index = [
-            np.where(self.db.fieldnames == x)[0][0]
-            for x in ("mass", "energy", "mixing", "remnant")
-        ]
-        for i in range(n):
+        if format == "html":
+            base_title = ["&#x1D6D8;&sup2;", "Dilution", "Index"]
+        elif format == "unicode":
+            base_title = ["\u03C7\u00B2", "Dilution", "Index"]
+        else:
+            base_title = ["chi**2", "Dilution", "Index"]
+        base_units = ["", "", ""]
+
+        db = self.db
+
+        text.append(base_title + [capwords(word) for word in db.fieldnames])
+        text.append(
+            base_units
+            + [f"({_unit_translate.get(word, word)})" for word in db.fieldunits]
+        )
+
+        for i in range(min(n, len(self.sorted_stars))):
             for j in range(self.sol_size):
                 index, offset = self.sorted_stars[i][j]
-                text += [
-                    [
-                        f"{self.sorted_fitness[i]:3.2f}",
-                        f"{index:6d}",
-                        f"{self.db.fielddata[index][db_field_index[0]]:3.2f}",
-                        f"{self.db.fielddata[index][db_field_index[1]]:3.2f}",
-                        "{:3.2f}".format(
-                            math.log10(
-                                self.db.fielddata[index][db_field_index[2]] + 1.0e-99
-                            )
-                        ),
-                        f"1:{1 / offset:1.0f}",
-                        "{:3.2f}".format(
-                            self.db.fielddata[index][db_field_index[0]]
-                            - self.db.fielddata[index][db_field_index[3]]
-                        ),
-                    ]
-                ]
+                data = db.fielddata[index]
+                line = list()
+                if j == 0:
+                    line.append(f"{self.sorted_fitness[i]:3.2f}")
+                else:
+                    line.append("")
+                line.append(f"1:{1 / offset:1.0f}")
+                line.append(f"{index:6d}")
+                line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
+                text.append(line)
             if self.sol_size > 1:
-                text += [""]
+                text.append("")
 
         return text
-
-        string = "\n".join(text)
-        if print_text:
-            print(string)
-        else:
-            return string
 
     @staticmethod
     def textpad(s, n):
         nspace = n - len(s)
-        return s + " " * nspace
+        return " " * nspace + s
 
     def __str__(self):
         text = self.text_result(10)
+        lengths = [[len(word) for word in line] for line in text if len(line) > 0]
+        lengths = np.asarray(lengths).max(axis=0) + 1
+
         string = ""
         for line in text:
-            for word in line:
-                string += self.textpad(word, 11)
+            for word, length in zip(line, lengths):
+                string += self.textpad(word, length)
             string += "\n"
         return string
 
