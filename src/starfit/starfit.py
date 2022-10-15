@@ -65,6 +65,7 @@ class Results(Logged):
         z_max=30,
         upper_lim=None,
         z_lolim=None,
+
     ):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
@@ -461,6 +462,7 @@ class Results(Logged):
                 else ""
                 for word in db.fieldunits
             ]
+
         )
 
         for i in range(min(n, len(self.sorted_stars))):
