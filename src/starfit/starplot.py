@@ -46,16 +46,24 @@ _unit_translate = {
 }
 
 
-def _unit_format_mixing(value):
+def _unit_format_mixing(value, *_):
     if value == 0:
         return "(no mixing)"
     return rf"$\log(f_{{\mathsf{{mix}}}})={np.log10(value):4.1f}$"
 
 
 _unit_formatters = {
-    "model": lambda value: f"Model {value}",
+    "model": lambda value, *_: f"Model {value}",
     "He core fraction": _unit_format_mixing,
-    "solar masses": lambda value: rf"{mass_string(value)} $\mathsf{{M}}_{{\odot}}$",
+    "solar masses": lambda value, *_: rf"{mass_string(value)} $\mathsf{{M}}_{{\odot}}$",
+}
+
+_title_formatters = {
+    "lower mass cut": lambda value, *_: rf"$\ge{mass_string(value)}\,\mathsf{{M}}_{{\odot}}$",
+    "upper mass cut": lambda value, *_: rf"$\le{mass_string(value)}\,\mathsf{{M}}_{{\odot}}$",
+    "gamma": lambda value, form, *_: rf"$\Gamma={value:{form}}$",
+    "eexp": lambda value, form, *_: rf"$E^{{\mathsf{{exp}}}}={value:{form}}$",
+    "sigma": lambda value, form, unit, *_: rf"$\pm{value:{form}}$ {unit}",
 }
 
 
@@ -175,15 +183,23 @@ def abuplot(
                 continue
             value = db.fielddata[index][j]
             unit = db.fieldunits[j]
+            name = db.fieldnames[j]
             form = db.fieldformats[j]
+            if unit == "-":
+                unit = ""
             raw.append(f"{value:{form}} {unit}".strip())
 
-            if unit in _unit_formatters:
-                value = _unit_formatters[unit](value)
+            if name in _title_formatters:
+                value = _title_formatters[name](value, form, unit)
+            elif unit in _unit_formatters:
+                value = _unit_formatters[unit](value, form)
             else:
                 value = f"{value:{form}}"
                 unit = _unit_translate.get(unit, unit)
-                if len(unit) > 0:
+                if unit not in (
+                    "",
+                    "-",
+                ):
                     value = f"{value} {unit}"
             parameters.append(value)
         texlabels.append(", ".join(parameters))

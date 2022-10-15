@@ -21,6 +21,11 @@ _unit_translate = {
     "He core fraction": "He core",
 }
 
+_title_translate = {
+    "lower mass cut": "Mlow",
+    "upper mass cut": "Mhigh",
+}
+
 
 class Results(Logged):
     """
@@ -54,12 +59,12 @@ class Results(Logged):
         filename,
         dbname,
         *,
-        combine=[],
-        z_exclude=[],
+        combine=None,
+        z_exclude=None,
         z_min=1,
         z_max=30,
-        upper_lim=[],
-        z_lolim=[],
+        upper_lim=None,
+        z_lolim=None,
     ):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
@@ -89,7 +94,24 @@ class Results(Logged):
             if "remnant" in self.db.fieldnames:
                 ejecta -= self.db.fielddata["remnant"]
         else:
-            ejecta = np.tile(1.0e0, self.fielddata.shape[0])
+            ejecta = np.tile(1.0e0, self.db.fielddata.shape[0])
+
+        if combine is None:
+            combine = []
+        if not np.iterable(combine):
+            raise AttributeError(f"{combine=} not supported")
+        if len(combine) == 0:
+            combine = [[]]
+        elif len(combine) == 1:
+            if not np.iterable(combine[0]):
+                combine = [combine]
+
+        if z_exclude is None:
+            z_exclude = []
+        if upper_lim is None:
+            upper_lim = []
+        if z_lolim is None:
+            z_lolim = []
 
         self.ejecta = ejecta
         self.combine = combine
@@ -326,7 +348,7 @@ class Results(Logged):
         )
 
         sol["offset"] = offsets
-        fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 2
+        fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
         return fitness
 
     def n_comb(
@@ -371,11 +393,11 @@ class Results(Logged):
         )
         return sol, fitness
 
-    def plot(self, **kwargs):
+    def plot(self, index=0, **kwargs):
         """Call plotting routines to plot the best fit."""
         db = self.db
 
-        bestsol = self.sorted_stars[0]
+        bestsol = self.sorted_stars[index]
         self.labels, self.plotdata = starplot.abuplot(
             indices=bestsol["index"].tolist(),
             offsets=bestsol["offset"].tolist(),
@@ -420,10 +442,25 @@ class Results(Logged):
 
         db = self.db
 
-        text.append(base_title + [capwords(word) for word in db.fieldnames])
+        text.append(
+            base_title
+            + [
+                _title_translate[word] if word in _title_translate else capwords(word)
+                for word in db.fieldnames
+            ]
+        )
         text.append(
             base_units
-            + [f"({_unit_translate.get(word, word)})" for word in db.fieldunits]
+            + [
+                f"({_unit_translate.get(word, word)})"
+                if word
+                not in (
+                    "",
+                    "-",
+                )
+                else ""
+                for word in db.fieldunits
+            ]
         )
 
         for i in range(min(n, len(self.sorted_stars))):
