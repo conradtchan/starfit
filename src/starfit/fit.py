@@ -22,9 +22,11 @@ class Single(Results, Logged):
         self,
         filename,
         db="znuc2012.S4.star.el.y.stardb.gz",
+        *,
         combine=[[]],
-        z_max=30,
         z_exclude=[],
+        z_min=1,
+        z_max=30,
         z_lolim=[],
         upper_lim=True,
         silent=False,
@@ -34,13 +36,14 @@ class Single(Results, Logged):
         super().__init__("Single")
 
         self._setup(
-            filename,
-            db,
-            combine,
-            z_exclude,
-            z_max,
-            upper_lim,
-            z_lolim,
+            filename=filename,
+            dbname=db,
+            combine=combine,
+            z_exclude=z_exclude,
+            z_min=z_min,
+            z_max=z_max,
+            upper_lim=upper_lim,
+            z_lolim=z_lolim,
         )
 
         self.gene_size = 1
@@ -92,6 +95,7 @@ class Double(Results, Logged):
         nice=19,
         cdf=True,
         combine=[[]],
+        z_min=1,
         z_max=30,
         z_exclude=[],
         z_lolim=[],
@@ -105,13 +109,14 @@ class Double(Results, Logged):
         Results.__init__(self, "Double")
 
         self._setup(
-            filename,
-            db,
-            combine,
-            z_exclude,
-            z_max,
-            upper_lim,
-            z_lolim,
+            filename=filename,
+            dbname=db,
+            combine=combine,
+            z_exclude=z_exclude,
+            z_min=z_min,
+            z_max=z_max,
+            upper_lim=upper_lim,
+            z_lolim=z_lolim,
         )
 
         self.setup_double(fixed, n_top, block_size, cdf)

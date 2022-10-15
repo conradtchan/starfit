@@ -33,6 +33,30 @@ import numpy as np
 
 from .autils.isotope import ion as I
 from .autils.keputils import mass_string
+from .autils.stardb import StarDB
+
+_unit_translate = {
+    "solar masses": r"$\mathsf{M}_\odot$",
+    "M_sun": r"$\mathsf{M}_\odot$",
+    "Msun": r"$\mathsf{M}_\odot$",
+    "Z_sun": r"$\mathsf{Z}_\odot$",
+    "Zsun": r"$\mathsf{Z}_\odot$",
+    "solar": r"$\mathsf{Z}_\odot$",
+    "He core fraction": r"$\mathsf{M}_{\mathsf{He}}$",
+}
+
+
+def _unit_format_mixing(value):
+    if value == 0:
+        return "(no mixing)"
+    return rf"$\log(f_{{\mathsf{{mix}}}})={np.log10(value):4.1f}$"
+
+
+_unit_formatters = {
+    "model": lambda value: f"Model {value}",
+    "He core fraction": _unit_format_mixing,
+    "solar masses": lambda value: rf"{mass_string(value)} $\mathsf{{M}}_{{\odot}}$",
+}
 
 
 def abuplot(
@@ -134,60 +158,36 @@ def abuplot(
     lines = ["--", "-.", ":", "-"]
     linecycler = cycle(lines)
 
-    labels = []
-    texlabels = []
+    labels = list()
+    texlabels = list()
 
-    if type(indices) is list:
-        n_sol = len(indices)
-    else:
-        n_sol = 1
-    for i in range(0, n_sol):
-        try:
-            index = indices[i]
-            offset = offsets[i]
-        except:
-            index = indices
-            offset = offsets
+    if not (np.iterable(indices)):
+        indices = (indices,)
+    if not (np.iterable(offsets)):
+        offsets = (offsets,)
+    if len(offsets) != len(indices):
+        raise AttributeError(f"lengths of {indices=} and {offsets=} do not match.")
+    for i, (offset, index) in enumerate(zip(offsets, indices)):
+        raw = list()
+        parameters = list()
+        for j in range(len(db.fieldnames)):
+            if db.fieldflags[j] != StarDB.Flags.parameter:
+                continue
+            value = db.fielddata[index][j]
+            unit = db.fieldunits[j]
+            form = db.fieldformats[j]
+            raw.append(f"{value:{form}} {unit}".strip())
 
-        fielddata = np.copy(db.fielddata)
-        field_names = list(fielddata.dtype.names)
-        indexstring = f"{index}: "
-        labelfields = []
-        for col, name in enumerate(field_names):
-            if name == "energy":
-                numformat = "{:4.2f}"
-            elif name == "mixing":
-                value = fielddata[index][col]
-                if value != 0:
-                    fielddata[index][col] = np.log10(value)
-                    name = "log(mixing)"
-                    nomix = False
-                else:
-                    nomix = True
-                numformat = "{:6.4f}"
-            elif name == "offset":
-                numformat = "{:6.5f}"
+            if unit in _unit_formatters:
+                value = _unit_formatters[unit](value)
             else:
-                numformat = "{}"
-            labelfields += [("{} = " + numformat).format(name, fielddata[index][col])]
-
-        labels += [indexstring + ", ".join(labelfields) + f", dilution = {offset:4.2f}"]
-
-        if not nomix:
-            texlabels += [
-                r"${} \mathrm{{M}}_\odot$, ${} \mathrm{{B}}$, $\log(f_\mathrm{{mix}})={}$".format(
-                    mass_string(fielddata[index]["mass"]),
-                    round(fielddata[index]["energy"], 2),
-                    round(fielddata[index]["mixing"], 4),
-                )
-            ]
-        else:
-            texlabels += [
-                r"${} \mathrm{{M}}_\odot$, ${} \mathrm{{B}}$, $\mathrm{{no\ mixing}}$".format(
-                    mass_string(fielddata[index]["mass"]),
-                    round(fielddata[index]["energy"], 2),
-                )
-            ]
+                value = f"{value:{form}}"
+                unit = _unit_translate.get(unit, unit)
+                if len(unit) > 0:
+                    value = f"{value} {unit}"
+            parameters.append(value)
+        texlabels.append(", ".join(parameters))
+        labels.append(f"{index}: " + ", ".join(raw))
 
         # The pattern found by the algorithm
         y_a = np.log10(summed[index_t]) - logsun_full
@@ -210,7 +210,7 @@ def abuplot(
                         consec = np.array_split(row, np.where(np.diff(row) != 1)[0] + 1)
                         x[ind[0]] = np.mean(consec[0])
         # Plot components if there are more than one
-        if n_sol != 1:
+        if len(indices) > 1:
             y_ga = (
                 np.log10((full_abudata[index_t, index] * offset) + 1.0e-99)
                 - logsun_full
@@ -283,7 +283,7 @@ def abuplot(
         ylim = (np.min(y_star) - 1.0, 0.9)
 
     if xlim is None:
-        xlim = (0.1, zlist_comb[-1] + 1)
+        xlim = (zlist_comb[0] - 1, zlist_comb[-1] + 1)
 
     # Calculate number of pixels per data
     dpi = fig.get_dpi()
@@ -451,7 +451,6 @@ def abuplot(
             savename = "../plots/" + savename + ".pdf"
         fig.savefig(savename)
 
-    # What is zlabels?
     return labels, (x_a, y_a)
 
 
