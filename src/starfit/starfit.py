@@ -69,15 +69,23 @@ class Results(Logged):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
         """
-        dbname = Path(dbname).expanduser()
-        if not dbname.is_file():
+        _dbpath = Path(dbname).expanduser().resolve()
+        try:
+            ok = _dbpath.is_file()
+        except:
+            ok = False
+        if not ok:
             _dbpath = Path(DATA_DIR) / "db" / dbname
-            if _dbpath.is_file():
+            try:
+                ok = _dbpath.is_file()
+            except:
+                ok = False
+            if ok:
                 dbpath = _dbpath
             else:
                 raise IOError(f"file {dbname} not found")
         else:
-            dbpath = dbname
+            dbpath = _dbpath
 
         # Read a star
         star = Star(filename, silent=self.silent)
@@ -152,9 +160,17 @@ class Results(Logged):
 
         # Prepare the sun
         solar = Path(SOLAR).expanduser().resolve()
-        if not solar.is_file():
+        try:
+            ok = solar.is_file()
+        except:
+            ok = False
+        if not ok:
             solar = Path(DATA_DIR) / "ref" / SOLAR
-            if not solar.is_file():
+            try:
+                ok = solar.is_file()
+            except:
+                ok = False
+            if not ok:
                 raise AttributeError(f"solar data '{solar}' not found.")
         sun = abusets.SolAbu(
             name=solar,
