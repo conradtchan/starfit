@@ -4,9 +4,9 @@ import starfit
 
 
 def test():
-    """Test a single star fits, data format 1"""
-    TEST_STAR = "HE1327-2326.dat"
-    EXPECTED_RESULT = 3.292526847047224
+    """Test a single star fits, data format 6"""
+    TEST_STAR = "SDSS-J102915+172927.dat"
+    EXPECTED_RESULT = 0.7040288685922813
 
     test_result = starfit.Single(TEST_STAR, silent=True).sorted_fitness[0]
 

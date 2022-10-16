@@ -1,8 +1,11 @@
-*.dat
-*.gz
-*.xz
+/src/starfit/data/ref/*.dat
+/src/starfit/data/stars/*.dat
+/src/starfit/data/db/*.gz
+/src/starfit/data/db/*.bz
+/src/starfit/data/db/*.xz
 *.DS_Store
 *.so
+*~
 /build/
 /src/starfit.egg-info
 __pycache__
