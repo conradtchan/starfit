@@ -178,6 +178,10 @@ If you have already made non-compliant commits prior to installing pre-commit, t
 ```
 pre-commit run --all
 ```
+and also run tests as a first check
+```
+python -m pytest
+```
 and include these changes in a follow-up commit.
 
 2. Code tests using `pytest`. New tests can be added to the `tests/` directory.
