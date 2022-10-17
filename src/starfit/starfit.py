@@ -6,7 +6,9 @@ from string import capwords
 
 import numpy as np
 
-from . import DATA_DIR, SOLAR, starplot
+from starfit.utils import find_data
+
+from . import SOLAR, starplot
 from .autils import abusets
 from .autils.isotope import ion as I
 from .autils.logged import Logged
@@ -69,23 +71,8 @@ class Results(Logged):
         """Prepare the data for the solvers. Trims the databases and excludes
         elements.
         """
-        _dbpath = Path(dbname).expanduser().resolve()
-        try:
-            ok = _dbpath.is_file()
-        except:
-            ok = False
-        if not ok:
-            _dbpath = Path(DATA_DIR) / "db" / dbname
-            try:
-                ok = _dbpath.is_file()
-            except:
-                ok = False
-            if ok:
-                dbpath = _dbpath
-            else:
-                raise IOError(f"file {dbname} not found")
-        else:
-            dbpath = _dbpath
+
+        dbpath = find_data(dbname)
 
         # Read a star
         star = Star(filename, silent=self.silent)
@@ -159,21 +146,8 @@ class Results(Logged):
         list_ztrim = list_db[(zdb <= z_max) & (zdb >= z_min)]
 
         # Prepare the sun
-        solar = Path(SOLAR).expanduser().resolve()
-        try:
-            ok = solar.is_file()
-        except:
-            ok = False
-        if not ok:
-            solar = Path(DATA_DIR) / "ref" / SOLAR
-            try:
-                ok = solar.is_file()
-            except:
-                ok = False
-            if not ok:
-                raise AttributeError(f"solar data '{solar}' not found.")
         sun = abusets.SolAbu(
-            name=solar,
+            name=find_data(SOLAR),
             silent=self.silent,
         )
 

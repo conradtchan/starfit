@@ -50,10 +50,11 @@ from pathlib import Path
 
 import numpy as np
 
-from . import BBN, DATA_DIR, SOLAR
+from . import BBN, SOLAR
 from .autils.abusets import BBNAbu, SolAbu
 from .autils.isotope import ion as I
 from .autils.logged import Logged
+from .utils import find_data
 
 
 # A class for each set of readings
@@ -64,16 +65,11 @@ class Star(Logged):
         self.silent = silent
         self.setup_logger(silent=silent)
 
-        if not os.path.isfile(filename):
-            _filename = os.path.join(DATA_DIR, "stars", filename)
-            if os.path.isfile(_filename):
-                filename = _filename
-            else:
-                raise IOError(f"file {filename} not found")
+        filename = find_data(filename)
 
         # Load BBN data for H reference
         self.BBN_data = BBNAbu(
-            name=Path(DATA_DIR) / "ref" / BBN,
+            name=find_data(BBN),
             silent=silent,
         )
         self._read(filename)
@@ -183,7 +179,7 @@ class Star(Logged):
                 "",
                 "-",
             ):
-                self.solar_ref = Path(DATA_DIR) / "ref" / SOLAR
+                self.solar_ref = find_data(SOLAR)
         else:
             self.solar_ref = None
 
