@@ -9,7 +9,7 @@ DATA_DIRS = [DATA_DIR]
 user_data_dir = os.getenv("STARFIT_DATA")
 if user_data_dir:
     user_data_dir = Path(user_data_dir).expanduser().resolve()
-    if user_data_dir.isdir():
+    if user_data_dir.is_dir():
         DATA_DIRS = [user_data_dir, DATA_DIR]
     else:
         print(f' [StarFit] STARFIT_DATA="{user_data_dir}" is not valid.  Ignoring.')
