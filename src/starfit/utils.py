@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from . import DATA_DIRS
@@ -14,7 +13,7 @@ def find_data(filename):
     """
 
     fullpath = Path(filename).expanduser().resolve()
-    if os.path.isfile(fullpath):
+    if fullpath.is_file():
         return fullpath
     for data_dir in DATA_DIRS:
         files = list(Path(data_dir).glob(f"**/{filename}"))
