@@ -226,7 +226,9 @@ class Ga(Results, Logged):
 
         # Eliminate genes with replications
         o = np.take_along_axis(o, np.argsort(o["index"], -1), -1)
-
+        mask = np.all(o["index"][:, :-1] != o["index"][:, 1:], axis=-1)
+        o = o[mask]
+        f = f[mask]
 
         # Duplicate elimination
         if self.local_search or self.fixed_offsets:
