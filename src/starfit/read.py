@@ -43,11 +43,6 @@ File format:
 ; Use negative values to indicate upper limits; all need to be non-zero.
 
 """
-
-import os
-import os.path
-from pathlib import Path
-
 import numpy as np
 
 from . import BBN, SOLAR

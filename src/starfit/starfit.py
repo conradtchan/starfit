@@ -1,7 +1,6 @@
 """Results objects from the various algorithms"""
 
 import math
-from pathlib import Path
 from string import capwords
 
 import numpy as np
