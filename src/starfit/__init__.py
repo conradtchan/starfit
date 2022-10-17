@@ -7,7 +7,7 @@ DATA_DIR = Path(__file__).parent.resolve() / "data"
 user_data_dir = getenv("STARFIT_DATA")
 if user_data_dir is not None:
     user_data_dir = Path(user_data_dir).expanduser().resolve()
-    if user_data_dir.isdir():
+    if user_data_dir.is_dir():
         DATA_DIR = user_data_dir
     else:
         print(f' [StarFit] DATA_DIR="{user_data_dir}" is not valid.  Ignoring.')
