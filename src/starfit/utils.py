@@ -5,6 +5,14 @@ from . import DATA_DIRS
 
 
 def find_data(filename):
+    """
+    Search through all the data directories for the filename.
+    Return the abosulte path if found. Precedence is:
+    1) absolute path provided
+    2) STARFIT_DATA env var
+    3) Installation DATA_DIR
+    """
+
     fullpath = Path(filename).expanduser().resolve()
     if os.path.isfile(fullpath):
         return fullpath
