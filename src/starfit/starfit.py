@@ -71,7 +71,7 @@ class Results(Logged):
         elements.
         """
 
-        dbpath = find_data(dbname)
+        dbpath = find_data(dbname, "db")
 
         # Read a star
         star = Star(filename, silent=self.silent)
@@ -146,7 +146,7 @@ class Results(Logged):
 
         # Prepare the sun
         sun = abusets.SolAbu(
-            name=find_data(SOLAR),
+            name=find_data(SOLAR, "ref"),
             silent=self.silent,
         )
 

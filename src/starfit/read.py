@@ -60,11 +60,11 @@ class Star(Logged):
         self.silent = silent
         self.setup_logger(silent=silent)
 
-        filename = find_data(filename)
+        filename = find_data(filename, "stars")
 
         # Load BBN data for H reference
         self.BBN_data = BBNAbu(
-            name=find_data(BBN),
+            name=find_data(BBN, "ref"),
             silent=silent,
         )
         self._read(filename)
@@ -174,7 +174,7 @@ class Star(Logged):
                 "",
                 "-",
             ):
-                self.solar_ref = find_data(SOLAR)
+                self.solar_ref = find_data(SOLAR, "ref")
         else:
             self.solar_ref = None
 
