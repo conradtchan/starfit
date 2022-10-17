@@ -165,7 +165,7 @@ If only one (or a subset) of data files needs to be specified, the default files
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
 ```
 git checkout -b <new_brnach>
-git push -u origin <new_branch>
+git push --set-upstream origin <new_branch>
 ```
 
 Two automated checks (on Github Actions) must be passed:
