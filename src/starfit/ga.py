@@ -224,6 +224,10 @@ class Ga(Results, Logged):
         o = np.concatenate((s, c), axis=0)
         f = np.concatenate((f, fc))
 
+        # Eliminate genes with replications
+        o = np.take_along_axis(o, np.argsort(o["index"], -1), -1)
+
+
         # Duplicate elimination
         if self.local_search or self.fixed_offsets:
             oindex = o["index"]
