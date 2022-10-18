@@ -186,6 +186,17 @@ and include these changes in a follow-up commit.
 
 2. Code tests using `pytest`. New tests can be added to the `tests/` directory.
 
+## Development branch
+
+Development branches are generated and uploaded to Test PyPI if the verion number ends in `.dev*` where `*` can be blanck or a optional number.  For example, '`0.3.11.dev22`.
+They may also be flagged as pre-releases.
+
+To install packages from Test PyPI use
+```
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ starfit
+```
+You may include the `-pre` flag or specify a specific version.
+
 ## Adding new data files
 Data files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files:
 1. Add the new files to the web server hosting the data files at `/var/www/html/data`
