@@ -136,10 +136,10 @@ def abuplot(
     y_star = eval_data.abundance - logsun_star
 
     x_star = np.array([ion.Z for ion in eval_data.element])
-    y_star_err = np.tile(eval_data.error, (2, 1))
-    # Determine upper limit points
+    y_star_err = np.tile(np.abs(eval_data.error), (2, 1))
+    # set asymmetric error for upper limits
     up_lims = uplim_index_star
-    y_star_err[:, up_lims] *= np.array([-1, 0])[:, np.newaxis]
+    y_star_err[1, up_lims] = 0
 
     ax.text(
         0.96,
