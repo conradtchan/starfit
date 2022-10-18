@@ -45,7 +45,7 @@ File format:
 """
 import numpy as np
 
-from . import BBN, SOLAR
+from . import BBN, REF, SOLAR, STARS
 from .autils.abusets import BBNAbu, SolAbu
 from .autils.isotope import ion as I
 from .autils.logged import Logged
@@ -60,11 +60,11 @@ class Star(Logged):
         self.silent = silent
         self.setup_logger(silent=silent)
 
-        filename = find_data(filename, "stars")
+        filename = find_data(STARS, filename)
 
         # Load BBN data for H reference
         self.BBN_data = BBNAbu(
-            name=find_data(BBN, "ref"),
+            name=find_data(REF, BBN),
             silent=silent,
         )
         self._read(filename)
@@ -174,7 +174,7 @@ class Star(Logged):
                 "",
                 "-",
             ):
-                self.solar_ref = find_data(SOLAR, "ref")
+                self.solar_ref = find_data(REF, SOLAR)
         else:
             self.solar_ref = None
 

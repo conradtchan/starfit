@@ -7,7 +7,7 @@ import numpy as np
 
 from starfit.utils import find_data
 
-from . import SOLAR, starplot
+from . import DB, REF, SOLAR, starplot
 from .autils import abusets
 from .autils.isotope import ion as I
 from .autils.logged import Logged
@@ -71,7 +71,7 @@ class Results(Logged):
         elements.
         """
 
-        dbpath = find_data(dbname, "db")
+        dbpath = find_data(DB, dbname)
 
         # Read a star
         star = Star(filename, silent=self.silent)
@@ -146,7 +146,7 @@ class Results(Logged):
 
         # Prepare the sun
         sun = abusets.SolAbu(
-            name=find_data(SOLAR, "ref"),
+            name=find_data(REF, SOLAR),
             silent=self.silent,
         )
 
