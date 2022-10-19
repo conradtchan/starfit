@@ -151,14 +151,13 @@ Custom stellar data and model database files can always be used by providing a f
 export STARFIT_DATA='/your/custom/data'
 ```
 Files found in the custom data directory will take precedence over the default data directory.
-It is suggested that your custom data directory should have the same structure as `src/starfit/data`, i.e. it should contain the `db`, `ref`, and `stars` directories:
+Your custom data directory must have the same structure as `src/starfit/data`, i.e. it should contain the `db`, `ref`, and `stars` directories:
 ```
 ❯ ls
 db
 ref
 stars
 ```
-however it is not necessary.
 
 # Contributing to StarFit
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
