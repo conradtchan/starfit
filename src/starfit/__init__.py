@@ -1,16 +1,23 @@
 from os import getenv
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.resolve() / "data"
+DATA = "data"
+DATA_DIR = Path(__file__).parent.expanduser().resolve() / DATA
+DATA_DIRS = [DATA_DIR]
 
-# If user has defined an environment variable for custom data files, use that instead
+DB = "db"
+REF = "ref"
+STARS = "stars"
+
+# If user has defined an environment variable for custom data files,
+# add that to the list of data directories to search, assuming it is valid
 user_data_dir = getenv("STARFIT_DATA")
-if user_data_dir is not None:
+if user_data_dir:
     user_data_dir = Path(user_data_dir).expanduser().resolve()
     if user_data_dir.is_dir():
-        DATA_DIR = user_data_dir
+        DATA_DIRS = [user_data_dir, DATA_DIR]
     else:
-        print(f' [StarFit] DATA_DIR="{user_data_dir}" is not valid.  Ignoring.')
+        print(f' [StarFit] STARFIT_DATA="{user_data_dir}" is not valid.  Ignoring.')
 
 SOLAR = "sollo22.dat"
 user_solar = getenv("STARFIT_SOLAR")
@@ -32,4 +39,5 @@ from .ga import Ga
 
 __all__ = ["Direct", "Double", "Single", "Ga"]
 
-del Path
+del Path, getenv
+del user_data_dir, user_solar, user_bbn
