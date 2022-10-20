@@ -71,7 +71,9 @@ def abuplot(
     indices=None,
     offsets=None,
     star=None,
-    db=None,
+    database=None,
+    database_idx=None,
+    database_off=None,
     full_abudata=None,
     eval_data=None,
     list_db=None,
@@ -178,10 +180,17 @@ def abuplot(
     for i, (offset, index) in enumerate(zip(offsets, indices)):
         raw = list()
         parameters = list()
+        db_idx = database_idx[index]
+        db = database[db_idx]
+        dbindex = index - database_off[database_idx[index]]
+        if len(database) > 1:
+            db_name = f"DB {db_idx+1:d}"
+            raw.append(db_name)
+            parameters.append(db_name)
         for j in range(len(db.fieldnames)):
             if db.fieldflags[j] != StarDB.Flags.parameter:
                 continue
-            value = db.fielddata[index][j]
+            value = db.fielddata[dbindex][j]
             unit = db.fieldunits[j]
             name = db.fieldnames[j]
             form = db.fieldformats[j]
@@ -203,7 +212,7 @@ def abuplot(
                     value = f"{value} {unit}"
             parameters.append(value)
         texlabels.append(", ".join(parameters))
-        labels.append(f"{index}: " + ", ".join(raw))
+        labels.append(f"{dbindex}: " + ", ".join(raw))
 
         # The pattern found by the algorithm
         y_a = np.log10(summed[index_t]) - logsun_full

@@ -110,7 +110,7 @@ class Results(Logged):
             self.ions = self.data[0].ions.copy()
             self.data = self.data[0].data.copy()
             self.db_idx = np.full(self.data.shape[0], 0, dtype=np.int64)
-            self.db_ofs = np.array([0], dtype=np.int64)
+            self.db_off = np.array([0], dtype=np.int64)
         else:
             self.data = AbuData.join(self.data)
             self.ions = self.data.ions
@@ -426,14 +426,15 @@ class Results(Logged):
 
     def plot(self, index=0, **kwargs):
         """Call plotting routines to plot the best fit."""
-        db = self.db
 
         bestsol = self.sorted_stars[index]
         self.labels, self.plotdata = starplot.abuplot(
             indices=bestsol["index"].tolist(),
             offsets=bestsol["offset"].tolist(),
             star=self.star,
-            db=db,
+            database=self.db,
+            database_idx=self.db_idx,
+            database_off=self.db_off,
             full_abudata=self.full_abudata,
             eval_data=self.eval_data,
             list_db=self.list_db,
@@ -478,7 +479,7 @@ class Results(Logged):
 
         n1 = min(n0 + n, len(self.sorted_stars))
 
-        dbidx = np.array(self.db_idx[self.sorted_stars[n0:n1].index])
+        dbidx = np.array(self.db_idx[self.sorted_stars[n0:n1]["index"]])
         dbx = np.unique(dbidx.flat)
 
         # wide format
