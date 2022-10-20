@@ -102,7 +102,7 @@ class Ga(Results, Logged):
 
         # Generate initial population
         self.s = self._populate(
-            self.data.transpose().shape[1],
+            self.trimmed_db.shape[1],
             pop_size,
             sol_size,
         )
@@ -180,7 +180,7 @@ class Ga(Results, Logged):
             np.random.ranf(w.shape) < self.mut_rate_index,
             [
                 w["index"],
-                np.random.randint(1, self.data.transpose().shape[1], w.shape),
+                np.random.randint(1, self.trimmed_db.shape[1], w.shape),
             ],
         )
         if not self.local_search:
