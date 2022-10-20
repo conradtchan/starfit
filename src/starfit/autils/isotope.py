@@ -2832,6 +2832,11 @@ def __getattr__(name):
         if name not in m:
             m[name] = IonCacheName(clone=m.get("ioncachename", None))
         return m[name]
+    elif name == "ioncacheidx":
+        m = sys.modules[__name__].__dict__
+        if name not in m:
+            m[name] = IonCacheIdx()
+        return m[name]
     try:
         i = ion(name)
     except:
@@ -2843,6 +2848,24 @@ def __getattr__(name):
 
 # TODO - move into submodule, add load/share option
 # TODO - add stringcache (dictionary)
+
+
+class IonCacheIdx(object):
+    def __init__(self, clone=None):
+        if clone is None:
+            self.db = dict()
+        else:
+            self.db = clone.copy()
+
+    def __call__(self, idx):
+        ions = np.ndarray(np.shape(idx), dtype=object)
+        for i, ix in enumerate(np.array(idx).flat):
+            io = self.db.get(ix, None)
+            if io is None:
+                io = ion(idx=ix)
+                self.db[ix] = io
+            ions.flat[i] = io
+        return ions
 
 
 class IonCacheZAE(object):

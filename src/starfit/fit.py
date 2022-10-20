@@ -37,7 +37,7 @@ class Single(Results, Logged):
 
         self._setup(
             filename=filename,
-            dbname=db,
+            database=db,
             combine=combine,
             z_exclude=z_exclude,
             z_min=z_min,
@@ -83,6 +83,9 @@ class Double(Results, Logged):
     """
     Find the best fit for 2 stars (complete search).
     The search results are printed live.
+
+    TODO - multiple stars
+    TODO - 'partition' to select one from each db
     """
 
     def __init__(
@@ -103,7 +106,7 @@ class Double(Results, Logged):
         silent=False,
         save=False,
         webfile=None,
-        block_size=100_000,
+        block_size=2**17,
     ):
         self.silent = silent
         Results.__init__(self, "Double")
@@ -182,7 +185,7 @@ class Double(Results, Logged):
                 filename = "{:s}({:s}, {:s}) {:d}.{:d}{:s}".format(
                     self.__class__.__name__,
                     self.star.name,
-                    self.db.name,
+                    "-".join([db.name for db in self.db]),
                     self.n_top,
                     self.db_size,
                     string,
@@ -199,17 +202,12 @@ class Double(Results, Logged):
         self.n_top = n_top
 
         self.db_size = self.trimmed_db.shape[1]
-        # self.db_size = 5
 
         self.n_solves = self.db_size * (self.db_size - 1) // 2
         if self.n_top is None:
             self.n_top = self.n_solves
 
-        if block_size > self.n_solves:
-            self.block_size = self.n_solves
-        else:
-            self.block_size = block_size
-
+        self.block_size = min(block_size, self.n_solves)
         self.cdf = cdf
 
     def working_arrays(self):
@@ -218,7 +216,7 @@ class Double(Results, Logged):
             (sorting_size, 2), dtype=[("index", "int"), ("offset", "f8")]
         )
         self.top_fitness = np.ndarray((sorting_size,), dtype="f8")
-        self.top_fitness[:] = 1.0e30
+        self.top_fitness[:] = np.inf
 
     def init_futures(self, threads=None, nice=19):
         if threads is None:
@@ -256,12 +254,14 @@ class Double(Results, Logged):
         return futures
 
     def print_header(self):
+        # TODO - update for db
+        # TODO - update for multistar
         print("\n")
         print("=================================================================")
         print(
             "Matching {count:_d} combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)".format(
                 count=self.db_size * (self.db_size - 1) // 2,
-                dbname=self.db.name,
+                dbname=", ".join([db.name for db in self.db]),
                 starname=self.star.name,
                 nel=self.trimmed_db.shape[0],
                 nup=np.sum(self.eval_data.error < 0),
@@ -281,6 +281,8 @@ class Double(Results, Logged):
             print("")
 
     def print_update(self):
+        # TODO - update for DB
+        # TODO - update for multistar
         if self.n_top <= 20:
             for i in range(7 + self.n_top):
                 sys.stdout.write("\x1b[A")
@@ -320,83 +322,91 @@ class Double(Results, Logged):
             )
 
     def save_file(self, file_name):
+        # TODO - update for multistar
         with open(file_name, mode="w") as f:
-            columns = [
-                (
-                    "Index",
-                    "{index1:<5}",
-                    5,
-                ),
-                (
-                    "Mass",
-                    "{mass1:5.1f}",
-                    5,
-                ),
-                (
-                    "Eexp",
-                    "{energy1:4.1f}",
-                    4,
-                ),
-                (
-                    "Mixing",
-                    "{mixing1:8.6f}",
-                    8,
-                ),
-                (
-                    "Offset",
-                    "{offset1:12e}",
-                    12,
-                ),
-                (
-                    "|",
-                    "|",
-                    1,
-                ),
-                (
-                    "Index",
-                    "{index2:<5}",
-                    5,
-                ),
-                (
-                    "Mass",
-                    "{mass2:5.1f}",
-                    5,
-                ),
-                (
-                    "Eexp",
-                    "{energy2:4.1f}",
-                    4,
-                ),
-                (
-                    "Mixing",
-                    "{mixing2:8.6f}",
-                    8,
-                ),
-                (
-                    "Offset",
-                    "{offset2:12e}",
-                    12,
-                ),
-                (
-                    "|",
-                    "|",
-                    1,
-                ),
-                (
-                    "Fitness",
-                    "{fitness:7.5f}",
-                    7,
-                ),
-            ]
+            # columns = [
+            #     (
+            #         "Index",
+            #         "{index1:<5}",
+            #         5,
+            #     ),
+            #     (
+            #         "Mass",
+            #         "{mass1:5.1f}",
+            #         5,
+            #     ),
+            #     (
+            #         "Eexp",
+            #         "{energy1:4.1f}",
+            #         4,
+            #     ),
+            #     (
+            #         "Mixing",
+            #         "{mixing1:8.6f}",
+            #         8,
+            #     ),
+            #     (
+            #         "Offset",
+            #         "{offset1:12e}",
+            #         12,
+            #     ),
+            #     (
+            #         "|",
+            #         "|",
+            #         1,
+            #     ),
+            #     (
+            #         "Index",
+            #         "{index2:<5}",
+            #         5,
+            #     ),
+            #     (
+            #         "Mass",
+            #         "{mass2:5.1f}",
+            #         5,
+            #     ),
+            #     (
+            #         "Eexp",
+            #         "{energy2:4.1f}",
+            #         4,
+            #     ),
+            #     (
+            #         "Mixing",
+            #         "{mixing2:8.6f}",
+            #         8,
+            #     ),
+            #     (
+            #         "Offset",
+            #         "{offset2:12e}",
+            #         12,
+            #     ),
+            #     (
+            #         "|",
+            #         "|",
+            #         1,
+            #     ),
+            #     (
+            #         "Fitness",
+            #         "{fitness:7.5f}",
+            #         7,
+            #     ),
+            # ]
 
-            totlen = sum([c[2] for c in columns]) + len(columns) - 1
+            # totlen = sum([c[2] for c in columns]) + len(columns) - 1
+            # barlen = totlen + 3
+
+            # f.write("=" * barlen + "\n")
+
+            text = self.format(n=len(self.top_stars), wide=99)
+            lines = text.splitlines()
+            totlen = np.max([len(line) for line in lines])
             barlen = totlen + 3
-
             f.write("=" * barlen + "\n")
+
             f.write(
                 "Matching {count:d}^2 combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)\n".format(
                     count=self.db_size,
-                    dbname=self.db.name,
+                    dbname=", ".join([db.name for db in self.db]),
                     starname=self.star.name,
                     nel=self.trimmed_db.shape[0],
                     nup=np.sum(self.eval_data.error < 0),
@@ -409,27 +419,36 @@ class Double(Results, Logged):
 
             f.write("=" * barlen + "\n")
             f.write("-" * barlen + "\n")
-            f.write(" ".join("{:<{}s}".format(c[0], c[2]) for c in columns) + "\n")
+            for l in lines[:2]:
+                f.write(l)
             f.write("-" * barlen + "\n")
-            for i, solution in enumerate(self.top_stars):
-                index1 = solution["index"][0]
-                index2 = solution["index"][1]
-                f.write(
-                    (" ".join([c[1] for c in columns]) + "\n").format(
-                        index1=index1,
-                        index2=index2,
-                        offset1=solution["offset"][0],
-                        offset2=solution["offset"][1],
-                        mass1=self.db.fielddata[index1]["mass"],
-                        mass2=self.db.fielddata[index2]["mass"],
-                        energy1=self.db.fielddata[index1]["energy"],
-                        energy2=self.db.fielddata[index2]["energy"],
-                        mixing1=self.db.fielddata[index1]["mixing"],
-                        mixing2=self.db.fielddata[index2]["mixing"],
-                        fitness=self.top_fitness[i],
-                    )
-                )
+            for l in lines[2:]:
+                f.write(l)
             f.write("-" * barlen + "\n")
+
+            # f.write("=" * barlen + "\n")
+            # f.write("-" * barlen + "\n")
+            # f.write(" ".join("{:<{}s}".format(c[0], c[2]) for c in columns) + "\n")
+            # f.write("-" * barlen + "\n")
+            # for i, solution in enumerate(self.top_stars):
+            #     index1 = solution["index"][0]
+            #     index2 = solution["index"][1]
+            #     f.write(
+            #         (" ".join([c[1] for c in columns]) + "\n").format(
+            #             index1=index1,
+            #             index2=index2,
+            #             offset1=solution["offset"][0],
+            #             offset2=solution["offset"][1],
+            #             mass1=self.db.fielddata[index1]["mass"],
+            #             mass2=self.db.fielddata[index2]["mass"],
+            #             energy1=self.db.fielddata[index1]["energy"],
+            #             energy2=self.db.fielddata[index2]["energy"],
+            #             mixing1=self.db.fielddata[index1]["mixing"],
+            #             mixing2=self.db.fielddata[index2]["mixing"],
+            #             fitness=self.top_fitness[i],
+            #         )
+            #     )
+            # f.write("-" * barlen + "\n")
 
 
 def _set_priority(value: int):
@@ -445,6 +464,7 @@ def _solve(
     fixed=False,
     ejecta=None,
     return_size=None,
+    sol_size=2,
     **kwargs,
 ):
     """
@@ -453,16 +473,17 @@ def _solve(
     """
 
     solutions = np.ndarray(
-        (gen_end - gen_start, 2), dtype=[("index", "int"), ("offset", "f8")]
+        (gen_end - gen_start, sol_size), dtype=[("index", "int"), ("offset", "f8")]
     )
 
-    solutions["index"][:] = gen_slice(gen_start, gen_end, 2)
+    solutions["index"][:] = gen_slice(gen_start, gen_end, sol_size)
 
-    if not fixed:
+    if fixed:
+        # for i in range(2):
+        #     solutions["offset"][:, i] = ejecta[solutions["index"][:, i]]
+        solutions["offset"][:, :] = ejecta[solutions["index"][:, :]]
+    else:
         solutions[:, :]["offset"] = 1.0e-5
-    elif fixed:
-        for i in range(2):
-            solutions["offset"][:, i] = ejecta[solutions["index"][:, i]]
 
     fitness = Results._fitness(
         sol=solutions,

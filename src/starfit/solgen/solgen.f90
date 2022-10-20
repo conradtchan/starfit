@@ -11,27 +11,25 @@ subroutine choice(db_size, number, sol_size, indices)
     !f2py integer(8),  intent(out)     :: indices(number, sol_size)
     integer(8),        intent(out)     :: indices(number, sol_size)
 
-    integer(8)                         :: ok
+    logical                            :: ok
     integer(8)                         :: i, j, k, s, smax
 
     do i = 1, number
         do j = 1, sol_size
-            ok = 0
+            ok = .False.
             indices(i, j) = -1
-            do while (ok /= 1)
+            do while (.not.ok)
                 s = int(rand(0) * db_size)
-                ok = 1
+                ok = .True.
                 do k = 1, j
                     if (s == indices(i, k)) then
-                        ok = 0
+                        ok = .False.
                     endif
                 enddo
             enddo
             indices(i, j) = s
         enddo
-
     enddo
-
 end subroutine choice
 
 subroutine gen_slice(start, finish, sol_size, sols)
