@@ -22,7 +22,7 @@ from .human import version2human
 from .isotope import VOID, VOID_IDX, Elements, elements, get_ufunc, get_ufunc_idx
 from .isotope import ion as I
 from .isotope import (
-    ioncacheza,
+    ioncacheidx,
     ision,
     isionclass,
     ufunc_A,
@@ -30,7 +30,6 @@ from .isotope import (
     ufunc_element,
     ufunc_element_idx,
     ufunc_idx,
-    ufunc_idx_ZA,
     ufunc_ion_from_idx,
     ufunc_is_element,
     ufunc_is_ion,
@@ -425,14 +424,14 @@ class AbuData(object):
         return self.join(self, other)
 
     @classmethod
-    def join(cls, objects, axis=0):
+    def join(cls, objects, axis=0, along=True):
         if len(objects) == 0:
             return None
         for o in objects:
             assert isinstance(o, cls)
         assert np.all([objects[0].molfrac == o.molfrac for o in objects])
 
-        # merge (ncluding sort) if needed
+        # merge (including sort) if needed
         if not np.all([objects[0].ions == o.ions for o in objects]):
             print(f" [{cls.__name__}] merging ion lists.")
             ions = set()
@@ -443,7 +442,7 @@ class AbuData(object):
                 ionsa.append(idx)
             ions = np.array(sorted(ions))
             nions = len(ions)
-            ionlist = IonList(ioncacheza(*ufunc_idx_ZA(ions)))
+            ionlist = IonList(ioncacheidx(ions))
             for i, o in enumerate(objects):
                 o = o.copy()
                 data = np.zeros(o.data.shape[:-1] + (nions,))
@@ -454,9 +453,13 @@ class AbuData(object):
                 objects[i] = o
 
         assert np.all([objects[0].data.ndim == o.data.ndim for o in objects])
-        assert axis < objects[0].data.ndim - 1
+        if along:
+            assert axis < objects[0].data.ndim - 1
+        else:
+            assert axis < objects[0].data.ndim
         dims = list(range(objects[0].data.ndim))
-        del dims[axis]
+        if along:
+            del dims[axis]
         assert np.all(
             [
                 np.all(
@@ -475,11 +478,22 @@ class AbuData(object):
                 if o._mass_table is not None:
                     assert mass_table == o._mass_table
 
-        assert np.all([objects[0].i0 == o.i0 for o in objects])
-        assert np.all([objects[0].i1 == o.i1 for o in objects])
+        if axis == 0 and along:
+            assert np.all([o.i0 == 0 for o in objects[1:]])
+            assert np.all([o.i1 == o.data.shape[0] for o in objects[:-1]])
+        else:
+            assert np.all([objects[0].i0 == o.i0 for o in objects])
+            assert np.all([objects[0].i1 == o.i1 for o in objects])
 
         new = objects[0].copy()
-        new.data = np.concatenate(tuple(o.data for o in objects), axis=axis)
+        if along:
+            new.data = np.concatenate(tuple(o.data for o in objects), axis=axis)
+        else:
+            new.data = np.array([o.data for o in objects])
+            if axis != 0:
+                new.data = np.moveaxis(new.data, 0, axis)
+        if axis == 0 and along:
+            new.i1 = objects[-1].i1
         return new
 
     @classmethod
@@ -506,7 +520,7 @@ class AbuData(object):
         for i, a in enumerate(abu):
             ii = index1d(ionsa[i], ions)
             abub[i, ii] = a.abu
-        ions = ioncacheza(*ufunc_idx_ZA(ions))
+        ions = ioncacheidx(ions)
         abub = np.reshape(abub, s + (nions,))
         return cls(abub, ions, molfrac=molfrac)
 
