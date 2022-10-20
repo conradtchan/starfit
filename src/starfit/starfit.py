@@ -101,7 +101,7 @@ class Results(Logged):
                 if "remnant" in db.fieldnames:
                     ejecta -= db.fielddata["remnant"]
             else:
-                ejecta = np.tile(1.0e0, db.fielddata.shape[0])
+                ejecta = np.full(db.fielddata.shape[0], 1.0e0, dtype=np.float64)
             self.ejecta.append(ejecta)
 
             data = AbuData(db.data, db.ions, molfrac=True)
@@ -109,7 +109,7 @@ class Results(Logged):
         if self.db_n == 1:
             self.ions = self.data[0].ions.copy()
             self.data = self.data[0].data.copy()
-            self.db_idx = np.tile(0, self.data.shape[0], dtype=np.int64)
+            self.db_idx = np.full(self.data.shape[0], 0, dtype=np.int64)
             self.db_ofs = np.array([0], dtype=np.int64)
         else:
             self.data = AbuData.join(self.data)
@@ -486,7 +486,7 @@ class Results(Logged):
             [(fn, fu) for fn, fu in zip(db.fieldnames, db.fieldunits)]
             for db in [self.db[i] for i in dbx]
         ]
-        ii = np.tile(-1, (len(x), np.max([len(_) for _ in x])))
+        ii = np.full((len(x), np.max([len(_) for _ in x])), -1, dtype=np.int64)
         fields = list()
         nfield = 0
         for j, y in enumerate(x):
@@ -497,7 +497,7 @@ class Results(Logged):
                     ii[j, jj] = nfield
                     fields.append(yy)
                     nfield += 1
-        fieldmap = np.tile(-1, (self.db_n, ii.shape[1]))
+        fieldmap = np.full((self.db_n, ii.shape[1]), -1, dtype=np.int64)
         for j, i in enumerate(dbx):
             fieldmap[i] = ii[j]
         fields = np.array(fields)

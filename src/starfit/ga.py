@@ -49,7 +49,7 @@ class Ga(Results, Logged):
 
         self._setup(
             filename=filename,
-            dbname=db,
+            database=db,
             combine=combine,
             z_exclude=z_exclude,
             z_min=z_min,
