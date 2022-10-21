@@ -1,6 +1,5 @@
 """Results objects from the various algorithms"""
 
-import math
 from pathlib import Path
 from string import capwords
 
@@ -111,18 +110,21 @@ class Results(Logged):
             self.data = self.data[0].data.copy()
             self.db_idx = np.full(self.data.shape[0], 0, dtype=np.int64)
             self.db_off = np.array([0], dtype=np.int64)
+            self.db_num = np.array([self.data.shape[0]], dtype=np.int64)
         else:
             self.data = AbuData.join(self.data)
             self.ions = self.data.ions
             self.data = self.data.data
             self.db_idx = np.ndarray(self.data.shape[0], dtype=np.int64)
             self.db_off = np.ndarray(len(self.db), dtype=np.int64)
+            self.db_num = np.ndarray(len(self.db), dtype=np.int64)
             n0 = 0
             for i, db in enumerate(self.db):
                 n = db.data.shape[0]
                 n1 = n0 + n
                 self.db_idx[n0:n1] = i
                 self.db_off[i] = n0
+                self.db_num[i] = n
                 n0 = n1
 
         if combine is None:
@@ -337,6 +339,7 @@ class Results(Logged):
         self.sun = sun
         self.sun_full = sun_full
         self.sun_star = sun_star
+        self.db_size = self.trimmed_db.shape[1]
 
         del self.data
         del self.ions
@@ -382,17 +385,16 @@ class Results(Logged):
         fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
         return fitness
 
-    def n_comb(
-        self,
-    ):
-        try:
-            self._n_comb
-        except:
-            db_size = self.trimmed_db.shape[1]
-            self._n_comb = np.product(
-                np.arange(db_size - self.sol_size + 1, db_size + 1).astype("f8")
-            ) / math.factorial(self.sol_size)
-        return self._n_comb
+    # def n_comb(
+    #     self,
+    # ):
+    #     try:
+    #         self._n_comb
+    #     except:
+    #         self._n_comb = np.product(
+    #             np.arange(self.db_size - self.sol_size + 1, self.db_size + 1).astype("f8")
+    #         ) / math.factorial(self.sol_size)
+    #     return self._n_comb
 
     def run(
         self,
@@ -549,9 +551,10 @@ class Results(Logged):
 
         for i in range(n0, n1):
             for j in range(self.sol_size):
-                index, offset = self.sorted_stars[i][j]
+                index, offset = self.sorted_stars[i, j]
                 db_idx = self.db_idx[index]
                 db = self.db[db_idx]
+                # breakpoint()
                 if db_idx != db_idx0 and not wide:
                     _short_head(db, j == 0 and self.sol_size > 1)
                     db_idx0 = db_idx
@@ -567,10 +570,10 @@ class Results(Logged):
                     line.append(f"{db_idx + 1:>d}")
                 line.append(f"{dbindex:6d}")
                 if wide:
-                    for i in range(nfield):
-                        if i in fieldmap[db_idx]:
-                            j = np.where(fieldmap[db_idx] == i)[0][0]
-                            line.append(f"{data[j]:{db.fieldformats[j]}}")
+                    for k in range(nfield):
+                        if k in fieldmap[db_idx]:
+                            l = np.where(fieldmap[db_idx] == k)[0][0]
+                            line.append(f"{data[l]:{db.fieldformats[l]}}")
                         else:
                             line.append("")
                 else:

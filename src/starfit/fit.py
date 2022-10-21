@@ -47,11 +47,12 @@ class Single(Results, Logged):
         )
 
         self.gene_size = 1
-        db_size = self.trimmed_db.shape[1]
         # Initialize array
-        stars = np.recarray((db_size, 1), dtype=[("index", "int"), ("offset", "f8")])
+        stars = np.recarray(
+            (self.db_size, 1), dtype=[("index", "int"), ("offset", "f8")]
+        )
         stars.offset = 1.0e-4
-        stars.index[:, 0] = np.arange(db_size)
+        stars.index[:, 0] = np.arange(self.db_size)
 
         t_start = time.perf_counter()
         fitness = self._fitness(
@@ -200,8 +201,6 @@ class Double(Results, Logged):
     def setup_double(self, fixed, n_top, block_size, cdf):
         self.fixed = fixed
         self.n_top = n_top
-
-        self.db_size = self.trimmed_db.shape[1]
 
         self.n_solves = self.db_size * (self.db_size - 1) // 2
         if self.n_top is None:

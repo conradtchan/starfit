@@ -37,15 +37,15 @@ class Ga(Results, Logged):
         cdf=True,
         seed=None,
         silent=False,
-        max_pop=10000,
+        max_pop=10_000,
+        cover=False,
     ):
 
         t_total = 0
         self.silent = silent
-        Results.__init__(self, "GA")
+        super().__init__("GA")
 
-        if seed is not None:
-            np.random.seed(seed)
+        self.rng = np.random.default_rng(seed)
 
         self._setup(
             filename=filename,
@@ -70,6 +70,7 @@ class Ga(Results, Logged):
         self.mut_offset_magnitude = mut_offset_magnitude
         self.cdf = cdf
         self.max_pop = max_pop
+        self.cover = cover
 
         self.logger.info(f"Time limit: {time2human(time_limit)}")
 
@@ -101,11 +102,7 @@ class Ga(Results, Logged):
             self.n_winners -= tour_size
 
         # Generate initial population
-        self.s = self._populate(
-            self.trimmed_db.shape[1],
-            pop_size,
-            sol_size,
-        )
+        self.s = self._populate()
 
         # Generate initial fitness values
         self.f = self._fitness(
@@ -160,7 +157,7 @@ class Ga(Results, Logged):
         t = np.repeat(s, self.tour_size, axis=0)
         ft = np.repeat(f, self.tour_size, axis=0)
         # Shuffle by generating a random permutation
-        shuffle = np.random.permutation(ft.shape[0])
+        shuffle = self.rng.permutation(ft.shape[0])
         t = t[shuffle]
         ft = ft[shuffle]
         # Turn the tournament pool into pairs (or whatever the tournament size is)
@@ -173,28 +170,36 @@ class Ga(Results, Logged):
         ft = ft.reshape(-1, self.tour_size)[0 : self.n_winners]
         # Find winners
         w = np.choose(np.argmin(ft, axis=1), t).transpose()
+
         # Mutate
         # Mutation is performed using a crossover-like method,
         # between the original array, and a fully mutant array
+        if self.cover:
+            mut_db = self.rng.integers(self.db_n, size=w.shape)
+            mutants = self.db_off[mut_db] + self.rng.integers(self.db_num[mut_db])
+        else:
+            mutants = self.rng.integers(self.db_size, size=w.shape)
+
         w["index"] = np.choose(
-            np.random.ranf(w.shape) < self.mut_rate_index,
+            self.rng.uniform(size=w.shape) < self.mut_rate_index,
             [
                 w["index"],
-                np.random.randint(1, self.trimmed_db.shape[1], w.shape),
+                mutants,
             ],
         )
         if not self.local_search:
             w["offset"] = np.choose(
-                np.random.ranf(w.shape) < self.mut_rate_offset,
+                self.rng.uniform(size=w.shape) < self.mut_rate_offset,
                 [
                     w["offset"],
-                    np.exp(np.random.normal(0, self.mut_offset_magnitude, w.shape))
+                    np.exp(self.rng.normal(self.mut_offset_magnitude, size=w.shape))
                     * w["offset"],
                 ],
             )
+
         # Singlepoint crossover
         w = w.reshape(2, -1, self.sol_size)
-        crossind = np.random.randint(self.sol_size, size=w.shape[1])
+        crossind = self.rng.integers(self.sol_size, size=w.shape[1])
 
         # Make children and inverse-children
         c = np.ndarray(
@@ -224,31 +229,50 @@ class Ga(Results, Logged):
         o = np.concatenate((s, c), axis=0)
         f = np.concatenate((f, fc))
 
-        # Eliminate genes with replications
+        # Sort entries by index
         o = np.take_along_axis(o, np.argsort(o["index"], -1), -1)
-        mask = np.all(o["index"][:, :-1] != o["index"][:, 1:], axis=-1)
+
+        # Eliminate genes with replications
+        idx = o["index"]
+        mask = np.all(idx[:, :-1] != idx[:, 1:], axis=-1)
         o = o[mask]
         f = f[mask]
 
+        # If requested, elminate solutions that do not span all DBs.
+        if self.cover:
+            idb = self.db_idx[o["index"]]
+            mask = np.all(idb[:, 1:] <= idb[:, :-1] + 1, axis=-1)
+            mask &= idb[:, 0] == 0
+            mask &= idb[:, -1] == self.db_n - 1
+            o = o[mask]
+            f = f[mask]
+            n = np.count_nonzero(~mask)
+            # if n > 0:
+            #     self.logger.info(f"cover: eliminating {n} candidates, {f.shape[0]} remaining.")
+            assert f.shape[0] > 0, "cover: no data left candidate elimination"
+
         # Duplicate elimination
         if self.local_search or self.fixed_offsets:
-            oindex = o["index"]
-            ind = np.lexsort(oindex.transpose())
-            unq = ind[
+            idx = o["index"]
+            ind = np.lexsort(idx.T[::-1])
+            sel = ind[
                 np.concatenate(
                     (
                         [True],
                         np.any(
-                            oindex[ind[1:]] != oindex[ind[:-1]],
+                            idx[ind[1:]] != idx[ind[:-1]],
                             axis=1,
                         ),
                     )
                 )
             ]
         else:
-            unq = np.unique(f, return_index=True)[1]
-        o = o[unq]
-        f = f[unq]
+            sel = np.unique(f, return_index=True)[1]
+        n = f.shape[0] - len(sel)
+        o = o[sel]
+        f = f[sel]
+        self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
+        assert f.shape[0] > 0, "no data left after elimiation of duplicates"
 
         # Selection
         # Order by fitness
@@ -259,9 +283,9 @@ class Ga(Results, Logged):
         # Discard some, but not the elite ones
         elite_point = int(self.pop_size * self.frac_elite)
         if o.shape[0] > self.pop_size:
-            discard_index = np.random.choice(
+            discard_index = self.rng.choice(
                 np.arange(elite_point, o.shape[0]),
-                o.shape[0] - self.pop_size,
+                size=(o.shape[0] - self.pop_size,),
                 replace=False,
             )
             s = np.delete(o, discard_index, axis=0)
@@ -278,16 +302,67 @@ class Ga(Results, Logged):
         self.s = s
         self.f = f
 
-    @staticmethod
-    def _populate(dbsize, pop_size, sol_size):
+    def _populate(self):
         """Create an initial population"""
 
-        s = np.ndarray((pop_size, sol_size), dtype=[("index", "int"), ("offset", "f8")])
-        s["index"] = np.random.randint(
-            1,
-            dbsize,
-            (pop_size, sol_size),
+        assert (
+            self.db_size >= self.sol_size
+        ), f"too few db entries ({self.db_size}) for solution size ({self.sol_size})."
+
+        s = np.ndarray(
+            (self.pop_size, self.sol_size),
+            dtype=[("index", np.int64), ("offset", np.float64)],
         )
-        s["offset"] = np.random.rand(pop_size, sol_size) * 0.1 + 1.0e-14
+
+        if self.cover:
+            assert np.all(
+                self.db_num > (self.sol_size - self.db_n + 1)
+            ), "at least one db has too few elemets for requested solution size"
+            idb = self.rng.permuted(
+                np.tile(
+                    np.arange(self.db_n, dtype=np.int64),
+                    (self.pop_size, 1),
+                ),
+                axis=-1,
+            )[:, : self.sol_size]
+            if self.db_n < self.sol_size:
+                idb = np.concatenate(
+                    (
+                        idb,
+                        self.rng.integers(
+                            self.db_n,
+                            size=(
+                                self.pop_size,
+                                self.sol_size - self.db_n,
+                            ),
+                        ),
+                    ),
+                    axis=-1,
+                )
+            idx = self.db_off[idb] + self.rng.integers(self.db_num[idb])
+
+            # replace duplicates
+            while True:
+                idx_sorted = np.sort(idx, axis=-1)
+                ii = np.any(idx_sorted[:, 1:] == idx_sorted[:, :-1], axis=-1)
+                if not np.any(ii):
+                    break
+                idx[ii] = self.db_off[idb[ii]] + self.rng.integers(self.db_num[idb[ii]])
+
+            s["index"] = idx
+        else:
+            # ensure no duplicates
+            n = 0
+            while n < self.pop_size:
+                m = min(self.db_size // self.sol_size, self.pop_size - n)
+                s["index"][n : n + m, :] = self.rng.permutation(self.db_size)[
+                    : m * self.sol_size
+                ].reshape(-1, self.sol_size)
+                n += m
+        s["offset"] = (
+            self.rng.uniform(size=(self.pop_size, self.sol_size))
+            * (0.9 / self.sol_size)
+            + 1.0e-14
+        )
 
         return s
