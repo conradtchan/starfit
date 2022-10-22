@@ -23,7 +23,12 @@ def fitness(
     else:
         icdf = 0
 
-    f, offsets = _solver.fitness(
+    if np.any(offsets > 1):
+        ii = np.any(offsets > 1, axis=-1)
+        i = np.where(ii)[0][0]
+        raise AttributeError(f"invalid offset > 1 at index {i}: {offsets[i]}")
+
+    return _solver.fitness(
         c=offsets,
         obs=observed,
         err=error,
@@ -35,11 +40,8 @@ def fitness(
         icdf=icdf,
     )
 
-    return f, offsets
-
 
 def testf():
-
     obs = [-5.0, -5.0]
     err = [0.3, -0.15]
     abu = [

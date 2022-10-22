@@ -1,7 +1,8 @@
 """Results objects from the various algorithms"""
 
-import math
+from pathlib import Path
 from string import capwords
+from textwrap import wrap
 
 import numpy as np
 
@@ -9,8 +10,11 @@ from starfit.utils import find_data
 
 from . import DB, REF, SOLAR, starplot
 from .autils import abusets
+from .autils.abuset import AbuData
 from .autils.isotope import ion as I
+from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
+from .autils.physconst import MSUN
 from .autils.stardb import StarDB
 from .fitness import solver
 from .read import Star
@@ -33,20 +37,13 @@ class Results(Logged):
     Object for running the various algorithms and a container for the results
     """
 
-    def __init__(self, sol_type):
-        self.sol_type = sol_type
+    def __init__(self):
         self.history = {"best": [], "average": [], "worst": []}
         self.initsol = None
         self.bestsol = None
         self.times = []
         self.gen = None
         self.pop_size = None
-        if sol_type == "Single":
-            self.sol_size = 1
-        elif sol_type == "Double":
-            self.sol_size = 2
-        else:
-            self.sol_size = None
 
         try:
             self.silent
@@ -55,10 +52,29 @@ class Results(Logged):
 
         self.setup_logger(silent=self.silent)
 
+    @staticmethod
+    def _normalize_mass(db, name):
+        data = np.array(db.fielddata[name])
+        i = db.fieldnames.tolist().index(name)
+        if db.fieldunits[i] in (
+            "Msun",
+            "M_sun",
+            "solar masses",
+            "msun",
+            "MSUN",
+        ):
+            db.fieldunits[i] = "Msun"
+        elif db.fieldunits[i] in ("g",):
+            db.fieldunits[i] = ("Msun",)
+            data *= MSUN
+        else:
+            raise AttributeError(f"unknown mass unit {db.fieldunits[i]}")
+        return data
+
     def _setup(
         self,
         filename,
-        dbname,
+        database,
         *,
         combine=None,
         z_exclude=None,
@@ -67,28 +83,64 @@ class Results(Logged):
         upper_lim=None,
         z_lolim=None,
     ):
-        """Prepare the data for the solvers. Trims the databases and excludes
-        elements.
+        """Prepare the data for the solvers.  Trims the databases and excludes
+        elements.  Combines multiple databases.
+
+        filename:
+           star to match
+        database:
+           string of, path to, or object of data base.
+           multiple data bases are provided as an iterable.
         """
 
-        dbpath = find_data(DB, dbname)
+        if isinstance(database, (str, Path, StarDB)):
+            database = (database,)
 
-        # Read a star
-        star = Star(filename, silent=self.silent)
-        self.star = star
-        # Read the database
-        # Note on reading db:
-        # db.data[element,entry]
-        # For element 1-83
-        # Entry 1-16800
-        self.db = StarDB(dbpath, silent=self.silent)
+        # read in data bses
+        self.db = list()
+        self.ejecta = list()
+        self.db_n = len(database)
+        self.data = list()
+        for db in database:
+            if not isinstance(db, StarDB):
+                dbpath = find_data(DB, db)
+                # Read the database
+                db = StarDB(dbpath, silent=self.silent)
+            self.db.append(db)
 
-        if "mass" in self.db.fieldnames:
-            ejecta = np.array(self.db.fielddata["mass"])
-            if "remnant" in self.db.fieldnames:
-                ejecta -= self.db.fielddata["remnant"]
+            if "ejecta" in db.fieldnames:
+                ejecta = self._normalize_mass(db, "ejecta")
+            elif "mass" in db.fieldnames:
+                ejecta = self._normalize_mass(db, "mass")
+                if "remnant" in db.fieldnames:
+                    ejecta -= self._normalize_mass(db, "remnant")
+            else:
+                ejecta = np.full(db.fielddata.shape[0], 1.0e0, dtype=np.float64)
+            self.ejecta.append(ejecta)
+
+            data = AbuData(db.data, db.ions, molfrac=True)
+            self.data.append(data)
+        if self.db_n == 1:
+            self.ions = self.data[0].ions.copy()
+            self.data = self.data[0].data.copy()
+            self.db_idx = np.full(self.data.shape[0], 0, dtype=np.int64)
+            self.db_off = np.array([0], dtype=np.int64)
+            self.db_num = np.array([self.data.shape[0]], dtype=np.int64)
         else:
-            ejecta = np.tile(1.0e0, self.db.fielddata.shape[0])
+            self.data = AbuData.join(self.data)
+            self.ions = self.data.ions
+            self.data = self.data.data
+            self.db_idx = np.ndarray(self.data.shape[0], dtype=np.int64)
+            self.db_off = np.ndarray(len(self.db), dtype=np.int64)
+            self.db_num = np.ndarray(len(self.db), dtype=np.int64)
+            n0 = 0
+            for i, db in enumerate(self.db):
+                n = db.data.shape[0]
+                n1 = n0 + n
+                self.db_idx[n0:n1] = i
+                self.db_off[i] = n0
+                self.db_num[i] = n
+                n0 = n1
 
         if combine is None:
             combine = []
@@ -107,13 +159,16 @@ class Results(Logged):
         if z_lolim is None:
             z_lolim = []
 
-        self.ejecta = ejecta
         self.combine = combine
         self.z_min = z_min
         self.z_max = z_max
         self.upper_lim = upper_lim
         self.z_lolim = z_lolim
         self.z_exclude = z_exclude
+
+        # Read a star
+        star = Star(filename, silent=self.silent)
+        self.star = star
 
         # Remove elements with Z > z_max and Z < z_min
         mask_zmax = np.array(
@@ -131,17 +186,17 @@ class Results(Logged):
             eval_data = eval_data[mask_uplim]
 
         # List of DB ions which will get chopped
-        dbions = self.db.ions
+        dbions = self.ions.copy()
 
         # The full set of abundance data from the database
-        full_abudata = np.copy(self.db.data.transpose())
-        full_ions = np.copy(self.db.ions)
+        full_abudata = self.data.copy().T
+        full_ions = self.ions.copy()
 
-        # List of every every element in the DB
-        list_db = np.array([ion for ion in self.db.ions])
+        # List of every element in the DB
+        list_db = np.array(self.ions)
 
         # List of every element in the DB less than z_max and greater than z_min
-        zdb = np.array([ion.Z for ion in list_db])
+        zdb = ufunc_Z(list_db)
         list_ztrim = list_db[(zdb <= z_max) & (zdb >= z_min)]
 
         # Prepare the sun
@@ -153,7 +208,7 @@ class Results(Logged):
         # Transforms the uncombined element numbers for use in the sun
         index_sun = np.in1d(list_db, list_ztrim, assume_unique=True)
         sunions = dbions[index_sun]
-        sun_full = sun.Y(self.db.ions[index_sun])
+        sun_full = sun.Y(full_ions[index_sun])
         sun_star = sun.Y(eval_data.element[:])
 
         # Combine elements
@@ -270,25 +325,27 @@ class Results(Logged):
             f"Matching {len(eval_data)} data points from Z={z_min} to Z={z_max}:"
         )
 
-        self.logger.info("    " + " ".join([str(ion) for ion in eval_data.element]))
+        for line in wrap(" ".join([str(ion) for ion in eval_data.element]), 60):
+            self.logger.info("    " + line)
 
         self.logger.info(
             f"with {np.sum(eval_data.error < 0)} upper limits in the data:"
         )
-        self.logger.info(
-            "    "
-            + " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]])
-        )
+        for line in wrap(
+            " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]]), 60
+        ):
+            self.logger.info("    " + line)
 
         self.logger.info(f"and {np.sum(lolim_index_star)} lower limits in the models:")
-
-        self.logger.info(
-            "    " + " ".join([str(ion) for ion in eval_data.element[lolim_index_star]])
-        )
+        for line in wrap(
+            " ".join([str(ion) for ion in eval_data.element[lolim_index_star]]), 60
+        ):
+            self.logger.info("    " + line)
 
         self.eval_data = eval_data
         self.trimmed_db = trimmed_db
         self.full_abudata = full_abudata
+        self.full_ions = full_ions
         self.list_db = list_db
         self.list_ztrim = list_ztrim
         self.list_comb = list_comb
@@ -298,59 +355,11 @@ class Results(Logged):
         self.sun = sun
         self.sun_full = sun_full
         self.sun_star = sun_star
+        self.fit_size = self.trimmed_db.shape[0]
+        self.db_size = self.trimmed_db.shape[1]
 
-    @staticmethod
-    def _fitness(
-        trimmed_db,
-        eval_data,
-        z_exclude_index,
-        sol,
-        ejecta=[],
-        fixed_offsets=False,
-        write=True,
-        cdf=0,
-        ls=False,
-    ):
-        """
-        Evaluate the fitness of a set of solutions.
-        If abundance is directly given in the case of smart GA, use that.
-        """
-
-        if fixed_offsets:
-            offset = ejecta[sol["index"]]
-            ls = False
-        else:
-            offset = sol["offset"]
-
-        error = np.copy(eval_data.error)
-        error[z_exclude_index] = 1.0e99
-
-        abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
-
-        fitness, offsets = solver.fitness(
-            eval_data.abundance,
-            error,
-            abu,
-            offset,
-            cdf=cdf,
-            ls=ls,
-        )
-
-        sol["offset"] = offsets
-        fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
-        return fitness
-
-    def n_comb(
-        self,
-    ):
-        try:
-            self._n_comb
-        except:
-            db_size = self.trimmed_db.shape[1]
-            self._n_comb = np.product(
-                np.arange(db_size - self.sol_size + 1, db_size + 1).astype("f8")
-            ) / math.factorial(self.sol_size)
-        return self._n_comb
+        del self.data
+        del self.ions
 
     def run(
         self,
@@ -370,7 +379,7 @@ class Results(Logged):
                 sol[i, :]["offset"] = offsets[i]
                 ls = False
 
-        fitness = self._fitness(
+        fitness = _fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -384,14 +393,15 @@ class Results(Logged):
 
     def plot(self, index=0, **kwargs):
         """Call plotting routines to plot the best fit."""
-        db = self.db
 
         bestsol = self.sorted_stars[index]
         self.labels, self.plotdata = starplot.abuplot(
             indices=bestsol["index"].tolist(),
             offsets=bestsol["offset"].tolist(),
             star=self.star,
-            db=db,
+            database=self.db,
+            database_idx=self.db_idx,
+            database_off=self.db_off,
             full_abudata=self.full_abudata,
             eval_data=self.eval_data,
             list_db=self.list_db,
@@ -408,17 +418,9 @@ class Results(Logged):
 
     def plot_fitness(self):
         # Fitness over time plot
-        starplot.fitplot(
-            sol_type=self.sol_type,
-            starname=self.star.name,
-            generations=self.gen,
-            popsize=self.pop_size,
-            genesize=self.sol_size,
-            times=self.times,
-            history=self.history,
-        )
+        raise NotImplementedError()
 
-    def text_result(self, n=20, format="unicode"):
+    def text_result(self, n=20, *, n0=0, format="unicode", wide=12):
         """Print data of best fit."""
         text = []
         if format == "html":
@@ -427,43 +429,111 @@ class Results(Logged):
             base_title = ["\u03C7\u00B2", "Dilution", "Index"]
         else:
             base_title = ["chi**2", "Dilution", "Index"]
-        base_units = ["", "", ""]
+        base_units = ["", "(log)", ""]
 
-        db = self.db
+        if self.db_n > 1:
+            base_title[2:2] = ["DB"]
+            base_units[2:2] = [""]
+        empty_title = [""] * len(base_title)
 
-        text.append(
-            base_title
-            + [
-                _title_translate[word] if word in _title_translate else capwords(word)
-                for word in db.fieldnames
-            ]
-        )
-        text.append(
-            base_units
-            + [
-                f"({_unit_translate.get(word, word)})"
-                if word
-                not in (
-                    "",
-                    "-",
-                )
-                else ""
-                for word in db.fieldunits
-            ]
-        )
+        n1 = min(n0 + n, len(self.sorted_stars))
 
-        for i in range(min(n, len(self.sorted_stars))):
+        dbidx = np.array(self.db_idx[self.sorted_stars[n0:n1]["index"]])
+        dbx = np.unique(dbidx.flat)
+
+        # wide format
+        x = [
+            [(fn, fu) for fn, fu in zip(db.fieldnames, db.fieldunits)]
+            for db in [self.db[i] for i in dbx]
+        ]
+        ii = np.full((len(x), np.max([len(_) for _ in x])), -1, dtype=np.int64)
+        fields = list()
+        nfield = 0
+        for j, y in enumerate(x):
+            for jj, yy in enumerate(y):
+                if yy in fields:
+                    ii[j, jj] = fields.index(yy)
+                else:
+                    ii[j, jj] = nfield
+                    fields.append(yy)
+                    nfield += 1
+        fieldmap = np.full((self.db_n, ii.shape[1]), -1, dtype=np.int64)
+        for j, i in enumerate(dbx):
+            fieldmap[i] = ii[j]
+        fields = np.array(fields)
+
+        if isinstance(wide, int):
+            wide = len(base_title) + nfield <= wide
+
+        def _head(base_title, base_units, title, units):
+            text.append(
+                base_title
+                + [
+                    _title_translate[word]
+                    if word in _title_translate
+                    else capwords(word)
+                    for word in title
+                ]
+            )
+            text.append(
+                base_units
+                + [
+                    f"({_unit_translate.get(word, word)})"
+                    if word
+                    not in (
+                        "",
+                        "-",
+                    )
+                    else ""
+                    for word in units
+                ]
+            )
+
+        def _wide_head():
+            _head(base_title, base_units, fields[:, 0], fields[:, 1])
+
+        def _short_head(db, full=False):
+            if full:
+                title = base_title
+                units = base_units
+            else:
+                title = units = empty_title
+            _head(title, units, db.fieldnames, db.fieldunits)
+
+        db_idx0 = dbidx[0, 0]
+        if wide:
+            _wide_head()
+        else:
+            _short_head(self.db[db_idx0], True)
+
+        for i in range(n0, n1):
             for j in range(self.sol_size):
-                index, offset = self.sorted_stars[i][j]
-                data = db.fielddata[index]
+                index, offset = self.sorted_stars[i, j]
+                db_idx = self.db_idx[index]
+                db = self.db[db_idx]
+                if db_idx != db_idx0 and not wide:
+                    _short_head(db, j == 0 and self.sol_size > 1)
+                    db_idx0 = db_idx
+                dbindex = index - self.db_off[db_idx]
+                data = db.fielddata[dbindex]
                 line = list()
                 if j == 0:
                     line.append(f"{self.sorted_fitness[i]:3.2f}")
                 else:
                     line.append("")
-                line.append(f"1:{1 / offset:1.0f}")
-                line.append(f"{index:6d}")
-                line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
+                line.append(f"{np.log10(offset):7.2f}")
+                if self.db_n > 1:
+                    line.append(f"{db_idx + 1:>d}")
+                line.append(f"{dbindex:6d}")
+                if wide:
+                    for k in range(nfield):
+                        if k in fieldmap[db_idx]:
+                            l = np.where(fieldmap[db_idx] == k)[0][0]
+                            line.append(f"{data[l]:{db.fieldformats[l]}}")
+                        else:
+                            line.append("")
+                else:
+                    line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
                 text.append(line)
             if self.sol_size > 1:
                 text.append("")
@@ -475,8 +545,45 @@ class Results(Logged):
         nspace = n - len(s)
         return " " * nspace + s
 
-    def __str__(self):
-        text = self.text_result(10)
+    def print(self, *args, **kwargs):
+        full = kwargs.pop("full", False)
+        print(self.format(*args, **kwargs))
+        if full:
+            self.print_comments()
+        else:
+            print(self.format_db())
+
+    def format_db(self, ind=0):
+        pad = " " * ind
+        string = [pad + "DB  Name"]
+        for i, db in enumerate(self.db):
+            string.append(pad + f"{i+1:>2d}  {db.name}")
+        string = "\n".join(string)
+        return string
+
+    def print_db(self, ind=0):
+        print(self.format_db(ind))
+
+    def format_comments(self, npad=72):
+        string = list()
+        for i, db in enumerate(self.db):
+            if i == 0:
+                string.append("=" * npad)
+            if self.db_n > 1:
+                string.append(f"{i+1:>2d}:  {db.name}")
+            else:
+                string.append(f"{db.name}")
+            string.append("-" * npad)
+            string.extend(db.comments.tolist())
+            string.append("=" * npad)
+        string = "\n".join(string)
+        return string
+
+    def print_comments(self, ind=0):
+        print(self.format_comments())
+
+    def format(self, *args, **kwargs):
+        text = self.text_result(*args, **kwargs)
         lengths = [[len(word) for word in line] for line in text if len(line) > 0]
         lengths = np.asarray(lengths).max(axis=0) + 1
 
@@ -487,5 +594,48 @@ class Results(Logged):
             string += "\n"
         return string
 
+    def __str__(self):
+        return self.format(n=10)
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.star.name})"
+
+
+def _fitness(
+    trimmed_db,
+    eval_data,
+    z_exclude_index,
+    sol,
+    ejecta=[],
+    fixed_offsets=False,
+    cdf=0,
+    ls=False,
+):
+    """
+    Evaluate the fitness of a set of solutions.
+    If abundance is directly given in the case of smart GA, use that.
+    """
+
+    if fixed_offsets:
+        offset = ejecta[sol["index"]]
+        ls = False
+    else:
+        offset = sol["offset"]
+
+    error = np.copy(eval_data.error)
+    error[z_exclude_index] = 1.0e99
+
+    abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
+
+    fitness, offsets = solver.fitness(
+        eval_data.abundance,
+        error,
+        abu,
+        offset,
+        cdf=cdf,
+        ls=ls,
+    )
+
+    sol["offset"] = offsets
+    fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
+    return fitness

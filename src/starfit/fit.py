@@ -1,22 +1,27 @@
 """Fitting stars"""
 
 import multiprocessing
-import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from os import getpid
+from pathlib import Path
+from uuid import uuid1
 
 import numpy as np
 import psutil
+from scipy.special import comb
 
 from .autils.human import time2human
 from .autils.logged import Logged
-from .solgen._solgen import comb, gen_slice
-from .starfit import Results
+from .solgen._solgen import gen_slice
+from .starfit import Results, _fitness
 
 
 class Single(Results, Logged):
     """Find the best fit for single stars (complete search)"""
+
+    sol_size = 1
 
     def __init__(
         self,
@@ -33,11 +38,11 @@ class Single(Results, Logged):
         cdf=True,
     ):
         self.silent = silent
-        super().__init__("Single")
+        super().__init__()
 
         self._setup(
             filename=filename,
-            dbname=db,
+            database=db,
             combine=combine,
             z_exclude=z_exclude,
             z_min=z_min,
@@ -47,14 +52,15 @@ class Single(Results, Logged):
         )
 
         self.gene_size = 1
-        db_size = self.trimmed_db.shape[1]
         # Initialize array
-        stars = np.recarray((db_size, 1), dtype=[("index", "int"), ("offset", "f8")])
+        stars = np.recarray(
+            (self.db_size, 1), dtype=[("index", np.int64), ("offset", np.float64)]
+        )
         stars.offset = 1.0e-4
-        stars.index[:, 0] = np.arange(db_size)
+        stars.index[:, 0] = np.arange(self.db_size)
 
         t_start = time.perf_counter()
-        fitness = self._fitness(
+        fitness = _fitness(
             trimmed_db=self.trimmed_db,
             eval_data=self.eval_data,
             z_exclude_index=self.exclude_index,
@@ -79,10 +85,17 @@ class Single(Results, Logged):
         self.close_logger(timing="Finished in")
 
 
-class Double(Results, Logged):
+class Multi(Results, Logged):
     """
-    Find the best fit for 2 stars (complete search).
+    Find the best fit for multiple stars (complete search).
     The search results are printed live.
+
+    partition:
+        if number of data bases matches sol_size, take one from each DB
+
+    sol_size:
+        None:
+            if partition is True, set sol_size to number of DBs
     """
 
     def __init__(
@@ -103,14 +116,17 @@ class Double(Results, Logged):
         silent=False,
         save=False,
         webfile=None,
-        block_size=100_000,
+        path=None,
+        block_size=2**17,
+        sol_size=None,
+        partition=None,
     ):
         self.silent = silent
-        Results.__init__(self, "Double")
+        super().__init__()
 
         self._setup(
             filename=filename,
-            dbname=db,
+            database=db,
             combine=combine,
             z_exclude=z_exclude,
             z_min=z_min,
@@ -119,10 +135,43 @@ class Double(Results, Logged):
             z_lolim=z_lolim,
         )
 
-        self.setup_double(fixed, n_top, block_size, cdf)
+        if sol_size is None:
+            if partition is None:
+                partition = True
+            if partition:
+                sol_size = self.db_n
+            else:
+                # make a million matches
+                sol_size = max(1, int(6 / np.log10(self.db_size)))
+                self.logger.info(f"setting {sol_size=}")
+        if partition is None:
+            partiton = sol_size == self.db_n
+        if sol_size == 1:
+            partition = False
+        if partition and sol_size != self.db_n:
+            raise AttributeError(
+                f"currently {partiton=} requires {sol_size=} == len(DB)={self.db_n}"
+            )
+
+        self.sol_size = sol_size
+        self.partition = partition
+
+        self.fixed = fixed
+        self.n_top = n_top
+
+        if self.partition:
+            self.n_combinations = int(np.product(self.db_num))
+        else:
+            self.n_combinations = int(comb(self.db_size, self.sol_size))
+
+        if self.n_top is None:
+            self.n_top = self.n_combinations
+
+        self.block_size = min(block_size, self.n_combinations)
+        self.cdf = cdf
 
         self.logger.info(
-            f"Searching {self.db_size:_d} models ({self.n_solves:_d} combinations)"
+            f"Searching {self.db_size:,d} models ({self.n_combinations:,d} combinations)"
         )
 
         if not silent:
@@ -132,6 +181,9 @@ class Double(Results, Logged):
 
         time_start = time.perf_counter()
         futures = self.init_futures(threads=threads, nice=nice)
+
+        if not self.silent:
+            self.print_empty_table()
 
         elapsed = 0
         self.n_solved = 0
@@ -152,7 +204,7 @@ class Double(Results, Logged):
             self.top_fitness = self.top_fitness[sort]
 
             self.n_solved += n_local_solved
-            self.frac_done = self.n_solved / self.n_solves
+            self.frac_done = self.n_solved / self.n_combinations
 
             elapsed = time.perf_counter() - time_start
             try:
@@ -173,54 +225,33 @@ class Double(Results, Logged):
         if save:
             if webfile:
                 filename = webfile
-                directory = "/tmp"
+                path = Path("/tmp")
             else:
-                if fixed:
-                    string = " (fixed)"
+                if save is True:
+                    filename = uuid1().hex + ".txt"
                 else:
-                    string = ""
-                filename = "{:s}({:s}, {:s}) {:d}.{:d}{:s}".format(
-                    self.__class__.__name__,
-                    self.star.name,
-                    self.db.name,
-                    self.n_top,
-                    self.db_size,
-                    string,
-                )
-                path = os.path.dirname(__file__)
-                directory = os.path.join(path, "../results")
-            file = os.path.join(directory, filename)
+                    filename = save
+                if path is None:
+                    path = "."
+                path = Path(path).expanduser().resolve()
+            file = path / filename
             self.save_file(file)
 
         self.close_logger(timing="Finished in")
 
-    def setup_double(self, fixed, n_top, block_size, cdf):
-        self.fixed = fixed
-        self.n_top = n_top
-
-        self.db_size = self.trimmed_db.shape[1]
-        # self.db_size = 5
-
-        self.n_solves = self.db_size * (self.db_size - 1) // 2
-        if self.n_top is None:
-            self.n_top = self.n_solves
-
-        if block_size > self.n_solves:
-            self.block_size = self.n_solves
-        else:
-            self.block_size = block_size
-
-        self.cdf = cdf
-
     def working_arrays(self):
         sorting_size = 2 * self.n_top
         self.top_stars = np.ndarray(
-            (sorting_size, 2), dtype=[("index", "int"), ("offset", "f8")]
+            (sorting_size, self.sol_size),
+            dtype=[("index", np.int64), ("offset", np.float64)],
         )
-        self.top_fitness = np.ndarray((sorting_size,), dtype="f8")
-        self.top_fitness[:] = 1.0e30
+        self.top_fitness = np.ndarray((sorting_size,), dtype=np.float64)
+        self.top_fitness[:] = np.inf
 
     def init_futures(self, threads=None, nice=19):
+        if not self.silent:
+            print("Initializing...")
+
         if threads is None:
             threads = multiprocessing.cpu_count()
         executor = ProcessPoolExecutor(
@@ -229,43 +260,60 @@ class Double(Results, Logged):
             initargs=(nice,),
         )
 
-        n_combinations = int(comb(self.db_size, self.sol_size))
-        n_blocks = int(np.ceil(n_combinations / self.block_size))
+        n_blocks = int(np.ceil(self.n_combinations / self.block_size))
         slice_range = np.arange(n_blocks + 1, dtype="int") * self.block_size
-        slice_range[-1] = n_combinations
+        slice_range[-1] = self.n_combinations
 
-        futures = [
-            executor.submit(
-                _solve,
-                gen_start=slice_range[i],
-                gen_end=slice_range[i + 1],
-                fixed=self.fixed,
-                eval_data=self.eval_data,
-                exclude_index=self.exclude_index,
-                trimmed_db=self.trimmed_db,
-                ejecta=self.ejecta,
-                cdf=self.cdf,
-                return_size=self.n_top,
+        if self.partition:
+            num = self.db_num
+        else:
+            num = None
+
+        futures = list()
+        for i in range(n_blocks):
+            futures.append(
+                executor.submit(
+                    _solve,
+                    gen_start=slice_range[i],
+                    gen_end=slice_range[i + 1],
+                    fixed=self.fixed,
+                    eval_data=self.eval_data,
+                    exclude_index=self.exclude_index,
+                    trimmed_db=self.trimmed_db,
+                    ejecta=self.ejecta,
+                    sol_size=self.sol_size,
+                    cdf=self.cdf,
+                    num=num,
+                    return_size=self.n_top,
+                )
             )
-            for i in range(n_blocks)
-        ]
+            if not self.silent:
+                sys.stdout.write("\x1b[A")
+                print(f"{(i+1)/n_blocks:>6.2f} % initialized.")
 
         if not self.silent:
             sys.stdout.write("\x1b[A")
-
+            print("Waiting for first results...")
         return futures
 
     def print_header(self):
         print("\n")
         print("=================================================================")
         print(
-            "Matching {count:_d} combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)".format(
-                count=self.db_size * (self.db_size - 1) // 2,
-                dbname=self.db.name,
-                starname=self.star.name,
-                nel=self.trimmed_db.shape[0],
-                nup=np.sum(self.eval_data.error < 0),
-            )
+            f"Matching {self.n_combinations:,d} combinations of {self.sol_size} stars"
+        )
+        if self.partition:
+            print(f"Partitioning: {' x '.join(str(i) for i in self.db_num)}")
+        if self.db_n == 1:
+            print(f"Database: {self.db[0].name}")
+        else:
+            print("Databases:")
+            # for i, db in enumerate(self.db):
+            #     print(f"{i+1:>6d}: {db.name}")
+            self.print_db(ind=4)
+        print(f"Star: {self.star.name}")
+        print(
+            f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} limits)"
         )
         if self.fixed:
             print("Offsets are ejecta mass")
@@ -273,45 +321,60 @@ class Double(Results, Logged):
             print("Offsets solved using Newton-Raphson")
         print("=================================================================")
 
-        print("Initializing...")
+        fmt_head_star = " Index  Offset"
+        fmt_data_star = "{:>6d}  {:6.2f}"
+        fmt_pad = " " * 5
+        if self.db_n > 1:
+            fmt_head_star = "DB " + fmt_head_star
+            fmt_data_star = "{:>2d} " + fmt_data_star
+        fmt_head_star = fmt_pad + fmt_head_star
+        fmt_data_star = fmt_pad + fmt_data_star
+        self.fmt_head = "Fitness" + fmt_head_star * self.sol_size
+        self.fmt_results = "{:7.2f}" + fmt_data_star * self.sol_size
+        self.fmt_hbar = "-" * len(self.fmt_head)
+
+    def print_empty_table(self):
+        sys.stdout.write("\x1b[A")
         if self.n_top <= 50:
-            for i in range(self.n_top + 7):
+            for i in range(self.n_top + 6):
                 print("")
         else:
             print("")
 
     def print_update(self):
         if self.n_top <= 20:
-            for i in range(7 + self.n_top):
+            for i in range(6 + self.n_top):
                 sys.stdout.write("\x1b[A")
             print(
-                "{percent:2.2f} %     Rate: {rate:<6.0f}/s     Elapsed: {elapsed:<8}     ETA: {remain:<8}".format(
+                "{percent:6.2f} %    Rate: {rate:>9,g}/s   Elapsed: {elapsed:<8}   ETA: {remain:<8}".format(
                     percent=self.frac_done * 100,
-                    rate=self.block_size / self.cycle_time,
+                    rate=self.n_solved / self.elapsed,
                     elapsed=time2human(self.elapsed),
                     remain=time2human(self.elapsed / self.frac_done - self.elapsed),
                 )
             )
             print("")
-            print("-----------------------------------------------------------------")
-            print("Index    Offset            Index    Offset             Fitness")
-            print("-----------------------------------------------------------------")
+            print(self.fmt_hbar)
+            print(self.fmt_head)
+            print(self.fmt_hbar)
             for i, solution in enumerate(self.top_stars[: self.n_top]):
-                print(
-                    "{index1:<5}    {offset1:e}      {index2:<5}    {offset2:e}      {fitness:5.2f}".format(
-                        index1=solution["index"][0],
-                        index2=solution["index"][1],
-                        offset1=solution["offset"][0],
-                        offset2=solution["offset"][1],
-                        fitness=self.top_fitness[i],
-                    )
-                )
-            print("-----------------------------------------------------------------")
+                vals = list()
+                vals.append(self.top_fitness[i])
+                for j in range(self.sol_size):
+                    index, offset = solution[j]
+                    db_idx = self.db_idx[index]
+                    dbindex = index - self.db_off[db_idx]
+                    if self.db_n > 1:
+                        vals.append(db_idx + 1)
+                    vals.append(dbindex)
+                    vals.append(np.log10(offset))
+                print(self.fmt_results.format(*vals))
+            print(self.fmt_hbar)
         else:
             sys.stdout.write("\x1b[A")
             sys.stdout.write("\x1b[A")
             print(
-                "{percent:2.2f} %     Rate: {rate:<6.0f}/s     Elapsed: {elapsed:<8}     ETA: {remain:<8}".format(
+                "{percent:6.2f} %   Rate: {rate:>9,g}/s   Elapsed: {elapsed:<8}   ETA: {remain:<8}".format(
                     percent=self.frac_done * 100,
                     rate=self.n_solved / self.elapsed,
                     elapsed=time2human(self.elapsed),
@@ -320,121 +383,60 @@ class Double(Results, Logged):
             )
 
     def save_file(self, file_name):
-        with open(file_name, mode="w") as f:
-            columns = [
-                (
-                    "Index",
-                    "{index1:<5}",
-                    5,
-                ),
-                (
-                    "Mass",
-                    "{mass1:5.1f}",
-                    5,
-                ),
-                (
-                    "Eexp",
-                    "{energy1:4.1f}",
-                    4,
-                ),
-                (
-                    "Mixing",
-                    "{mixing1:8.6f}",
-                    8,
-                ),
-                (
-                    "Offset",
-                    "{offset1:12e}",
-                    12,
-                ),
-                (
-                    "|",
-                    "|",
-                    1,
-                ),
-                (
-                    "Index",
-                    "{index2:<5}",
-                    5,
-                ),
-                (
-                    "Mass",
-                    "{mass2:5.1f}",
-                    5,
-                ),
-                (
-                    "Eexp",
-                    "{energy2:4.1f}",
-                    4,
-                ),
-                (
-                    "Mixing",
-                    "{mixing2:8.6f}",
-                    8,
-                ),
-                (
-                    "Offset",
-                    "{offset2:12e}",
-                    12,
-                ),
-                (
-                    "|",
-                    "|",
-                    1,
-                ),
-                (
-                    "Fitness",
-                    "{fitness:7.5f}",
-                    7,
-                ),
-            ]
-
-            totlen = sum([c[2] for c in columns]) + len(columns) - 1
+        file = Path(file_name).expanduser().resolve()
+        with open(file, mode="wt") as f:
+            text = self.format(n=len(self.top_stars), wide=99)
+            lines = text.splitlines()
+            totlen = np.max([len(line) for line in lines])
             barlen = totlen + 3
+            hbar = "-" * barlen + "\n"
+            xbar = "=" * barlen + "\n"
+            f.write(xbar)
 
-            f.write("=" * barlen + "\n")
             f.write(
-                "Matching {count:d}^2 combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)\n".format(
-                    count=self.db_size,
-                    dbname=self.db.name,
-                    starname=self.star.name,
-                    nel=self.trimmed_db.shape[0],
-                    nup=np.sum(self.eval_data.error < 0),
-                )
+                f"Matching {self.n_combinations:,d} combinations of {self.sol_size:d} stars\n"
+            )
+            if self.db_n == 1:
+                f.write(f"Database: {self.db[0].name}\n")
+            else:
+                f.write("Databases:\n")
+                for l in self.format_db(ind=4).splitlines():
+                    f.write(l + "\n")
+            f.write(f"Star: {self.star.name}\n")
+            f.write(
+                f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} upper limits)\n"
             )
             if self.fixed:
                 f.write("Offsets are according to ejecta mass\n")
             else:
                 f.write("Offsets solved using UOBYQA\n")
 
-            f.write("=" * barlen + "\n")
-            f.write("-" * barlen + "\n")
-            f.write(" ".join("{:<{}s}".format(c[0], c[2]) for c in columns) + "\n")
-            f.write("-" * barlen + "\n")
-            for i, solution in enumerate(self.top_stars):
-                index1 = solution["index"][0]
-                index2 = solution["index"][1]
-                f.write(
-                    (" ".join([c[1] for c in columns]) + "\n").format(
-                        index1=index1,
-                        index2=index2,
-                        offset1=solution["offset"][0],
-                        offset2=solution["offset"][1],
-                        mass1=self.db.fielddata[index1]["mass"],
-                        mass2=self.db.fielddata[index2]["mass"],
-                        energy1=self.db.fielddata[index1]["energy"],
-                        energy2=self.db.fielddata[index2]["energy"],
-                        mixing1=self.db.fielddata[index1]["mixing"],
-                        mixing2=self.db.fielddata[index2]["mixing"],
-                        fitness=self.top_fitness[i],
-                    )
-                )
-            f.write("-" * barlen + "\n")
+            f.write(xbar)
+            f.write(hbar)
+            for l in lines[:2]:
+                f.write(l + "\n")
+            f.write(hbar)
+            for l in lines[2:]:
+                f.write(l + "\n")
+            f.write(hbar)
+
+            # write db comments / info
+            for l in self.format_comments().splitlines():
+                f.write(l + "\n")
 
 
 def _set_priority(value: int):
-    p = psutil.Process(os.getpid())
+    p = psutil.Process(getpid())
     p.nice(value)
+
+
+def gen_map(gen_start, gen_end, num):
+    off = np.cumsum(num)
+    off[1:] = off[0:-1]
+    off[0] = 0
+    idx = np.arange(gen_start, gen_end, dtype=np.int64)
+    idx = np.array(np.unravel_index(idx, num)).T
+    return idx + off
 
 
 def _solve(
@@ -445,6 +447,8 @@ def _solve(
     fixed=False,
     ejecta=None,
     return_size=None,
+    sol_size=None,
+    num=None,
     **kwargs,
 ):
     """
@@ -453,18 +457,22 @@ def _solve(
     """
 
     solutions = np.ndarray(
-        (gen_end - gen_start, 2), dtype=[("index", "int"), ("offset", "f8")]
+        (gen_end - gen_start, sol_size), dtype=[("index", "int"), ("offset", "f8")]
     )
 
-    solutions["index"][:] = gen_slice(gen_start, gen_end, 2)
+    if num is None:
+        solutions["index"][:] = gen_slice(gen_start, gen_end, sol_size)
+    else:
+        solutions["index"][:] = gen_map(gen_start, gen_end, num)
 
-    if not fixed:
+    if fixed:
+        # for i in range(2):
+        #     solutions["offset"][:, i] = ejecta[solutions["index"][:, i]]
+        solutions["offset"][:, :] = ejecta[solutions["index"][:, :]]
+    else:
         solutions[:, :]["offset"] = 1.0e-5
-    elif fixed:
-        for i in range(2):
-            solutions["offset"][:, i] = ejecta[solutions["index"][:, i]]
 
-    fitness = Results._fitness(
+    fitness = _fitness(
         sol=solutions,
         trimmed_db=trimmed_db,
         fixed_offsets=fixed,
@@ -485,6 +493,15 @@ def _solve(
         fitness = fitness[:return_size]
 
     return solutions, fitness, n_local_solved
+
+
+class Double(Multi):
+    sol_size = 2
+
+    def __init__(self, *args, **kwargs):
+        sol_size = kwargs.setdefault("sol_size", self.sol_size)
+        assert sol_size == 2, f"require sol_size == 2, provided: {sol_size=}"
+        super().__init__(*args, **kwargs)
 
 
 class Direct(Results, Logged):
