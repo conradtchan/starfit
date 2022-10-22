@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from string import capwords
+from textwrap import wrap
 
 import numpy as np
 
@@ -13,6 +14,7 @@ from .autils.abuset import AbuData
 from .autils.isotope import ion as I
 from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
+from .autils.physconst import MSUN
 from .autils.stardb import StarDB
 from .fitness import solver
 from .read import Star
@@ -35,20 +37,13 @@ class Results(Logged):
     Object for running the various algorithms and a container for the results
     """
 
-    def __init__(self, sol_type):
-        self.sol_type = sol_type
+    def __init__(self):
         self.history = {"best": [], "average": [], "worst": []}
         self.initsol = None
         self.bestsol = None
         self.times = []
         self.gen = None
         self.pop_size = None
-        if sol_type == "Single":
-            self.sol_size = 1
-        elif sol_type == "Double":
-            self.sol_size = 2
-        else:
-            self.sol_size = None
 
         try:
             self.silent
@@ -56,6 +51,25 @@ class Results(Logged):
             self.silent = False
 
         self.setup_logger(silent=self.silent)
+
+    @staticmethod
+    def _normalize_mass(db, name):
+        data = np.array(db.fielddata[name])
+        i = db.fieldnames.tolist().index(name)
+        if db.fieldunits[i] in (
+            "Msun",
+            "M_sun",
+            "solar masses",
+            "msun",
+            "MSUN",
+        ):
+            db.fieldunits[i] = "Msun"
+        elif db.fieldunits[i] in ("g",):
+            db.fieldunits[i] = ("Msun",)
+            data *= MSUN
+        else:
+            raise AttributeError(f"unknown mass unit {db.fieldunits[i]}")
+        return data
 
     def _setup(
         self,
@@ -90,15 +104,16 @@ class Results(Logged):
         for db in database:
             if not isinstance(db, StarDB):
                 dbpath = find_data(DB, db)
-
                 # Read the database
                 db = StarDB(dbpath, silent=self.silent)
             self.db.append(db)
 
-            if "mass" in db.fieldnames:
-                ejecta = np.array(db.fielddata["mass"])
+            if "ejecta" in db.fieldnames:
+                ejecta = self._normalize_mass(db, "ejecta")
+            elif "mass" in db.fieldnames:
+                ejecta = self._normalize_mass(db, "mass")
                 if "remnant" in db.fieldnames:
-                    ejecta -= db.fielddata["remnant"]
+                    ejecta -= self._normalize_mass(db, "remnant")
             else:
                 ejecta = np.full(db.fielddata.shape[0], 1.0e0, dtype=np.float64)
             self.ejecta.append(ejecta)
@@ -310,21 +325,22 @@ class Results(Logged):
             f"Matching {len(eval_data)} data points from Z={z_min} to Z={z_max}:"
         )
 
-        self.logger.info("    " + " ".join([str(ion) for ion in eval_data.element]))
+        for line in wrap(" ".join([str(ion) for ion in eval_data.element]), 60):
+            self.logger.info("    " + line)
 
         self.logger.info(
             f"with {np.sum(eval_data.error < 0)} upper limits in the data:"
         )
-        self.logger.info(
-            "    "
-            + " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]])
-        )
+        for line in wrap(
+            " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]]), 60
+        ):
+            self.logger.info("    " + line)
 
         self.logger.info(f"and {np.sum(lolim_index_star)} lower limits in the models:")
-
-        self.logger.info(
-            "    " + " ".join([str(ion) for ion in eval_data.element[lolim_index_star]])
-        )
+        for line in wrap(
+            " ".join([str(ion) for ion in eval_data.element[lolim_index_star]]), 60
+        ):
+            self.logger.info("    " + line)
 
         self.eval_data = eval_data
         self.trimmed_db = trimmed_db
@@ -339,62 +355,11 @@ class Results(Logged):
         self.sun = sun
         self.sun_full = sun_full
         self.sun_star = sun_star
+        self.fit_size = self.trimmed_db.shape[0]
         self.db_size = self.trimmed_db.shape[1]
 
         del self.data
         del self.ions
-
-    @staticmethod
-    def _fitness(
-        trimmed_db,
-        eval_data,
-        z_exclude_index,
-        sol,
-        ejecta=[],
-        fixed_offsets=False,
-        write=True,
-        cdf=0,
-        ls=False,
-    ):
-        """
-        Evaluate the fitness of a set of solutions.
-        If abundance is directly given in the case of smart GA, use that.
-        """
-
-        if fixed_offsets:
-            offset = ejecta[sol["index"]]
-            ls = False
-        else:
-            offset = sol["offset"]
-
-        error = np.copy(eval_data.error)
-        error[z_exclude_index] = 1.0e99
-
-        abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
-
-        fitness, offsets = solver.fitness(
-            eval_data.abundance,
-            error,
-            abu,
-            offset,
-            cdf=cdf,
-            ls=ls,
-        )
-
-        sol["offset"] = offsets
-        fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
-        return fitness
-
-    # def n_comb(
-    #     self,
-    # ):
-    #     try:
-    #         self._n_comb
-    #     except:
-    #         self._n_comb = np.product(
-    #             np.arange(self.db_size - self.sol_size + 1, self.db_size + 1).astype("f8")
-    #         ) / math.factorial(self.sol_size)
-    #     return self._n_comb
 
     def run(
         self,
@@ -414,7 +379,7 @@ class Results(Logged):
                 sol[i, :]["offset"] = offsets[i]
                 ls = False
 
-        fitness = self._fitness(
+        fitness = _fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -453,15 +418,7 @@ class Results(Logged):
 
     def plot_fitness(self):
         # Fitness over time plot
-        starplot.fitplot(
-            sol_type=self.sol_type,
-            starname=self.star.name,
-            generations=self.gen,
-            popsize=self.pop_size,
-            genesize=self.sol_size,
-            times=self.times,
-            history=self.history,
-        )
+        raise NotImplementedError()
 
     def text_result(self, n=20, *, n0=0, format="unicode", wide=12):
         """Print data of best fit."""
@@ -472,7 +429,7 @@ class Results(Logged):
             base_title = ["\u03C7\u00B2", "Dilution", "Index"]
         else:
             base_title = ["chi**2", "Dilution", "Index"]
-        base_units = ["", "", ""]
+        base_units = ["", "(log)", ""]
 
         if self.db_n > 1:
             base_title[2:2] = ["DB"]
@@ -554,18 +511,17 @@ class Results(Logged):
                 index, offset = self.sorted_stars[i, j]
                 db_idx = self.db_idx[index]
                 db = self.db[db_idx]
-                # breakpoint()
                 if db_idx != db_idx0 and not wide:
                     _short_head(db, j == 0 and self.sol_size > 1)
                     db_idx0 = db_idx
-                dbindex = index - self.db_off[self.db_idx[index]]
+                dbindex = index - self.db_off[db_idx]
                 data = db.fielddata[dbindex]
                 line = list()
                 if j == 0:
                     line.append(f"{self.sorted_fitness[i]:3.2f}")
                 else:
                     line.append("")
-                line.append(f"{1/offset:7g}")
+                line.append(f"{np.log10(offset):7.2f}")
                 if self.db_n > 1:
                     line.append(f"{db_idx + 1:>d}")
                 line.append(f"{dbindex:6d}")
@@ -590,19 +546,41 @@ class Results(Logged):
         return " " * nspace + s
 
     def print(self, *args, **kwargs):
+        full = kwargs.pop("full", False)
         print(self.format(*args, **kwargs))
-        print(self.format_db())
+        if full:
+            self.print_comments()
+        else:
+            print(self.format_db())
 
-    def format_db(self):
-        string = ["DB  Name"]
+    def format_db(self, ind=0):
+        pad = " " * ind
+        string = [pad + "DB  Name"]
         for i, db in enumerate(self.db):
-            string.append(f"{i+1:>2d}  {db.name}")
-        string.append("")
+            string.append(pad + f"{i+1:>2d}  {db.name}")
         string = "\n".join(string)
         return string
 
-    def print_db(self):
-        print(self.format_db())
+    def print_db(self, ind=0):
+        print(self.format_db(ind))
+
+    def format_comments(self, npad=72):
+        string = list()
+        for i, db in enumerate(self.db):
+            if i == 0:
+                string.append("=" * npad)
+            if self.db_n > 1:
+                string.append(f"{i+1:>2d}:  {db.name}")
+            else:
+                string.append(f"{db.name}")
+            string.append("-" * npad)
+            string.extend(db.comments.tolist())
+            string.append("=" * npad)
+        string = "\n".join(string)
+        return string
+
+    def print_comments(self, ind=0):
+        print(self.format_comments())
 
     def format(self, *args, **kwargs):
         text = self.text_result(*args, **kwargs)
@@ -621,3 +599,43 @@ class Results(Logged):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.star.name})"
+
+
+def _fitness(
+    trimmed_db,
+    eval_data,
+    z_exclude_index,
+    sol,
+    ejecta=[],
+    fixed_offsets=False,
+    cdf=0,
+    ls=False,
+):
+    """
+    Evaluate the fitness of a set of solutions.
+    If abundance is directly given in the case of smart GA, use that.
+    """
+
+    if fixed_offsets:
+        offset = ejecta[sol["index"]]
+        ls = False
+    else:
+        offset = sol["offset"]
+
+    error = np.copy(eval_data.error)
+    error[z_exclude_index] = 1.0e99
+
+    abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
+
+    fitness, offsets = solver.fitness(
+        eval_data.abundance,
+        error,
+        abu,
+        offset,
+        cdf=cdf,
+        ls=ls,
+    )
+
+    sol["offset"] = offsets
+    fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
+    return fitness

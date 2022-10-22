@@ -143,26 +143,34 @@ def abuplot(
     up_lims = uplim_index_star
     y_star_err[1, up_lims] = 0
 
-    ax.text(
-        0.96,
-        0.95,
-        star.name,
-        size="x-large",
-        horizontalalignment="right",
-        verticalalignment="top",
-        transform=ax.transAxes,
+    legt = ax.legend(
+        [],
+        [],
+        title=star.name,
+        title_fontproperties=dict(
+            size="x-large",
+        ),
+        bbox_to_anchor=[0.99, 0.99],
+        loc="upper right",
+        frameon=False,
     )
+    legt.set_draggable(True)
+    ax.add_artist(legt)
 
     if show_copyright:
-        ax.text(
-            0.01,
-            0.01,
-            r"$\copyright$ www.StarFit.org",
-            size="x-small",
-            horizontalalignment="left",
-            verticalalignment="bottom",
-            transform=ax.transAxes,
+        legc = ax.legend(
+            [],
+            [],
+            title=r"$\copyright$ www.StarFit.org",
+            title_fontproperties=dict(
+                size="x-small",
+            ),
+            bbox_to_anchor=[-0.005, -0.02],
+            loc="lower left",
+            frameon=False,
         )
+        legc.set_draggable(True)
+        ax.add_artist(legc)
 
     # Components of the solution
     lines = ["--", "-.", ":", "-"]
@@ -308,7 +316,7 @@ def abuplot(
         ylim = (np.min(y_star) - 1.0, 0.9)
 
     if xlim is None:
-        xlim = (zlist_comb[0] - 1, zlist_comb[-1] + 1)
+        xlim = (zlist_comb[0] - 0.99, zlist_comb[-1] + 0.99)
 
     # Calculate number of pixels per data
     dpi = fig.get_dpi()
@@ -373,12 +381,14 @@ def abuplot(
             va="center",
         )
 
-    ax.legend(
+    leg = ax.legend(
         bbox_to_anchor=[0.98, 0.92],
         loc="upper right",
         numpoints=1,
         prop={"size": fontsize},
-    ).draw_frame(False)
+        frameon=False,
+    )
+    leg.set_draggable(True)
 
     # Plot for the excluded data points
     ax.errorbar(
@@ -479,34 +489,28 @@ def abuplot(
     return labels, (x_a, y_a)
 
 
-def fitplot(sol_type, starname, generations, popsize, genesize, times, history):
+def fitplot(starname, generations, popsize, genesize, times, history):
     fig = plt.figure(
         figsize=(10, 6),
         dpi=102,
         facecolor="white",
         edgecolor="white",
     )
-    if sol_type in ["Single", "Double"]:
-        raise TypeError("Plot not available for this type of solution")
-    else:
-        ax_fit = fig.add_subplot(111)
-        ax_fit.set_xlabel("Time (s)")
-        ax_fit.set_ylabel("Fitness (Error)")
-        ax_fit.set_title(
-            "{starname:s} - Generations: {generations:d}, Population size: {popsize:d}, Gene size: {genesize:d}".format(
-                starname=starname,
-                generations=generations,
-                popsize=popsize,
-                genesize=genesize,
-            )
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Fitness (Error)")
+    ax.set_title(
+        "{starname:s} - Generations: {generations:d}, Population size: {popsize:d}, Gene size: {genesize:d}".format(
+            starname=starname,
+            generations=generations,
+            popsize=popsize,
+            genesize=genesize,
         )
-        ax_fit.plot(
-            times, history["average"], label="average", marker="", color="tab:blue"
-        )
-        ax_fit.plot(times, history["best"], label="best", marker="", color="tab:green")
-        ax_fit.plot(times, history["worst"], label="worst", marker="", color="tab:red")
-        ax_fit.set_yscale("log")
-        ax_fit.legend()
-        fig.tight_layout()
-
-    return
+    )
+    ax.plot(times, history["average"], label="average", marker="", color="tab:blue")
+    ax.plot(times, history["best"], label="best", marker="", color="tab:green")
+    ax.plot(times, history["worst"], label="worst", marker="", color="tab:red")
+    ax.set_yscale("log")
+    leg = ax.legend(loc="best")
+    leg.set_draggable(True)
+    fig.tight_layout()

@@ -34,10 +34,10 @@ from importlib import metadata
 __version__ = metadata.version("starfit")
 
 
-from .fit import Direct, Double, Single
+from .fit import Direct, Double, Multi, Single
 from .ga import Ga
 
-__all__ = ["Direct", "Double", "Single", "Ga"]
+__all__ = ["Direct", "Double", "Single", "Ga", "Multi"]
 
 del Path, getenv
 del user_data_dir, user_solar, user_bbn

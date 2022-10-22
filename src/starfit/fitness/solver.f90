@@ -192,7 +192,7 @@ end subroutine calfun
 
 subroutine fitness(f, c, obs, err, abu, nstar, nel, nsol, ls, icdf)
     implicit none
-    integer*8,        parameter         :: dp = selected_real_kind(15)
+    integer*8,      parameter           :: dp = selected_real_kind(15)
 
     integer*8,      intent(in)          :: nstar, nel, nsol
     real(dp),       intent(in)          :: obs(nel)
@@ -206,7 +206,7 @@ subroutine fitness(f, c, obs, err, abu, nstar, nel, nsol, ls, icdf)
     integer*8                           :: i, j, k
 
     !f2py real(dp),       intent(out)       :: f(nsol)
-    real(dp),       intent(out)       :: f(nsol)
+    real(dp),       intent(out)         :: f(nsol)
     !f2py real(dp),       intent(in,out)          :: c(nsol, nstar)
     real(dp),       intent(inout)       :: c(nsol, nstar)
 
@@ -374,6 +374,11 @@ subroutine psolve(c, obs, err, abu, nstar, nel, icdf)
     rhoend = 1.d-5
     iprint = 0
     calls = 50 * nstar
+
+    if (any(c >= 1.d0)) then
+       print*, '[psolve] DEBUG IN: c = ', c
+       error stop 'c >= 1'
+    endif
 
     !Convert offsets to solver space
     x = atanh(c * 2.d0 - 1.d0)

@@ -6,7 +6,8 @@ import numpy as np
 
 from .autils.human import time2human
 from .autils.logged import Logged
-from .starfit import Results
+from .starfit import Results, _fitness
+from .starplot import fitplot
 
 
 class Ga(Results, Logged):
@@ -24,7 +25,7 @@ class Ga(Results, Logged):
         gen=10,
         time_limit=20,
         pop_size=200,
-        sol_size=2,
+        sol_size=None,
         tour_size=2,
         frac_mating_pool=1,
         frac_elite=0.5,
@@ -37,13 +38,14 @@ class Ga(Results, Logged):
         cdf=True,
         seed=None,
         silent=False,
-        max_pop=10_000,
-        cover=False,
+        max_pop=2**13,
+        cover=None,
     ):
 
         t_total = 0
+        self.sol_size = sol_size
         self.silent = silent
-        super().__init__("GA")
+        super().__init__()
 
         self.rng = np.random.default_rng(seed)
 
@@ -57,6 +59,21 @@ class Ga(Results, Logged):
             upper_lim=upper_lim,
             z_lolim=z_lolim,
         )
+
+        if sol_size is None:
+            if cover is None:
+                cover = True
+            if self.db_n > 1 and cover:
+                sol_size = self.db_n
+            else:
+                sol_size = 2
+        if cover is None:
+            cover = False
+
+        # If offsets is fixed, there is no offset mutation
+        if fixed_offsets:
+            mut_rate_offset = 0
+            local_search = False
 
         self.sol_size = sol_size
         self.pop_size = pop_size
@@ -73,11 +90,6 @@ class Ga(Results, Logged):
         self.cover = cover
 
         self.logger.info(f"Time limit: {time2human(time_limit)}")
-
-        # If offsets is fixed, there is no offset mutation
-        if fixed_offsets:
-            mut_rate_offset = 0
-            local_search = False
 
         # Turn all of the fractions into numbers
         # The tournament uses these numbers to determine the size of the output
@@ -105,7 +117,7 @@ class Ga(Results, Logged):
         self.s = self._populate()
 
         # Generate initial fitness values
-        self.f = self._fitness(
+        self.f = _fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -197,14 +209,14 @@ class Ga(Results, Logged):
                 ],
             )
 
-        # Singlepoint crossover
+        # Single point crossover
         w = w.reshape(2, -1, self.sol_size)
         crossind = self.rng.integers(self.sol_size, size=w.shape[1])
 
         # Make children and inverse-children
         c = np.ndarray(
             (w.shape[0] * w.shape[1], self.sol_size),
-            dtype=[("index", "int"), ("offset", "f8")],
+            dtype=[("index", np.int64), ("offset", np.float64)],
         )
         for i in range(0, w.shape[1]):
             cut = crossind[i]
@@ -214,7 +226,7 @@ class Ga(Results, Logged):
             c[2 * i + 1, cut:] = w[0, i, cut:]
 
         f = np.copy(f)
-        fc = self._fitness(
+        fc = _fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -246,7 +258,7 @@ class Ga(Results, Logged):
             mask &= idb[:, -1] == self.db_n - 1
             o = o[mask]
             f = f[mask]
-            n = np.count_nonzero(~mask)
+            # n = np.count_nonzero(~mask)
             # if n > 0:
             #     self.logger.info(f"cover: eliminating {n} candidates, {f.shape[0]} remaining.")
             assert f.shape[0] > 0, "cover: no data left candidate elimination"
@@ -268,10 +280,10 @@ class Ga(Results, Logged):
             ]
         else:
             sel = np.unique(f, return_index=True)[1]
-        n = f.shape[0] - len(sel)
+        # n = f.shape[0] - len(sel)
         o = o[sel]
         f = f[sel]
-        self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
+        # self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
         assert f.shape[0] > 0, "no data left after elimiation of duplicates"
 
         # Selection
@@ -366,3 +378,14 @@ class Ga(Results, Logged):
         )
 
         return s
+
+    def plot_fitness(self):
+        # Fitness over time plot
+        fitplot(
+            starname=self.star.name,
+            generations=self.gen,
+            popsize=self.pop_size,
+            genesize=self.sol_size,
+            times=self.times,
+            history=self.history,
+        )
