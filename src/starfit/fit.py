@@ -1,10 +1,12 @@
 """Fitting stars"""
 
 import multiprocessing
-import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from os import getpid
+from pathlib import Path
+from uuid import uuid1
 
 import numpy as np
 import psutil
@@ -114,6 +116,7 @@ class Multi(Results, Logged):
         silent=False,
         save=False,
         webfile=None,
+        path=None,
         block_size=2**17,
         sol_size=None,
         partition=None,
@@ -222,23 +225,16 @@ class Multi(Results, Logged):
         if save:
             if webfile:
                 filename = webfile
-                directory = "/tmp"
+                path = Path("/tmp")
             else:
-                if fixed:
-                    string = " (fixed)"
+                if save is True:
+                    filename = uuid1().hex + ".txt"
                 else:
-                    string = ""
-                filename = "{:s}({:s}, {:s}) {:d}.{:d}{:s}".format(
-                    self.__class__.__name__,
-                    self.star.name,
-                    "-".join([db.name for db in self.db]),
-                    self.n_top,
-                    self.db_size,
-                    string,
-                )
-                path = os.path.dirname(__file__)
-                directory = os.path.join(path, "../results")
-            file = os.path.join(directory, filename)
+                    filename = save
+                if path is None:
+                    path = "."
+                path = Path(path).expanduser().resolve()
+            file = path / filename
             self.save_file(file)
 
         self.close_logger(timing="Finished in")
@@ -387,137 +383,50 @@ class Multi(Results, Logged):
             )
 
     def save_file(self, file_name):
-        # TODO - update for multistar
-        with open(file_name, mode="w") as f:
-            # columns = [
-            #     (
-            #         "Index",
-            #         "{index1:<5}",
-            #         5,
-            #     ),
-            #     (
-            #         "Mass",
-            #         "{mass1:5.1f}",
-            #         5,
-            #     ),
-            #     (
-            #         "Eexp",
-            #         "{energy1:4.1f}",
-            #         4,
-            #     ),
-            #     (
-            #         "Mixing",
-            #         "{mixing1:8.6f}",
-            #         8,
-            #     ),
-            #     (
-            #         "Offset",
-            #         "{offset1:12e}",
-            #         12,
-            #     ),
-            #     (
-            #         "|",
-            #         "|",
-            #         1,
-            #     ),
-            #     (
-            #         "Index",
-            #         "{index2:<5}",
-            #         5,
-            #     ),
-            #     (
-            #         "Mass",
-            #         "{mass2:5.1f}",
-            #         5,
-            #     ),
-            #     (
-            #         "Eexp",
-            #         "{energy2:4.1f}",
-            #         4,
-            #     ),
-            #     (
-            #         "Mixing",
-            #         "{mixing2:8.6f}",
-            #         8,
-            #     ),
-            #     (
-            #         "Offset",
-            #         "{offset2:12e}",
-            #         12,
-            #     ),
-            #     (
-            #         "|",
-            #         "|",
-            #         1,
-            #     ),
-            #     (
-            #         "Fitness",
-            #         "{fitness:7.5f}",
-            #         7,
-            #     ),
-            # ]
-
-            # totlen = sum([c[2] for c in columns]) + len(columns) - 1
-            # barlen = totlen + 3
-
-            # f.write("=" * barlen + "\n")
-
+        file = Path(file_name).expanduser().resolve()
+        with open(file, mode="wt") as f:
             text = self.format(n=len(self.top_stars), wide=99)
             lines = text.splitlines()
             totlen = np.max([len(line) for line in lines])
             barlen = totlen + 3
-            f.write("=" * barlen + "\n")
+            hbar = "-" * barlen + "\n"
+            xbar = "=" * barlen + "\n"
+            f.write(xbar)
 
             f.write(
-                "Matching {count:d}^2 combinations of 2 stars\nDatabase: {dbname}\nStar: {starname}\nUsing {nel:d} elements ({nup:d} upper limits)\n".format(
-                    count=self.db_size,
-                    dbname=", ".join([db.name for db in self.db]),
-                    starname=self.star.name,
-                    nel=self.trimmed_db.shape[0],
-                    nup=np.sum(self.eval_data.error < 0),
-                )
+                f"Matching {self.n_combinations:,d} combinations of {self.sol_size:d} stars\n"
+            )
+            if self.db_n == 1:
+                f.write(f"Database: {self.db[0].name}\n")
+            else:
+                f.write("Databases:\n")
+                for l in self.format_db(ind=4).splitlines():
+                    f.write(l + "\n")
+            f.write(f"Star: {self.star.name}\n")
+            f.write(
+                f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} upper limits)\n"
             )
             if self.fixed:
                 f.write("Offsets are according to ejecta mass\n")
             else:
                 f.write("Offsets solved using UOBYQA\n")
 
-            f.write("=" * barlen + "\n")
-            f.write("-" * barlen + "\n")
+            f.write(xbar)
+            f.write(hbar)
             for l in lines[:2]:
-                f.write(l)
-            f.write("-" * barlen + "\n")
+                f.write(l + "\n")
+            f.write(hbar)
             for l in lines[2:]:
-                f.write(l)
-            f.write("-" * barlen + "\n")
+                f.write(l + "\n")
+            f.write(hbar)
 
-            # f.write("=" * barlen + "\n")
-            # f.write("-" * barlen + "\n")
-            # f.write(" ".join("{:<{}s}".format(c[0], c[2]) for c in columns) + "\n")
-            # f.write("-" * barlen + "\n")
-            # for i, solution in enumerate(self.top_stars):
-            #     index1 = solution["index"][0]
-            #     index2 = solution["index"][1]
-            #     f.write(
-            #         (" ".join([c[1] for c in columns]) + "\n").format(
-            #             index1=index1,
-            #             index2=index2,
-            #             offset1=solution["offset"][0],
-            #             offset2=solution["offset"][1],
-            #             mass1=self.db.fielddata[index1]["mass"],
-            #             mass2=self.db.fielddata[index2]["mass"],
-            #             energy1=self.db.fielddata[index1]["energy"],
-            #             energy2=self.db.fielddata[index2]["energy"],
-            #             mixing1=self.db.fielddata[index1]["mixing"],
-            #             mixing2=self.db.fielddata[index2]["mixing"],
-            #             fitness=self.top_fitness[i],
-            #         )
-            #     )
-            # f.write("-" * barlen + "\n")
+            # write db comments / info
+            for l in self.format_comments().splitlines():
+                f.write(l + "\n")
 
 
 def _set_priority(value: int):
-    p = psutil.Process(os.getpid())
+    p = psutil.Process(getpid())
     p.nice(value)
 
 
