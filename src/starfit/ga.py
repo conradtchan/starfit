@@ -125,6 +125,7 @@ class Ga(Results, Logged):
             fixed_offsets=fixed_offsets,
             ejecta=self.ejecta,
             cdf=cdf,
+            ls=self.local_search,
         )
 
         # Initial history points
