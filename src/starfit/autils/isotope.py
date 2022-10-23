@@ -2468,18 +2468,40 @@ ufunc_ion_from_ZA = lambda Z, A: np.array(
 )
 
 
+ufunc_isotope_from_ZA = lambda Z, A: np.array(
+    np.frompyfunc(lambda z, a: ion(Z=z, A=a, isotope=True), 2, 1)(Z, A), dtype=object
+)
+
+
 ufunc_ion_from_ZN = lambda Z, N: np.array(
     np.frompyfunc(lambda z, n: ion(Z=z, N=n), 2, 1)(Z, N), dtype=object
 )
 
 
+ufunc_isotope_from_ZN = lambda Z, N: np.array(
+    np.frompyfunc(lambda z, n: ion(Z=z, N=n, isotope=True), 2, 1)(Z, N), dtype=object
+)
+
+
 ufunc_ion_from_ZAE = lambda Z, A, E: np.array(
+    np.frompyfunc(lambda z, a, e: ion(Z=z, A=a, E=e), 3, 1)(Z, A, E),
+    dtype=object,
+)
+
+
+ufunc_isomer_from_ZAE = lambda Z, A, E: np.array(
     np.frompyfunc(lambda z, a, e: ion(Z=z, A=a, E=e, isomer=True), 3, 1)(Z, A, E),
     dtype=object,
 )
 
 
 ufunc_ion_from_ZNE = lambda Z, N, E: np.array(
+    np.frompyfunc(lambda z, n, e: ion(Z=z, N=n, E=e), 3, 1)(Z, N, E),
+    dtype=object,
+)
+
+
+ufunc_isomer_from_ZNE = lambda Z, N, E: np.array(
     np.frompyfunc(lambda z, n, e: ion(Z=z, N=n, E=e, isomer=True), 3, 1)(Z, N, E),
     dtype=object,
 )
@@ -2905,6 +2927,8 @@ class IonCacheZAE(object):
         self._ufunc = ufunc_ion_from_ZAE
 
     def __call__(self, iz, ia, ie):
+        s = np.shape(iz)
+        iz, ia, ie = np.atleast_1d(iz, ia, ie)
         ix = self._c1 * iz + self._c2 * ia + ie + self._c3
         i0 = ~self.ioncache0[ix]
         (ii,) = np.where(i0)
@@ -2912,7 +2936,7 @@ class IonCacheZAE(object):
             ions = self._ufunc(iz[ii], ia[ii], ie[ii])
             self.ioncache1[ix[ii]] = ions
             self.ioncache0[ix[ii]] = True
-        return self.ioncache1[ix]
+        return self.ioncache1[ix].reshape(s)[()]
 
 
 class IonCacheZNE(IonCacheZAE):
@@ -2951,6 +2975,10 @@ class IonCacheZA(object):
         self._ufunc = ufunc_ion_from_ZA
 
     def __call__(self, iz, ia, ie=-1):
+        s = np.shape(iz)
+        iz, ia, ie = np.atleast_1d(iz, ia, ie)
+        if np.any(ie != -1):
+            raise AttributeError("{ie=} not supported")
         ix = self._c1 * iz + ia + self._c3
         i0 = ~self.ioncache0[ix]
         (ii,) = np.where(i0)
@@ -2958,7 +2986,7 @@ class IonCacheZA(object):
             ions = self._ufunc(iz[ii], ia[ii])
             self.ioncache1[ix[ii]] = ions
             self.ioncache0[ix[ii]] = True
-        return self.ioncache1[ix]
+        return self.ioncache1[ix].reshape(s)[()]
 
 
 class IonCacheZN(IonCacheZA):
