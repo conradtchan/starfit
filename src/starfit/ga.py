@@ -5,12 +5,12 @@ import time
 import numpy as np
 
 from .autils.human import time2human
-from .autils.logged import Logged
-from .starfit import Results, _fitness
+from .fit import get_fitness
+from .starfit import StarFit
 from .starplot import fitplot
 
 
-class Ga(Results, Logged):
+class Ga(StarFit):
     """Genetic Algorithm."""
 
     def __init__(
@@ -117,7 +117,7 @@ class Ga(Results, Logged):
         self.s = self._populate()
 
         # Generate initial fitness values
-        self.f = _fitness(
+        self.f = get_fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -227,7 +227,7 @@ class Ga(Results, Logged):
             c[2 * i + 1, cut:] = w[0, i, cut:]
 
         f = np.copy(f)
-        fc = _fitness(
+        fc = get_fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,

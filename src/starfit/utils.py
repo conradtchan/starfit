@@ -1,4 +1,7 @@
+from os import getpid
 from pathlib import Path
+
+from psutil import Process
 
 from . import DATA_DIRS
 
@@ -34,3 +37,8 @@ def find_data(subdir, filename):
         if ok:
             return fullpath
     raise IOError(f"file {filename} not found")
+
+
+def set_priority(value: int):
+    p = Process(getpid())
+    p.nice(value)
