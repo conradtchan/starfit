@@ -997,6 +997,7 @@ class StarDB(AbuData, Logged):
         """
         Print out DB info
         """
+        self.setup_logger()
         self.logger.info(f"Data version: {int(self.version):6d}")
         self.logger.info(f"data set name: {self.name:s}")
 
@@ -1174,6 +1175,7 @@ class StarDB(AbuData, Logged):
 
         self.logger.info(f"SHA1: {m.hexdigest()}")
         self.logger.info("".ljust(58, "-"))
+        self.close_logger()
 
     def _write(self):
         """
