@@ -18,6 +18,6 @@ testdata = [
 def test(filename, expected):
     """Test single star fits"""
 
-    test_result = starfit.Single(filename, silent=True).sorted_fitness[0]
+    test_result = starfit.Single(filename, silent=True, z_max=30).sorted_fitness[0]
 
     assert np.isclose(test_result, expected)
