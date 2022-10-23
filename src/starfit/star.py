@@ -83,25 +83,42 @@ class Star(Logged):
         self.element_abundances.sort(order="element")
 
     # Write list into numpy recarray
-    @staticmethod
-    def list_to_array(data_list):
-        # Initialize numpy array of size
-        data_array = np.recarray(
-            (len(data_list),),
-            dtype=[
-                ("element", object),
-                ("abundance", np.float64),
-                ("error", np.float64),
-            ],
-        )
+    def list_to_array(self, data_list):
+
+        # Determine shape of data
+        data = [d.split() for d in data_list]
+        n_data = np.array([len(d) for d in data])
+        n_elem = len(n_data)
+        if self.version < 10100:
+            n_corr = 0
+            assert np.all(n_data == 3), "error in star data format, require 3 columns"
+        else:
+            n_corr = np.max(n_data) - 3
+            assert n_corr >= 0, "error in star data format, require at least 3 columns"
+            assert np.all(
+                (n_data == 3) | (n_data == n_corr + 3)
+            ), "require consistent correlation vectors, if present"
+        data_type = [
+            ("element", object),
+            ("abundance", np.float64),
+            ("error", np.float64),
+            ("corr", np.float64, n_corr),
+        ]
+
+        # Initialize zeroed numpy array
+        data_array = np.recarray(n_elem, dtype=data_type)
+        data_array[:] = 0
+
         # i lines, j elements on each line
-        for i, line in enumerate(data_list):
-            for j, item in enumerate(line.split()):
+        for i, line in enumerate(data):
+            for j, item in enumerate(line):
                 # Set the corresponding data type
                 if j == 0:
                     data_array[i][j] = I(item)
-                else:
+                elif j < 3:
                     data_array[i][j] = float(item)
+                else:
+                    data_array[i].corr[j - 3] = float(item)
         return data_array
 
     # Read file
@@ -252,6 +269,9 @@ class Star(Logged):
         elif data_format == 7:
             # sigma is not given logarthmically in dex but absolute
             array.error[:] = array.error / (array.abundance * np.log(10.0))
+            array.corr[:, :] = array.corr[:, :] / (
+                array.abundance.reshape(-1, 1) * np.log(10.0)
+            )
             # Since this is format 7, norm_element is actually Y(Si) * 1e6
             Si = norm_element
             array.abundance[:] = np.log10(array.abundance * Si * 1e-12)

@@ -93,6 +93,10 @@ class StarFit(Logged):
            multiple data bases are provided as an iterable.
         """
 
+        if database in ("*", ...):
+            # TODO - add all databases
+            pass
+
         if isinstance(database, (str, Path, StarDB)):
             database = (database,)
 
