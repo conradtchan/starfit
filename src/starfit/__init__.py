@@ -40,8 +40,9 @@ from .double import Double
 from .ga import Ga
 from .multi import Multi
 from .single import Single
+from .star import Star
 
-__all__ = ["Single", "Double", "Multi", "Ga", "Direct"]
+__all__ = ["Single", "Double", "Multi", "Ga", "Direct", "Star"]
 
 del Path, getenv
 del user_data_dir, user_solar, user_bbn
