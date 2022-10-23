@@ -36,13 +36,12 @@ __version__ = metadata.version("starfit")
 
 
 from .direct import Direct
-from .double import Double
 from .ga import Ga
 from .multi import Multi
 from .single import Single
 from .star import Star
 
-__all__ = ["Single", "Double", "Multi", "Ga", "Direct", "Star"]
+__all__ = ["Single", "Multi", "Ga", "Direct", "Star"]
 
 del Path, getenv
 del user_data_dir, user_solar, user_bbn
