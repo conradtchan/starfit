@@ -17,7 +17,6 @@ import numpy as np
 from numpy.linalg import matrix_power
 from scipy.linalg import solve_banded
 
-from . import physconst
 from .human import version2human
 from .isotope import VOID, VOID_IDX, Elements, elements, get_ufunc, get_ufunc_idx
 from .isotope import ion as I
@@ -49,6 +48,7 @@ from .isotope import (
     ufunc_Z,
 )
 from .logged import Logged
+from .physconst import MSUN
 from .utils import CachedAttribute, cachedmethod, index1d, magic, project, stuple
 
 
@@ -355,7 +355,7 @@ class AbuData(object):
         self,
         data=None,
         ions=None,
-        /,
+        *,
         molfrac=None,
         # fields = None,
         # formats = None,
@@ -601,7 +601,7 @@ class AbuData(object):
             threshold = -1.0
         maxima = np.max(
             self.data,
-            axis=tuple(np.arange(self.data.ndim - 1, dtype=np.integer).tolist()),
+            axis=tuple(np.arange(self.data.ndim - 1, dtype=np.int64).tolist()),
         )
         (ii,) = np.where(maxima > threshold)
         save_data = self.data
@@ -1175,7 +1175,7 @@ class AbuDump(AbuData):
             molfrac = False
         elif output == "Msun":
             molfrac = False
-            norm = 1 / physconst.XMSUN
+            norm = 1 / MSUN
         else:
             molfrac = None
 
@@ -1357,7 +1357,7 @@ class AbuDump(AbuData):
         """
         mass shell interfaces in solar masses
         """
-        return self.zm / physconst.XMSUN
+        return self.zm / MSUN
 
 
 ########################################################################
