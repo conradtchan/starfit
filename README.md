@@ -5,9 +5,9 @@
 ![GitHub commits since latest release (by SemVer including pre-releases)](https://img.shields.io/github/commits-since/conradtchan/starfit/latest/master?include_prereleases)
 ![GitHub Release Date](https://img.shields.io/github/release-date/conradtchan/starfit)
 
-Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/).
+Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/) by [Alexander Heger](https://2sn.org).
 
-StarFit can match combined abundances of multiple models. For single stars and combinations of two stars, a complete search can be found. For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) is used to find an approximate solution.
+StarFit can match combined abundances of multiple models. For single stars and combinations of multiple stars, a complete search can be found.  For three or more stars, the problem is extremely expensive, so a [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) has been implemented by Conrad Chan to efficiently find an approximate solution.
 
 An online interface (with a subset of functionality) is available at [starfit.org](https://starfit.org).
 
@@ -17,14 +17,14 @@ Tested with Python 3.10
 Optional: A working LaTeX installation and dvipng is required to create plots with LaTeX labels (ideal for publication). Otherwise, Matplotlib's default MathText is used, which may not render all symbols correctly.
 
 ## From PyPI (recommended)
-```
+```shell
 pip install starfit
 ```
 The PyPI package includes the necessary data files.
 
 ## Developer instructions
 The data files are not included into the Git repo, and must first be downloaded from the web-server before installing from the Git repo.
-```
+```shell
 git clone git@github.com:conradtchan/starfit.git
 cd starfit
 
@@ -42,7 +42,14 @@ python -m pytest
 ```
 
 # Usage
+
+## Single star matches
+
 `starfit.Single` fits an abundance pattern to a single model from the database.
+
+Required arguments:
+- `filename`: filename of star.  Can be absolute or relative path.  The files will also be searched for in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `stars`.
+- `db`: database file or tuple of data base files.  String or `Path` object.  Can be absolute or relative path.  Files will also be searched in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `db`.
 
 Optional arguments:
 - `combine`: a list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements)
@@ -50,8 +57,8 @@ Optional arguments:
 - `z_exclude`: element charge numbers to exclude from fit
 - `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits)
 - `upper_lim`: include observational upper limits in data fitting
-- `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided chi-squared error)
-```
+- `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
+```python
 import starfit
 
 s = starfit.Single(
@@ -65,54 +72,71 @@ s = starfit.Single(
     cdf = True,
 )
 
-print(s)
+s.print()
+```
+the `print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columumns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
+```python
+s.print(n0=3, n=1, wide=8, format=None)
 ```
 
 The **database indices** of the best fitting models (sorted from best to worst) are given by:
-```
+```python
 s.sorted_stars['index']
 ```
 
-The corresponding **reduced chi^2** values are:
-```
+The corresponding **reduced &#x1D6D8;&sup2;** values are:
+```python
 s.sorted_fitness
 ```
 
 The physical properties of the models corresponding to these indices can be accessed using the database:
-```
+```python
 i_bestfit = s.sorted_stars['index'][0]
 s.db.fielddata[i_bestfit]
 ```
 
 The chemical yield of the models (and the respective element names) are:
-```
-list( zip(s.list_db, s.full_abudata[:,i_bestfit]) )
+```python
+list(zip(s.list_db, s.full_abudata[:, i_bestfit]))
 ```
 
 To make the same plots as the web version:
-```
+```python
 s.plot()
 ```
+If you want to plot a solution other than the best one, use the parameter `index` (default: `0`)  To plot the 5th best soluttion, skipping the first `4`, use
+```python
+s.plot(index=4)
+```
 
-`starfit.Double` fits an abundance pattern to a combination of two models from the database. This takes approximately 1 hour, depending on your machine.
+## Full multi-star search
+
+`starfit.Multi` fits an abundance pattern to a combination of models from the database(s).  This can take a long time as there can be many combinations.
 
 Additional arguments:
 - `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
 - `threads`: Number of threads to use.  Default is t use CPU could (including hyprthreading)
 - `nice`: Nice level of background threads.  Default is 19 (lowest priority on unix systems).
-```
-s = starfit.Double(
+- `partition`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `partition` is specified, only combintions form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data bases needs to match the number of stars (`sol_size`) matched.
+```python
+s = starfit.Multi(
     filename = 'HE1327-2326.dat',
-    db = 'znuc2012.S4.star.el.y.stardb.gz',
-    combine = [[6, 7, 8]],
-    z_max = 30,
+    db = (
+        'he2sn.HW02.star.el.y.stardb.gz',
+        'rproc.just15.star.el.y.stardb.xz',
+	),
+    z_max = 999,
     z_exclude = [3, 24, 30],
     z_lolim = [21, 29],
     upper_lim = True,
     cdf = True,
     fixed = False,
+    sol_size = 2,
+    partition = True,
 )
 ```
+
+## Genetic algorithm
 
 `starfit.Ga` fits an abundance pattern to a combination of two or more models from the database. The solution is approximate, but approaches the best solution with increased run time.
 
@@ -127,32 +151,49 @@ Additional arguments:
 - `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
 - `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
+- `cover`: GA parameter - ensure no database sources is skipped unless there are fewer stars than data bases.  This can be useful if there is a arge disparity in gthe number of models between the differenr data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorith should find all combinations that match best anyway, however.
 
 The default GA parameters should be used unless you really know what you are doing.
 
-```
+```python
 s = starfit.Ga(
     filename = 'HE1327-2326.dat',
-    db = 'znuc2012.S4.star.el.y.stardb.gz',
+    db = (
+        'he2sn.HW02.star.el.y.stardb.gz',
+	'rproc.just15.star.el.y.stardb.xz',
+	'znuc2012.S4.star.el.y.stardb.gz',
+	),
     combine = [[6, 7, 8]],
     z_max = 30,
     z_exclude = [3, 24, 30],
     z_lolim = [21, 29],
     upper_lim = True,
     cdf = True,
-    time_limit=20,
-    sol_size=3,
+    time_limit = 20,
+    sol_size = 3,
+    colver = True,
 )
+```
+
+## Multiple databases info
+
+By default, data bases are numbered in the order provided.  The database numbers are only listed when there is more than one database provided.  Database information can be printed using the `print_comments` method of the solution object:
+```python
+s.print_comments()
+```
+or if the `full` parameter is specified to the `print` method
+```python
+s.print(full=True)
 ```
 
 # Custom data directory
 Custom stellar data and model database files can always be used by providing a full path in the argument. However, users may optionally specify their own data directory using the environment variable `STARFIT_DATA` for convenience:
-```
+```shell
 export STARFIT_DATA='/your/custom/data'
 ```
 Files found in the custom data directory will take precedence over the default data directory.
 Your custom data directory must have the same structure as `src/starfit/data`, i.e. it should contain the `db`, `ref`, and `stars` directories:
-```
+```shell
 ❯ ls
 db
 ref
@@ -161,23 +202,23 @@ stars
 
 # Contributing to StarFit
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
-```
+```shell
 git checkout -b <new_brnach>
 git push --set-upstream origin <new_branch>
 ```
 
 Two automated checks (on Github Actions) must be passed:
 1. Code formatting using pre-commit. To ensure your changes are compliant with this project's linters, we recommend installing pre-commit prior to making any commits locally.
-```
+```shell
 pip install pre-commit
 pre-commit install
 ```
 If you have already made non-compliant commits prior to installing pre-commit, then the pre-commit check on Github will fail. To make the code compliant again, run
-```
+```shell
 pre-commit run --all
 ```
 and also run tests as a first check
-```
+```shell
 python -m pytest
 ```
 and include these changes in a follow-up commit.
@@ -190,18 +231,21 @@ Development branches are generated and uploaded to Test PyPI if the verion numbe
 They may also be flagged as pre-releases.
 
 To install packages from Test PyPI use
-```
+```shell
 pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ starfit
 ```
 You may include the `-pre` flag or specify a specific version.
 
-## Adding new data files
-Data files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files:
+## Adding new database files
+Database files specified in the `.hashlist` files in `src/starfit/data/db,ref,stars` are downloaded from the web server. To add new data files:
 1. Add the new files to the web server hosting the data files at `/var/www/html/data`
 2. Generate the hash using `shasum -a 256` (or `sha256sum`)
 3. Add an entry into the hash list
 
-When adding new databases into `data/db`, add corresponding labels into the file `data/db/labels`. This label is used in the web application.
+When adding new databases into `data/db`, add corresponding labels into the file `data/db/labels` and a description of the data base into the file `data/db/databases` on the web server.
+
+## Creating database files
+New database files can be made using the `StarDB` class in `autils/stardb.py`.  A demonstration may be found at  `src/starfit/example/lc12_stardb.py`.  This file serves as a demonstration only and will not work as is.
 
 # Publishing to PyPI
 Github releases will automatically be published to https://pypi.org/project/starfit/

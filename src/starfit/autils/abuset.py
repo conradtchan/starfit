@@ -363,8 +363,10 @@ class AbuData(object):
         # info = None,
         copy=True,
         mass_table=None,
+        silent=False,
     ):
 
+        self.silent = silent
         self.ions = IonList(ions)
         assert isinstance(data, np.ndarray), "require numpy data array"
         if copy:
@@ -383,7 +385,8 @@ class AbuData(object):
         if molfrac is None:
             x = np.sum(data.reshape(-1, (len(self.ions)))[0, :])
             molfrac = np.abs(x - 1) > 1e-4
-            print(f" [AbuData] Setting molfrac = {molfrac}")
+            if not self.silent:
+                print(f" [AbuData] Setting molfrac = {molfrac}")
         self.molfrac = molfrac
 
         # self.fields = fields
@@ -424,7 +427,7 @@ class AbuData(object):
         return self.join(self, other)
 
     @classmethod
-    def join(cls, objects, axis=0, along=True):
+    def join(cls, objects, axis=0, along=True, silent=False):
         if len(objects) == 0:
             return None
         for o in objects:
@@ -433,7 +436,8 @@ class AbuData(object):
 
         # merge (including sort) if needed
         if not np.all([objects[0].ions == o.ions for o in objects]):
-            print(f" [{cls.__name__}] merging ion lists.")
+            if not silent:
+                print(f" [{cls.__name__}] merging ion lists.")
             ions = set()
             ionsa = list()
             for o in objects:

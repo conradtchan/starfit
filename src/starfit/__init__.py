@@ -13,11 +13,12 @@ STARS = "stars"
 # add that to the list of data directories to search, assuming it is valid
 user_data_dir = getenv("STARFIT_DATA")
 if user_data_dir:
-    user_data_dir = Path(user_data_dir).expanduser().resolve()
-    if user_data_dir.is_dir():
-        DATA_DIRS = [user_data_dir, DATA_DIR]
-    else:
-        print(f' [StarFit] STARFIT_DATA="{user_data_dir}" is not valid.  Ignoring.')
+    for user_data_dir in user_data_dir.split(":"):
+        user_data_dir = Path(user_data_dir).expanduser().resolve()
+        if user_data_dir.is_dir():
+            DATA_DIRS = [user_data_dir] + DATA_DIRS
+        else:
+            print(f' [StarFit] STARFIT_DATA="{user_data_dir}" is not valid.  Ignoring.')
 
 SOLAR = "sollo22.dat"
 user_solar = getenv("STARFIT_SOLAR")

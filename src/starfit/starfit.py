@@ -79,7 +79,7 @@ class Results(Logged):
         combine=None,
         z_exclude=None,
         z_min=1,
-        z_max=30,
+        z_max=999,
         upper_lim=None,
         z_lolim=None,
     ):
@@ -127,7 +127,7 @@ class Results(Logged):
             self.db_off = np.array([0], dtype=np.int64)
             self.db_num = np.array([self.data.shape[0]], dtype=np.int64)
         else:
-            self.data = AbuData.join(self.data)
+            self.data = AbuData.join(self.data, silent=True)
             self.ions = self.data.ions
             self.data = self.data.data
             self.db_idx = np.ndarray(self.data.shape[0], dtype=np.int64)
@@ -548,6 +548,8 @@ class Results(Logged):
     def print(self, *args, **kwargs):
         full = kwargs.pop("full", False)
         print(self.format(*args, **kwargs))
+        if self.db_n == 1:
+            return
         if full:
             self.print_comments()
         else:

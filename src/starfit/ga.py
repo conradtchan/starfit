@@ -18,7 +18,7 @@ class Ga(Results, Logged):
         filename,
         db="znuc.S4.star.el.y.stardb.gz",
         z_min=1,
-        z_max=30,
+        z_max=999,
         z_exclude=[],
         z_lolim=[],
         combine=[[]],
