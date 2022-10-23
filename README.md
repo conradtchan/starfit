@@ -108,6 +108,7 @@ If you want to plot a solution other than the best one, use the parameter `index
 ```python
 s.plot(index=4)
 ```
+The legend as well as the star name and copyright string can be moved (dragged).
 
 ## Full multi-star search
 
