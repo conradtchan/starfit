@@ -183,7 +183,7 @@ s = starfit.Ga(
 Additional arguments:
 - `stars`: List of lists of models.  For each model, specify a list of database and index.  The database index is 1-based, the index is 0-based.
 
-The following makes to optimisations: a group of models with model index `0` from the first database (`1`) and model index `1` from the second database; and second, a group of models with model index `2` from the first database (`1`) and model index `3` from the second database:
+The following selects two groups of models: the first selects model index `0` from the first database (`1`) and model index `1` from the second database; the second selects model index `2` from the first database (`1`) and model index `3` from the second database:
 ```python
 s = starfit.Direct(
     filename = 'HE1327-2326.dat',
