@@ -23,19 +23,17 @@ def find_data(subdir, filename):
     # be changed.
     try:
         fullpath = Path(filename).expanduser().resolve()
-        ok = fullpath.is_file()
+        if fullpath.is_file():
+            return fullpath
     except:
-        ok = False
-    if ok:
-        return fullpath
+        pass
     for data_dir in DATA_DIRS:
         try:
             fullpath = (Path(data_dir) / subdir / filename).expanduser().resolve()
-            ok = fullpath.is_file()
+            if fullpath.is_file():
+                return fullpath
         except:
-            ok = False
-        if ok:
-            return fullpath
+            pass
     raise IOError(f"file {filename} not found")
 
 
