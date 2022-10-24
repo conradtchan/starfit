@@ -16,8 +16,8 @@ from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
 from .autils.physconst import MSUN
 from .autils.stardb import StarDB
-from .fitness import solver
-from .read import Star
+from .fit import get_fitness
+from .star import Star
 
 # uniform and brief units
 _unit_translate = {
@@ -32,7 +32,7 @@ _title_translate = {
 }
 
 
-class Results(Logged):
+class StarFit(Logged):
     """
     Object for running the various algorithms and a container for the results
     """
@@ -92,6 +92,10 @@ class Results(Logged):
            string of, path to, or object of data base.
            multiple data bases are provided as an iterable.
         """
+
+        if database in ("*", ...):
+            # TODO - add all databases
+            pass
 
         if isinstance(database, (str, Path, StarDB)):
             database = (database,)
@@ -324,23 +328,25 @@ class Results(Logged):
         self.logger.info(
             f"Matching {len(eval_data)} data points from Z={z_min} to Z={z_max}:"
         )
-
         for line in wrap(" ".join([str(ion) for ion in eval_data.element]), 60):
             self.logger.info("    " + line)
 
-        self.logger.info(
-            f"with {np.sum(eval_data.error < 0)} upper limits in the data:"
-        )
-        for line in wrap(
-            " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]]), 60
-        ):
-            self.logger.info("    " + line)
+        n = np.sum(eval_data.error < 0)
+        if n > 0:
+            self.logger.info(f"including {n} upper limits in the data:")
+            for line in wrap(
+                " ".join([str(ion) for ion in eval_data.element[eval_data.error < 0]]),
+                60,
+            ):
+                self.logger.info("    " + line)
 
-        self.logger.info(f"and {np.sum(lolim_index_star)} lower limits in the models:")
-        for line in wrap(
-            " ".join([str(ion) for ion in eval_data.element[lolim_index_star]]), 60
-        ):
-            self.logger.info("    " + line)
+        n = np.sum(lolim_index_star)
+        if n > 0:
+            self.logger.info(f"including {n} lower limits in the models:")
+            for line in wrap(
+                " ".join([str(ion) for ion in eval_data.element[lolim_index_star]]), 60
+            ):
+                self.logger.info("    " + line)
 
         self.eval_data = eval_data
         self.trimmed_db = trimmed_db
@@ -379,7 +385,7 @@ class Results(Logged):
                 sol[i, :]["offset"] = offsets[i]
                 ls = False
 
-        fitness = _fitness(
+        fitness = get_fitness(
             self.trimmed_db,
             self.eval_data,
             self.exclude_index,
@@ -601,43 +607,3 @@ class Results(Logged):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.star.name})"
-
-
-def _fitness(
-    trimmed_db,
-    eval_data,
-    z_exclude_index,
-    sol,
-    ejecta=[],
-    fixed_offsets=False,
-    cdf=0,
-    ls=False,
-):
-    """
-    Evaluate the fitness of a set of solutions.
-    If abundance is directly given in the case of smart GA, use that.
-    """
-
-    if fixed_offsets:
-        offset = ejecta[sol["index"]]
-        ls = False
-    else:
-        offset = sol["offset"]
-
-    error = np.copy(eval_data.error)
-    error[z_exclude_index] = 1.0e99
-
-    abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
-
-    fitness, offsets = solver.fitness(
-        eval_data.abundance,
-        error,
-        abu,
-        offset,
-        cdf=cdf,
-        ls=ls,
-    )
-
-    sol["offset"] = offsets
-    fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
-    return fitness

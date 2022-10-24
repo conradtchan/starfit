@@ -70,7 +70,7 @@ class SolAbu(AbuSet):
     """
     Special abundance set with interface to load from disk files.
 
-    Most of the functionallity is in AbuSet, though.
+    Most of the functionality is in AbuSet, though.
 
     """
 
@@ -419,12 +419,12 @@ class ScaledSolarHelium(ScaledSolar):
             desired He4 mass fraction specified explicitly
 
           scale_light:
-            also scale other light istopes asumed to be
+            also scale other light istopes assumed to be
             destroyed to same fraction as H1
 
         Keeps H2 and He3 values by default.
 
-        Base class documnetation:
+        Base class documentation:
         -------------------------
         """
             + super().__doc__

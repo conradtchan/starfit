@@ -175,7 +175,7 @@ subroutine calfun(n, x, f)
     common /params/ nel_, abu_, obs_, err_, icdf_
 
     !Transform from -inf/inf to 0/1
-    !x is used for the solver, tanhx is physically meaninful
+    !x is used for the solver, tanhx is physically meaningful
     tanhx = 0.5d0 * (1.0d0 + tanh(x))
 
     !Calculate the chisq

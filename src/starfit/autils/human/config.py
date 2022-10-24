@@ -1,5 +1,5 @@
 """
-define configrations
+define configurations
 
 TODO: read from config file?
 """

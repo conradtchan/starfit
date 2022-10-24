@@ -70,7 +70,7 @@ s = starfit.Single(
     z_lolim = [21, 29],
     upper_lim = True,
     cdf = True,
-)
+    )
 
 s.print()
 ```
@@ -134,7 +134,7 @@ s = starfit.Multi(
     fixed = False,
     sol_size = 2,
     partition = True,
-)
+    )
 ```
 
 ## Genetic algorithm
@@ -152,7 +152,7 @@ Additional arguments:
 - `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
 - `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
-- `cover`: GA parameter - ensure no database sources is skipped unless there are fewer stars than data bases.  This can be useful if there is a arge disparity in gthe number of models between the differenr data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorith should find all combinations that match best anyway, however.
+- `cover`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 
 The default GA parameters should be used unless you really know what you are doing.
 
@@ -172,9 +172,31 @@ s = starfit.Ga(
     cdf = True,
     time_limit = 20,
     sol_size = 3,
-    colver = True,
-)
+    cover = True,
+    )
 ```
+
+## Matching specific star combinations
+
+`starfit.Direct` allose to find the best fit to pre-selected group, or groups of stars.
+
+Additional arguments:
+- `stars`: List of lists of models.  For each model, specify a list of database and index.  The database index is 1-based, the index is 0-based.
+
+The following makes to optiisations: a group of models with model index `0` from the first database (`1`) and model index `1` from the second database; and second, a group of models with model index `2` from the first database (`1`) and model index `3` from the second database:
+```python
+s = starfit.Direct(
+        filename = 'HE1327-2326.dat',
+	db = (
+	    'he2sn.HW02.star.el.y.stardb.gz',
+	    'rproc.just15.star.el.y.stardb.xz',
+	    ),
+        stars=[
+	    [[1,0], [2,1]],
+	    [[1,2], [2,3]]],
+    )
+```
+The results are sorted by fitness and stored in the returned object as usual, allowing to print and plot the results.
 
 ## Multiple databases info
 
@@ -228,7 +250,7 @@ and include these changes in a follow-up commit.
 
 ## Development branch
 
-Development branches are generated and uploaded to Test PyPI if the verion number ends in `.dev*` where `*` can be blanck or a optional number.  For example, '`0.3.11.dev22`.
+Development branches are generated and uploaded to Test PyPI if the version number ends in `.dev*` where `*` can be blank or a optional number.  For example, '`0.3.11.dev22`.
 They may also be flagged as pre-releases.
 
 To install packages from Test PyPI use

@@ -1,5 +1,5 @@
 """
-Some extra functionallity for UUID-1
+Some extra functionality for UUID-1
 """
 
 import datetime

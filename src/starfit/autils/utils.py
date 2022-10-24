@@ -1,5 +1,5 @@
 """
-Provide various utilties
+Provide various utilities
 """
 
 import bz2
@@ -515,7 +515,7 @@ def make_cached_attribute(self, func, name=None, doc=None, args=None, kw=None):
 
 class OutFile(object):
     """
-    Contex Manager: Open file if filename is given or use file.
+    Context Manager: Open file if filename is given or use file.
     """
 
     def __init__(self, outfile=None, silent=False, overwrite=False):
@@ -912,7 +912,7 @@ def queue_processor(input, output, params):
         basic initialization data
         could be a large data set to operate on
       processor
-        a class that is initialzed with data
+        a class that is initialized with data
         __init__(data)
         it is called to provide results that are put in out queue
         __call__(task)
