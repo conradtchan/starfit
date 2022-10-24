@@ -49,7 +49,7 @@ class Direct(StarFit):
             stars = stars.reshape((1, -1))
         if stars.ndim == 2 and self.db_n == 1:
             stars = np.stack((np.full_like(stars, 1), stars), axis=-1)
-        assert stars.ndim == 3, "require databse info"
+        assert stars.ndim == 3, "require database info"
         assert (
             stars.shape[-1] == 2
         ), "expecting sequence of 2 for DB and index as last dimension"

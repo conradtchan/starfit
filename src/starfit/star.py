@@ -47,7 +47,7 @@ File format:
 ;
 ; The square of the total error is the sum of the squares of all errors.
 ;
-; If no correlations are provide, the entire erro is random.
+; If no correlations are provide, the entire error is random.
 ;
 ; As of the time of this writing, StarFit does not use correlated
 ; upper limits, but that may change in the future.
@@ -237,7 +237,7 @@ class Star(Logged):
             # Load the abundances for the sun
             sun = SolAbu(self.solar_ref, silent=True)
             solar = sun.Y(array.element)
-            # Set the index for the norm element, since this will need to be treated seperately
+            # Set the index for the norm element, since this will need to be treated separately
             norm_index = np.where(array.element == norm_element)[0][0]
             # Calculate the linear abundance for the norm element on the star
             norm_abundance = ((10 ** array[norm_index].abundance) * h_ref) * (
@@ -288,7 +288,7 @@ class Star(Logged):
     @staticmethod
     def _rec_insert_1d(array, record, pos):
         """
-        Provides obvious functionallity missing from NumPy
+        Provides obvious functionality missing from NumPy
         """
         assert array.ndim == 1
         assert array.dtype == record.dtype

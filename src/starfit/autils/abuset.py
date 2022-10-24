@@ -54,7 +54,7 @@ from .utils import CachedAttribute, cachedmethod, index1d, magic, project, stupl
 
 class DuplicateIons(Exception):
     """
-    Exception raise when ions list or sets illegally contian duplicate ions
+    Exception raise when ions list or sets illegally contain duplicate ions
     """
 
     def __init__(self, ions=None):
@@ -70,8 +70,8 @@ class IonList(object):
 
     TODO - Maybe not allow KepIon and Ion mixed - all things with extra flags.
 
-    TODO - add some of AbuSet functionallity, e.g., return all
-    Elements, maybe maping matrices (move functionallity here?)
+    TODO - add some of AbuSet functionality, e.g., return all
+    Elements, maybe mapping matrices (move functionality here?)
     """
 
     def __init__(self, ions=None, duplicates=None):
@@ -304,9 +304,9 @@ class IonSet(object):
 
 class Abu(object):
     """
-    Ion plus single abundance.  Provide some general functionallity.
+    Ion plus single abundance.  Provide some general functionality.
 
-    TODO - add most of AbuSet functionallity
+    TODO - add most of AbuSet functionality
 
     TODO  Contain mass information?
     """
@@ -330,7 +330,7 @@ class AbuDist(object):
     Ion and distribution information, e.g., structure.
 
     TDOD - implement
-    TDOD - add Abu(Set) and AbuData functionallities
+    TDOD - add Abu(Set) and AbuData functionalities
 
     TODO - internam structures of AbuData should be (ions, dimensions) as we want to logically write
     AbuData['he4'] returning an ndarray
@@ -771,7 +771,7 @@ class AbuData(object):
     @CachedAttribute
     def BE(self):
         """
-        Binidng energy in MeV
+        Binding energy in MeV
         """
         m = self.mass_table
         v = m.binding_energy()
@@ -875,7 +875,7 @@ class AbuData(object):
             yfac = 1 / yfac
         value = np.ndarray(self.data.shape[0], dtype=np.float64)
         if index is None:
-            # this is really bad and shoud not be used - rewrite to use ion.idx
+            # this is really bad and should not be used - rewrite to use ion.idx
             index = self.ions.index(ion)
         if index == -1:
             if ionmissing is not None:
@@ -898,9 +898,9 @@ def get_burn_map(ions):
         iions:
             the subset of ions that can be used.
         imap:
-            llist of indeces into original array
+            llist of indices into original array
         oions:
-            list of ions to be mapped to, icluding minnet
+            list of ions to be mapped to, including minnet
         omap:
             indices of iions in oions list
     """
@@ -1016,7 +1016,7 @@ class AbuDump(AbuData):
 
         if there is n star data, it should be in zones 1..n zone 0 is
         the inner boundady condition (could become having non-zero data
-        in accretion probelms); zone n+1 holds the wind data
+        in accretion problems); zone n+1 holds the wind data
 
         abundace data should be mol fractions or mass fractions
 
@@ -1708,7 +1708,7 @@ class AbuSet(Logged):
         """
         Generate abundace set from BURN gen file.
 
-        TODO - return tuple with mutiple mixtures if file has several
+        TODO - return tuple with multiple mixtures if file has several
 
                Actually, this should be a module function, not part of
                the constructor.
@@ -1919,7 +1919,7 @@ class AbuSet(Logged):
             f = sys.stdout
         if not isinstance(outfile, io.IOBase):
             filename = Path(outfile).expanduser()
-            assert overwrite or not filename.exists(), f"file exisits: {filename}"
+            assert overwrite or not filename.exists(), f"file exists: {filename}"
             f = open(filename, "w")
         else:
             f = outfile
@@ -1978,7 +1978,7 @@ class AbuSet(Logged):
             f = sys.stdout
         elif not isinstance(outfile, io.IOBase):
             filename = Path(outfile).expanduser()
-            assert overwrite or not filename.exists(), " file exisits: " + filename
+            assert overwrite or not filename.exists(), " file exists: " + filename
             f = open(filename, "wt")
         else:
             f = outfile
@@ -2016,7 +2016,7 @@ class AbuSet(Logged):
 
         if not isinstance(outfile, io.IOBase):
             filename = Path(outfile).expanduser()
-            assert overwrite or not filename.exists(), " file exisits: " + filename
+            assert overwrite or not filename.exists(), " file exists: " + filename
             f = open(os.path.expanduser(os.path.expandvars(filename)), "w")
         else:
             f = outfile
@@ -3443,7 +3443,7 @@ class AbuRat:
         unfortunately arguments (a, b) will treted as [a / b] not [a b]
 
         for consistency, whereas tuple length different from 2 could be
-        treated correctly - and differnetly from the ambiguous 2-tuples,
+        treated correctly - and differently from the ambiguous 2-tuples,
         we just raise an error here.
         """
         if isinstance(key, tuple):

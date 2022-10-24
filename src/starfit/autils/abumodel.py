@@ -14,11 +14,11 @@ from .utils import index1d
 
 class AbuModel(AbuSet):
     """
-    Base class for abudance models
+    Base class for abundance models
 
     Provides different ways to specify metallicity.
 
-    intreface through user-defined abstract methods to provide
+    interface through user-defined abstract methods to provide
     abundances by mass, mol, or number fraction
 
         _abu_molfrac_raw(self, x)

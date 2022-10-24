@@ -404,7 +404,7 @@ def el2name(sym):
 class Ion(object, metaclass=MetaSingletonHash):
     """
     This is a generic class for 'ions'.
-    It is designed to handel elements, isotioes, isomers, and isobars.
+    It is designed to handle elements, isotioes, isomers, and isobars.
     Isomers have an energy level appended by 'e' or 'E';
         if the level is '0' then it should not be printed.
     It provides also an "index" field (idx) that can be used for sorting.
@@ -427,7 +427,7 @@ class Ion(object, metaclass=MetaSingletonHash):
 
     We always put E=1, i.e., m1, as 'm'
     Default use 'mE' to indicate exited state E.
-    We destinguish isotopes and isomers - Al26g is not Al26.
+    We distinguish isotopes and isomers - Al26g is not Al26.
     Use EANY to specify generalised excited state, signified by '*'.
     """
 
@@ -2238,7 +2238,7 @@ class Ion(object, metaclass=MetaSingletonHash):
             return "void"
         if self.is_vac:
             return "vac"
-        return "unkown"
+        return "unknown"
 
     @property
     def anti_particle(self):
@@ -2777,7 +2777,7 @@ VOID_IDX = Ion.VOID_IDX
 
 class IsomerMap(collections.defaultdict):
     """
-    define map that can be used as 'E' paramater in ion.isomer function
+    define map that can be used as 'E' parameter in ion.isomer function
 
     TODO - add more isotopes, provide function to load from file
     """
@@ -2817,7 +2817,7 @@ def register_other_bits(bit, name=None, class_=None, overwrite=True):
 
     # this may need to become more sophisticated to allow re-compilation
     if not overwrite:
-        assert bit not in other_bits_register, "bit already exisits"
+        assert bit not in other_bits_register, "bit already exists"
 
     other_bits_register[bit] = (name, class_)
 

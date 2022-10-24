@@ -251,7 +251,7 @@ class Ga(StarFit):
         o = o[mask]
         f = f[mask]
 
-        # If requested, elminate solutions that do not span all DBs.
+        # If requested, eliminate solutions that do not span all DBs.
         if self.cover:
             idb = self.db_idx[o["index"]]
             mask = np.all(idb[:, 1:] <= idb[:, :-1] + 1, axis=-1)
@@ -330,7 +330,7 @@ class Ga(StarFit):
         if self.cover:
             assert np.all(
                 self.db_num > (self.sol_size - self.db_n + 1)
-            ), "at least one db has too few elemets for requested solution size"
+            ), "at least one db has too few elements for requested solution size"
             idb = self.rng.permuted(
                 np.tile(
                     np.arange(self.db_n, dtype=np.int64),

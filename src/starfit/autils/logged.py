@@ -148,7 +148,7 @@ class Timed(object):
         """
         Add a new timer.  Raise if it timer exists.
         """
-        assert not self._timers.haskey(name), f"timer {name} already exisits"
+        assert not self._timers.haskey(name), f"timer {name} already exists"
         self._timers[name] = Timer(start)
 
     def add_timer(self, name=None, start=True):
@@ -168,25 +168,25 @@ class Timed(object):
 
     def get_timer(self, name=None):
         """
-        Retrive current time of timer
+        Retrieve current time of timer
         """
         return self._timers[name]()
 
     def get_timer_human(self, name=None):
         """
-        Retrive current time of timer in human-readable format (str).
+        Retrieve current time of timer in human-readable format (str).
         """
         return time2human(self._timers[name]())
 
     def finish_timer(self, name=None):
         """
-        End timer and retrive current time of timer
+        End timer and retrieve current time of timer
         """
         return self._timers.pop(name)()
 
     def timer_is_running(self, name=None):
         """
-        Retrive current time status
+        Retrieve current time status
         """
         return self._timers[name]._running
 
@@ -585,7 +585,7 @@ def static_logging(func):
 
     class logged(Logged):
         """
-        class to provied logging to static functions
+        class to provide logging to static functions
         """
 
         def __call__(self, *args, **kwargs):

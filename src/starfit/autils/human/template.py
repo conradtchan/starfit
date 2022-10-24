@@ -628,7 +628,7 @@ class Human(object):
             if isinstance(unit, str):
                 unit = self.units[unit]
             if unit is None:
-                # TODO - search for lowest unit that allows prefix if base doesnot
+                # TODO - search for lowest unit that allows prefix if base does not
                 unit = self.units.base
 
             for prefix in self.lo_prefixes:
@@ -649,7 +649,7 @@ class Human(object):
             if isinstance(unit, str):
                 unit = self.units[unit]
             if unit is None:
-                # TODO - search for highest unit that allows prefix if base doesnot
+                # TODO - search for highest unit that allows prefix if base does not
                 unit = self.units.base
             for prefix in self.hi_prefixes:
                 if prefix.name not in unit.out_prefix:

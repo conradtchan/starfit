@@ -74,12 +74,12 @@ class Multi(StarFit):
                 sol_size = max(1, int(6 / np.log10(self.db_size)))
                 self.logger.info(f"setting {sol_size=}")
         if partition is None:
-            partiton = sol_size == self.db_n
+            partition = sol_size == self.db_n
         if sol_size == 1:
             partition = False
         if partition and sol_size != self.db_n:
             raise AttributeError(
-                f"currently {partiton=} requires {sol_size=} == len(DB)={self.db_n}"
+                f"currently {partition=} requires {sol_size=} == len(DB)={self.db_n}"
             )
 
         self.sol_size = sol_size

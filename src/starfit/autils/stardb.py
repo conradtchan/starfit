@@ -288,7 +288,7 @@ class StarDB(AbuData, Logged):
         """
         Overwrite inherited routine.
 
-        There is more different kinsd of data than the orignial
+        There is more different kinsd of data than the original
         version can handle.
         """
         return self.data
