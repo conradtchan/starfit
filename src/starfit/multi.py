@@ -29,43 +29,20 @@ class Multi(StarFit):
 
     def __init__(
         self,
-        filename,
-        db="znuc2012.S4.star.el.y.stardb.gz",
+        *args,
         n_top=10,  # How many solutions do we want to see?
         fixed=False,  # Fixed offsets based on ejecta mass?
         threads=None,
         nice=19,
-        cdf=True,
-        combine=[[]],
-        z_min=1,
-        z_max=999,
-        z_exclude=[],
-        z_lolim=[],
-        y_floor=1.0e-99,
-        upper_lim=True,
-        silent=False,
         save=False,
         webfile=None,
         path=None,
         block_size=2**17,
         sol_size=None,
         partition=None,
+        **kwargs,
     ):
-        self.silent = silent
-        super().__init__()
-
-        self._setup(
-            filename=filename,
-            database=db,
-            combine=combine,
-            z_exclude=z_exclude,
-            z_min=z_min,
-            z_max=z_max,
-            upper_lim=upper_lim,
-            z_lolim=z_lolim,
-            y_floor=y_floor,
-            cdf=cdf,
-        )
+        super().__init__(*args, **kwargs)
 
         if sol_size is None:
             if partition is None:
@@ -105,7 +82,7 @@ class Multi(StarFit):
             f"Searching {self.db_size:,d} models ({self.n_combinations:,d} combinations)"
         )
 
-        if not silent:
+        if not self.silent:
             self.print_header()
 
         self.working_arrays()
@@ -147,7 +124,7 @@ class Multi(StarFit):
 
             self.elapsed = elapsed
 
-            if not silent:
+            if not self.silent:
                 self.print_update()
 
         self.sorted_stars = self.top_stars[: self.n_top]

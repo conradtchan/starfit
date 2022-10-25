@@ -13,39 +13,16 @@ class Direct(StarFit):
 
     def __init__(
         self,
-        filename,
-        db="znuc2012.S4.star.el.y.stardb.gz",
-        stars=[[114, 3604]],  # A list of the indices of the stars
+        *args,
+        stars=None,  # A list of the indices of the stars, such as [[114, 3604]]
         offsets=None,
-        z_min=1,
-        z_max=999,
-        y_floor=1.0e-99,
         fig=None,
-        silent=False,
-        combine=[[]],
-        z_exclude=[],
-        z_lolim=[],
-        upper_lim=True,
-        fixed=False,
-        cdf=True,
+        fixed_offsets=False,
+        **kwargs,
     ):
-        self.silent = silent
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         assert stars is not None, "require stars"
-
-        self._setup(
-            filename=filename,
-            database=db,
-            combine=combine,
-            z_exclude=z_exclude,
-            z_min=z_min,
-            z_max=z_max,
-            upper_lim=upper_lim,
-            z_lolim=z_lolim,
-            y_floor=y_floor,
-            cdf=cdf,
-        )
 
         stars = np.array(stars)
         if stars.ndim == 1:
@@ -64,7 +41,9 @@ class Direct(StarFit):
         # convert to actual indices
         stars = self.db_off[stars[:, :, 0] - 1] + stars[:, :, 1]
 
-        sol, fitness = self.run(stars, offsets, fixed)
+        sol, fitness = self.run(
+            stars=stars, offsets=offsets, fixed_offsets=fixed_offsets
+        )
 
         sort = np.argsort(fitness)
         self.sorted_fitness = fitness[sort]
