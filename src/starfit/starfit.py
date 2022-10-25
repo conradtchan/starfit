@@ -6,8 +6,6 @@ from textwrap import wrap
 
 import numpy as np
 
-from starfit.utils import find_data
-
 from . import DB, REF, SOLAR, starplot
 from .autils import abusets
 from .autils.abuset import AbuData
@@ -18,6 +16,7 @@ from .autils.physconst import MSUN
 from .autils.stardb import StarDB
 from .fit import get_fitness
 from .star import Star
+from .utils import find_all, find_data
 
 # uniform and brief units
 _unit_translate = {
@@ -94,12 +93,28 @@ class StarFit(Logged):
            multiple data bases are provided as an iterable.
         """
 
-        if database in ("*", ...):
-            # TODO - add all databases
-            pass
+        if database in ("*", ..., "...", "**"):
+            database = find_all(
+                DB,
+                "*.stardb.*",
+                complete=database
+                in (
+                    Ellipsis,
+                    "...",
+                    "**",
+                ),
+            )
 
         if isinstance(database, (str, Path, StarDB)):
             database = (database,)
+        db = list()
+        for d in database:
+            if str(database).find("*") >= 0 or str(database).find("*") >= 0:
+                db.extend(find_all(DB, d))
+            else:
+                db.append(d)
+        database = db
+        assert len(database) > 0, f"require valid database, {database=}"
 
         # read in data bses
         self.db = list()
@@ -431,7 +446,7 @@ class StarFit(Logged):
         # Fitness over time plot
         raise NotImplementedError()
 
-    def text_result(self, n=20, *, n0=0, format="unicode", wide=12):
+    def text_result(self, n=20, *, n0=0, format="unicode", wide=12, _return_dbx=False):
         """Print data of best fit."""
         text = []
         if format == "html":
@@ -549,6 +564,8 @@ class StarFit(Logged):
             if self.sol_size > 1:
                 text.append("")
 
+        if _return_dbx:
+            return text, dbx
         return text
 
     @staticmethod
@@ -558,28 +575,36 @@ class StarFit(Logged):
 
     def print(self, *args, **kwargs):
         full = kwargs.pop("full", False)
-        print(self.format(*args, **kwargs))
+        kwargs["_return_dbx"] = True
+        text, dbx = self.format(*args, **kwargs)
+        print(text)
         if self.db_n == 1:
             return
-        if full:
-            self.print_comments()
-        else:
-            print(self.format_db())
+        if full is True:
+            self.print_comments(dbx=dbx)
+        elif full is False:
+            self.print_db(dbx=dbx)
 
-    def format_db(self, ind=0):
+    def format_db(self, ind=0, dbx=None):
         pad = " " * ind
         string = [pad + "DB  Name"]
-        for i, db in enumerate(self.db):
+        if dbx is None:
+            dbx = range(self.db_n)
+        for i in dbx:
+            db = self.db[i]
             string.append(pad + f"{i+1:>2d}  {db.name}")
         string = "\n".join(string)
         return string
 
-    def print_db(self, ind=0):
-        print(self.format_db(ind))
+    def print_db(self, *args, **kwargs):
+        print(self.format_db(*args, **kwargs))
 
-    def format_comments(self, npad=72):
+    def format_comments(self, npad=72, dbx=None):
         string = list()
-        for i, db in enumerate(self.db):
+        if dbx is None:
+            dbx = range(self.db_n)
+        for i in dbx:
+            db = self.db[i]
             if i == 0:
                 string.append("=" * npad)
             if self.db_n > 1:
@@ -592,11 +617,16 @@ class StarFit(Logged):
         string = "\n".join(string)
         return string
 
-    def print_comments(self, ind=0):
-        print(self.format_comments())
+    def print_comments(self, *args, **kwargs):
+        print(self.format_comments(*args, **kwargs))
 
     def format(self, *args, **kwargs):
-        text = self.text_result(*args, **kwargs)
+        _return_dbx = kwargs.get("_return_dbx", False)
+        result = self.text_result(*args, **kwargs)
+        if _return_dbx:
+            text, dbx = result
+        else:
+            text = result
         lengths = [[len(word) for word in line] for line in text if len(line) > 0]
         lengths = np.asarray(lengths).max(axis=0) + 1
 
@@ -605,6 +635,8 @@ class StarFit(Logged):
             for word, length in zip(line, lengths):
                 string += self.textpad(word, length)
             string += "\n"
+        if _return_dbx:
+            return string, dbx
         return string
 
     def __str__(self):
