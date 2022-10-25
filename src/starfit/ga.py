@@ -21,6 +21,7 @@ class Ga(StarFit):
         z_max=999,
         z_exclude=[],
         z_lolim=[],
+        y_floor=1.0e-99,
         combine=[[]],
         gen=10,
         time_limit=20,
@@ -58,6 +59,7 @@ class Ga(StarFit):
             z_max=z_max,
             upper_lim=upper_lim,
             z_lolim=z_lolim,
+            y_floor=y_floor,
         )
 
         if sol_size is None:

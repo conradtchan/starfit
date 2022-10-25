@@ -58,6 +58,7 @@ Optional arguments:
 - `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits)
 - `upper_lim`: include observational upper limits in data fitting
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
+- `y_floor`: floor value for abundaces to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
 ```python
 import starfit
 
