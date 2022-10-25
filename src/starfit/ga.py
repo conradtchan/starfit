@@ -15,14 +15,7 @@ class Ga(StarFit):
 
     def __init__(
         self,
-        filename,
-        db="znuc.S4.star.el.y.stardb.gz",
-        z_min=1,
-        z_max=999,
-        z_exclude=[],
-        z_lolim=[],
-        y_floor=1.0e-99,
-        combine=[[]],
+        *args,
         gen=10,
         time_limit=20,
         pop_size=200,
@@ -36,31 +29,17 @@ class Ga(StarFit):
         mut_offset_magnitude=1,
         local_search=True,
         upper_lim=True,
-        cdf=True,
         seed=None,
-        silent=False,
         max_pop=2**13,
         cover=None,
+        **kwargs,
     ):
+        super().__init__(*args, **kwargs)
 
         t_total = 0
         self.sol_size = sol_size
-        self.silent = silent
-        super().__init__()
 
         self.rng = np.random.default_rng(seed)
-
-        self._setup(
-            filename=filename,
-            database=db,
-            combine=combine,
-            z_exclude=z_exclude,
-            z_min=z_min,
-            z_max=z_max,
-            upper_lim=upper_lim,
-            z_lolim=z_lolim,
-            y_floor=y_floor,
-        )
 
         if sol_size is None:
             if cover is None:
@@ -87,7 +66,6 @@ class Ga(StarFit):
         self.mut_rate_index = mut_rate_index
         self.mut_rate_offset = mut_rate_offset
         self.mut_offset_magnitude = mut_offset_magnitude
-        self.cdf = cdf
         self.max_pop = max_pop
         self.cover = cover
 
@@ -126,7 +104,7 @@ class Ga(StarFit):
             self.s,
             fixed_offsets=fixed_offsets,
             ejecta=self.ejecta,
-            cdf=cdf,
+            cdf=self.cdf,
             ls=self.local_search,
         )
 

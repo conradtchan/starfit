@@ -11,7 +11,9 @@ def test():
     TEST_MODELS = [[0, 1, 2]]
 
     test_result = starfit.Direct(
-        TEST_STAR, TEST_DB, TEST_MODELS, silent=True, z_max=30
+        TEST_STAR, TEST_DB, stars=TEST_MODELS, silent=True, z_max=30
     ).sorted_fitness[0]
+
+    print(test_result)
 
     assert np.isclose(test_result, EXPECTED_RESULT)

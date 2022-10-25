@@ -11,35 +11,8 @@ class Single(StarFit):
 
     sol_size = 1
 
-    def __init__(
-        self,
-        filename,
-        db="znuc2012.S4.star.el.y.stardb.gz",
-        *,
-        combine=[[]],
-        z_exclude=[],
-        z_min=1,
-        z_max=999,
-        z_lolim=[],
-        upper_lim=True,
-        silent=False,
-        cdf=True,
-        y_floor=1.0e-99,
-    ):
-        self.silent = silent
-        super().__init__()
-
-        self._setup(
-            filename=filename,
-            database=db,
-            combine=combine,
-            z_exclude=z_exclude,
-            z_min=z_min,
-            z_max=z_max,
-            upper_lim=upper_lim,
-            z_lolim=z_lolim,
-            y_floor=y_floor,
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.gene_size = 1
         # Initialize array
@@ -55,7 +28,7 @@ class Single(StarFit):
             eval_data=self.eval_data,
             z_exclude_index=self.exclude_index,
             sol=stars,
-            cdf=cdf,
+            cdf=self.cdf,
             ls=True,
         )
         self.logger.info("Calculation time:")

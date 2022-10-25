@@ -36,20 +36,18 @@ class StarFit(Logged):
     Object for running the various algorithms and a container for the results
     """
 
-    def __init__(self):
+    def __init__(self, *args, silent=False, **kwargs):
         self.history = {"best": [], "average": [], "worst": []}
         self.initsol = None
         self.bestsol = None
         self.times = []
         self.gen = None
         self.pop_size = None
-
-        try:
-            self.silent
-        except:
-            self.silent = False
+        self.silent = silent
 
         self.setup_logger(silent=self.silent)
+
+        self._setup(*args, **kwargs)
 
     @staticmethod
     def _normalize_mass(db, name):
@@ -79,9 +77,10 @@ class StarFit(Logged):
         z_exclude=None,
         z_min=1,
         z_max=999,
-        upper_lim=None,
+        upper_lim=True,
         z_lolim=None,
         y_floor=1.0e-99,
+        cdf=True,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -174,8 +173,6 @@ class StarFit(Logged):
 
         if z_exclude is None:
             z_exclude = []
-        if upper_lim is None:
-            upper_lim = []
         if z_lolim is None:
             z_lolim = []
 
@@ -383,6 +380,7 @@ class StarFit(Logged):
         self.sun_star = sun_star
         self.fit_size = self.trimmed_db.shape[0]
         self.db_size = self.trimmed_db.shape[1]
+        self.cdf = cdf
 
         del self.data
         del self.ions
@@ -391,7 +389,7 @@ class StarFit(Logged):
         self,
         stars,
         offsets=None,
-        fixed=False,
+        fixed_offsets=False,
     ):
         """Solve for the specified stars"""
         stars = np.array(stars)
@@ -411,7 +409,7 @@ class StarFit(Logged):
             self.exclude_index,
             sol,
             self.ejecta,
-            fixed_offsets=fixed,
+            fixed_offsets=fixed_offsets,
             cdf=self.cdf,
             ls=ls,
         )
