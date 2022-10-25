@@ -41,6 +41,7 @@ class Multi(StarFit):
         z_max=999,
         z_exclude=[],
         z_lolim=[],
+        y_floor=1.0e-99,
         upper_lim=True,
         silent=False,
         save=False,
@@ -62,6 +63,7 @@ class Multi(StarFit):
             z_max=z_max,
             upper_lim=upper_lim,
             z_lolim=z_lolim,
+            y_floor=y_floor,
         )
 
         if sol_size is None:

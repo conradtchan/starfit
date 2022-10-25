@@ -19,6 +19,7 @@ class Direct(StarFit):
         offsets=None,
         z_min=1,
         z_max=999,
+        y_floor=1.0e-99,
         fig=None,
         silent=False,
         combine=[[]],
@@ -42,6 +43,7 @@ class Direct(StarFit):
             z_max=z_max,
             upper_lim=upper_lim,
             z_lolim=z_lolim,
+            y_floor=y_floor,
         )
 
         stars = np.array(stars)

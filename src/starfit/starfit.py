@@ -81,6 +81,7 @@ class StarFit(Logged):
         z_max=999,
         upper_lim=None,
         z_lolim=None,
+        y_floor=1.0e-99,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -210,6 +211,10 @@ class StarFit(Logged):
         # The full set of abundance data from the database
         full_abudata = self.data.copy().T
         full_ions = self.ions.copy()
+
+        # set floor value for data
+        if y_floor is not None:
+            full_abudata = np.maximum(full_abudata, y_floor)
 
         # List of every element in the DB
         list_db = np.array(self.ions)

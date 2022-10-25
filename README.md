@@ -58,6 +58,7 @@ Optional arguments:
 - `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits)
 - `upper_lim`: include observational upper limits in data fitting
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
+- `y_floor`: floor value for abundaces to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
 ```python
 import starfit
 
@@ -74,7 +75,7 @@ s = starfit.Single(
 
 s.print()
 ```
-the `print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columumns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
+the `print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
 ```python
 s.print(n0=3, n=1, wide=8, format=None)
 ```
@@ -104,7 +105,7 @@ To make the same plots as the web version:
 ```python
 s.plot()
 ```
-If you want to plot a solution other than the best one, use the parameter `index` (default: `0`)  To plot the 5th best soluttion, skipping the first `4`, use
+If you want to plot a solution other than the best one, use the parameter `index` (default: `0`)  To plot the 5th best solution, skipping the first `4`, use
 ```python
 s.plot(index=4)
 ```
@@ -116,16 +117,16 @@ The legend as well as the star name and copyright string can be moved (dragged).
 
 Additional arguments:
 - `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
-- `threads`: Number of threads to use.  Default is t use CPU could (including hyprthreading)
+- `threads`: Number of threads to use.  Default is to use the CPU count (including hyperthreading)
 - `nice`: Nice level of background threads.  Default is 19 (lowest priority on unix systems).
-- `partition`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `partition` is specified, only combintions form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data bases needs to match the number of stars (`sol_size`) matched.
+- `partition`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `partition` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data bases needs to match the number of stars (`sol_size`) matched.
 ```python
 s = starfit.Multi(
     filename = 'HE1327-2326.dat',
     db = (
         'he2sn.HW02.star.el.y.stardb.gz',
         'rproc.just15.star.el.y.stardb.xz',
-	),
+        ),
     z_max = 999,
     z_exclude = [3, 24, 30],
     z_lolim = [21, 29],
@@ -161,9 +162,9 @@ s = starfit.Ga(
     filename = 'HE1327-2326.dat',
     db = (
         'he2sn.HW02.star.el.y.stardb.gz',
-	'rproc.just15.star.el.y.stardb.xz',
-	'znuc2012.S4.star.el.y.stardb.gz',
-	),
+        'rproc.just15.star.el.y.stardb.xz',
+        'znuc2012.S4.star.el.y.stardb.gz',
+        ),
     combine = [[6, 7, 8]],
     z_max = 30,
     z_exclude = [3, 24, 30],
@@ -178,22 +179,22 @@ s = starfit.Ga(
 
 ## Matching specific star combinations
 
-`starfit.Direct` allose to find the best fit to pre-selected group, or groups of stars.
+`starfit.Direct` allows to find the best fit to pre-selected group, or groups of stars.
 
 Additional arguments:
 - `stars`: List of lists of models.  For each model, specify a list of database and index.  The database index is 1-based, the index is 0-based.
 
-The following makes to optiisations: a group of models with model index `0` from the first database (`1`) and model index `1` from the second database; and second, a group of models with model index `2` from the first database (`1`) and model index `3` from the second database:
+The following selects two groups of models: the first selects model index `0` from the first database (`1`) and model index `1` from the second database; the second selects model index `2` from the first database (`1`) and model index `3` from the second database:
 ```python
 s = starfit.Direct(
-        filename = 'HE1327-2326.dat',
-	db = (
-	    'he2sn.HW02.star.el.y.stardb.gz',
-	    'rproc.just15.star.el.y.stardb.xz',
-	    ),
-        stars=[
-	    [[1,0], [2,1]],
-	    [[1,2], [2,3]]],
+    filename = 'HE1327-2326.dat',
+    db = (
+        'he2sn.HW02.star.el.y.stardb.gz',
+        'rproc.just15.star.el.y.stardb.xz',
+        ),
+    stars = [
+        [[1,0], [2,1]],
+        [[1,2], [2,3]]],
     )
 ```
 The results are sorted by fitness and stored in the returned object as usual, allowing to print and plot the results.
@@ -226,7 +227,7 @@ stars
 # Contributing to StarFit
 Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
 ```shell
-git checkout -b <new_brnach>
+git checkout -b <new_branch>
 git push --set-upstream origin <new_branch>
 ```
 
