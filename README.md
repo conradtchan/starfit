@@ -49,7 +49,7 @@ python -m pytest
 
 Required arguments:
 - `filename`: filename of star.  Can be absolute or relative path.  The files will also be searched for in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `stars`.
-- `db`: database file or tuple of data base files.  String or `Path` object.  Can be absolute or relative path.  Files will also be searched in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `db`.
+- `db`: database file or tuple of data base files.  String or `Path` object.  Can be absolute or relative path.  Files will also be searched in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `db`.  You may also use the "jokers" (`"*"`) in the data base name.  The code will then try to resolve all matching data bases in the first source directory that contains any matching file.  The plain `*` argument will include all data bases in the first source that contains any data base; the matching is done against the pattern `*.stardb.*`.  The `Ellipis` (`...` Python object, not in quotation marks) will do the same as the plain `*` argument, but will continue searching through all data souces.  This allows for an easy way to search across all model data bases available.
 
 Optional arguments:
 - `combine`: a list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements)
@@ -200,7 +200,7 @@ The results are sorted by fitness and stored in the returned object as usual, al
 
 ## Multiple databases info
 
-By default, data bases are numbered in the order provided.  The database numbers are only listed when there is more than one database provided.  Database information can be printed using the `print_comments` method of the solution object:
+By default, data bases are numbered in the order provided.  The database numbers are only listed when there is more than one database provided.  Full database information can be printed using the `print_comments` method of the solution object:
 ```python
 s.print_comments()
 ```

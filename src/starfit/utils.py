@@ -1,4 +1,3 @@
-from glob import glob
 from os import getpid
 from pathlib import Path
 
@@ -50,7 +49,7 @@ def find_all(subdir, pattern, complete=False):
     3) Installation DATA_DIR (set in __init__.py)
     """
     if subdir is None:
-        fullpath = Path(filename)
+        fullpath = Path(pattern)
         filenames = list(fullpath.parent.glob(fullpath.name))
         files = list()
         for file in filenames:
@@ -74,7 +73,7 @@ def find_all(subdir, pattern, complete=False):
                 if file.is_file():
                     files.append(file)
             except:
-                raise()
+                raise ()
                 pass
         if len(files) > 0 and not complete:
             return files
