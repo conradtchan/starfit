@@ -44,6 +44,7 @@ class Direct(StarFit):
             upper_lim=upper_lim,
             z_lolim=z_lolim,
             y_floor=y_floor,
+            cdf=cdf,
         )
 
         stars = np.array(stars)
@@ -63,7 +64,6 @@ class Direct(StarFit):
         # convert to actual indices
         stars = self.db_off[stars[:, :, 0] - 1] + stars[:, :, 1]
 
-        self.cdf = cdf
         sol, fitness = self.run(stars, offsets, fixed)
 
         sort = np.argsort(fitness)

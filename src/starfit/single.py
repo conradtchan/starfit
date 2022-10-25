@@ -39,6 +39,7 @@ class Single(StarFit):
             upper_lim=upper_lim,
             z_lolim=z_lolim,
             y_floor=y_floor,
+            cdf=cdf,
         )
 
         self.gene_size = 1
@@ -55,7 +56,7 @@ class Single(StarFit):
             eval_data=self.eval_data,
             z_exclude_index=self.exclude_index,
             sol=stars,
-            cdf=cdf,
+            cdf=self.cdf,
             ls=True,
         )
         self.logger.info("Calculation time:")

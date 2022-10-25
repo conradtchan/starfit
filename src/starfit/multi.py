@@ -64,6 +64,7 @@ class Multi(StarFit):
             upper_lim=upper_lim,
             z_lolim=z_lolim,
             y_floor=y_floor,
+            cdf=cdf,
         )
 
         if sol_size is None:
@@ -99,7 +100,6 @@ class Multi(StarFit):
             self.n_top = self.n_combinations
 
         self.block_size = min(block_size, self.n_combinations)
-        self.cdf = cdf
 
         self.logger.info(
             f"Searching {self.db_size:,d} models ({self.n_combinations:,d} combinations)"

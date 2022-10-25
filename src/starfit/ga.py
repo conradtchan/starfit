@@ -60,6 +60,7 @@ class Ga(StarFit):
             upper_lim=upper_lim,
             z_lolim=z_lolim,
             y_floor=y_floor,
+            cdf=cdf,
         )
 
         if sol_size is None:
@@ -87,7 +88,6 @@ class Ga(StarFit):
         self.mut_rate_index = mut_rate_index
         self.mut_rate_offset = mut_rate_offset
         self.mut_offset_magnitude = mut_offset_magnitude
-        self.cdf = cdf
         self.max_pop = max_pop
         self.cover = cover
 
@@ -126,7 +126,7 @@ class Ga(StarFit):
             self.s,
             fixed_offsets=fixed_offsets,
             ejecta=self.ejecta,
-            cdf=cdf,
+            cdf=self.cdf,
             ls=self.local_search,
         )
 

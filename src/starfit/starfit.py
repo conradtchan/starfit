@@ -82,6 +82,7 @@ class StarFit(Logged):
         upper_lim=None,
         z_lolim=None,
         y_floor=1.0e-99,
+        cdf=True,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -383,6 +384,7 @@ class StarFit(Logged):
         self.sun_star = sun_star
         self.fit_size = self.trimmed_db.shape[0]
         self.db_size = self.trimmed_db.shape[1]
+        self.cdf = cdf
 
         del self.data
         del self.ions
