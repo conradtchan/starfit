@@ -42,7 +42,7 @@ def get_fitness(
     )
 
     sol["offset"] = offsets
-    fitness /= eval_data.error.shape[0] - np.sum(z_exclude_index) - 1
+    fitness /= eval_data.error.shape[0] - np.count_nonzero(z_exclude_index) - 1
     return fitness
 
 
