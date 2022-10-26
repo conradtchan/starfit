@@ -6,7 +6,7 @@ from textwrap import wrap
 
 import numpy as np
 
-from . import DB, REF, SOLAR, starplot
+from . import DB, REF, SOLAR
 from .autils import abusets
 from .autils.abuset import AbuData
 from .autils.isotope import ion as I
@@ -14,8 +14,10 @@ from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
 from .autils.physconst import MSUN
 from .autils.stardb import StarDB
+from .autils.utils import index1d, is_iterable
 from .fit import get_fitness
 from .star import Star
+from .starplot import abuplot
 from .utils import find_all, find_data
 
 # uniform and brief units
@@ -71,7 +73,7 @@ class StarFit(Logged):
     def _setup(
         self,
         filename,
-        database,
+        db,
         *,
         combine=None,
         z_exclude=None,
@@ -92,11 +94,11 @@ class StarFit(Logged):
            multiple data bases are provided as an iterable.
         """
 
-        if database in ("*", ..., "...", "**"):
-            database = find_all(
+        if db in ("*", ..., "...", "**"):
+            db = find_all(
                 DB,
                 "*.stardb.*",
-                complete=database
+                complete=db
                 in (
                     Ellipsis,
                     "...",
@@ -104,18 +106,17 @@ class StarFit(Logged):
                 ),
             )
 
-        if isinstance(database, (str, Path, StarDB)):
-            database = (database,)
-        db = list()
-        for d in database:
-            if str(database).find("*") >= 0 or str(database).find("*") >= 0:
-                db.extend(find_all(DB, d))
+        if isinstance(db, (str, Path, StarDB)):
+            db = (db,)
+        database = list()
+        for d in db:
+            if str(d).find("*") >= 0 or str(d).find("*") >= 0:
+                database.extend(find_all(DB, d))
             else:
-                db.append(d)
-        database = db
-        assert len(database) > 0, f"require valid database, {database=}"
+                database.append(d)
+        assert len(database) > 0, f"require valid database, {db=}"
 
-        # read in data bses
+        # read in databases
         self.db = list()
         self.ejecta = list()
         self.db_n = len(database)
@@ -163,22 +164,39 @@ class StarFit(Logged):
 
         if combine is None:
             combine = []
-        if not np.iterable(combine):
+        if not is_iterable(combine):
             raise AttributeError(f"{combine=} not supported")
         if len(combine) == 0:
             combine = [[]]
-        elif len(combine) == 1:
-            if not np.iterable(combine[0]):
-                combine = [combine]
-
+        elif not is_iterable(combine[0]):
+            combine = [combine]
+        for i, group in enumerate(combine):
+            for j, element in enumerate(group):
+                if isinstance(element, str):
+                    group[j] = I(element, element=True).Z
+            combine[i] = sorted(group)
         if z_exclude is None:
             z_exclude = []
+        for i, element in enumerate(z_exclude):
+            if isinstance(element, str):
+                z_exclude[i] = I(element, element=True).Z
         if z_lolim is None:
             z_lolim = []
+        for i, element in enumerate(z_lolim):
+            if isinstance(element, str):
+                z_lolim[i] = I(element, element=True).Z
+        if z_min is None:
+            z_min = 1
+        if isinstance(z_min, str):
+            z_min = I(z_min, element=True).Z
+        if z_max is None:
+            z_max = 92
+        if isinstance(z_max, str):
+            z_max = I(z_max, element=True).Z
 
-        self.combine = combine
         self.z_min = z_min
         self.z_max = z_max
+        self.combine = combine
         self.upper_lim = upper_lim
         self.z_lolim = z_lolim
         self.z_exclude = z_exclude
@@ -241,54 +259,47 @@ class StarFit(Logged):
         if len(combine[0]) > 0:
             self.logger.info("Combining elements:")
             for group in combine:
-                elements = [I(z) for z in group]
-                for ele in elements:
+                elements = [I(z, element=True) for z in group]
+                for element in elements:
                     assert (
-                        ele in star.element_abundances["element"]
+                        element in star.element_abundances["element"]
                     ), "Combined elements need to have an observed data point"
 
                 self.logger.info("    " + "+".join([str(ion) for ion in elements]))
                 # Get abundance of each element
-                abu = [
-                    10 ** eval_data.abundance[np.in1d(eval_data.element, [ele])]
-                    for ele in elements
-                ]
+                ii = index1d(elements, eval_data.element)
+                abu = 10 ** eval_data.abundance[ii]
 
                 # Replace the element with the lowest Z with the total abundance
-                eval_data.abundance[
-                    np.in1d(eval_data.element, [elements[0]])
-                ] = np.log10(np.sum(abu))
+                i0 = np.searchsorted(eval_data.element, elements[0])
+                eval_data.abundance[i0] = np.log10(np.sum(abu))
 
                 # Get error of each element
-                err = [
-                    eval_data.error[np.in1d(eval_data.element, [ele])]
-                    for ele in elements
-                ]
+                error = eval_data.error[ii]
 
-                for e in err:
-                    assert e > 0, "Can only combine data points, not upper lims"
+                assert np.all(error > 0), "Can only combine data points, not upper lims"
 
-                # Replace the element with the first
-                ae = [
-                    (abu[i] * (10 ** np.abs(err[i]) - 1)) ** 2
-                    for i in range(len(group))
-                ]
+                # Replace the first element with the combined value
+                ae = abu * (10**error - 1) ** 2
+                eval_data.error[i0] = np.log10(np.sqrt(np.sum(ae) / np.sum(abu)) + 1)
 
-                eval_data.error[np.in1d(eval_data.element, [elements[0]])] = np.log10(
-                    (np.sqrt(np.sum(ae)) / np.sum(abu)) + 1
-                )
+                # do the same for correlations
+                corr = eval_data.corr[ii]
+                ac = abu[:, np.newaxis] * (10**corr - 1)
+                eval_data.corr[i0] = np.log10(np.sum(ac, axis=0) / np.sum(abu) + 1)
 
                 # Do the same process for the sun
                 # Sum
-                sunabu = [sun_full[np.in1d(sunions, [ele])] for ele in elements]
+                sunabu = np.sum(sun_full[index1d(elements, sunions)])
                 # Write
-                sun_full[np.in1d(sunions, [elements[0]])] = np.sum(sunabu)
-                sun_star[np.in1d(eval_data.element[:], [elements[0]])] = np.sum(sunabu)
+                sun_full[np.searchsorted(sunions, elements[0])] = sunabu
+                sun_star[i0] = sunabu
+
                 # Remove
                 idbse = np.invert(np.in1d(sunions, elements[1:]))
                 sun_full = sun_full[idbse]
                 sunions = sunions[idbse]
-                iee = np.invert(np.in1d(eval_data.element[:], elements[1:]))
+                iee = np.invert(np.in1d(eval_data.element, elements[1:]))
                 sun_star = sun_star[iee]
 
                 # Remove all the elements except the first in the group
@@ -296,12 +307,10 @@ class StarFit(Logged):
 
                 # Do the same process for the database
                 # Sum
-                abudb = np.array(
-                    [comb_abudata[np.in1d(dbions, [ele])][0] for ele in elements]
-                )
+                abudb = np.sum(comb_abudata[index1d(elements, dbions)], axis=0)
 
                 # Write
-                comb_abudata[np.in1d(dbions, [elements[0]])][0] = np.sum(abudb, axis=0)
+                comb_abudata[np.searchsorted(sunions, elements[0])] = abudb
 
                 # Remove
                 idbe = np.invert(np.in1d(dbions, elements[1:]))
@@ -312,7 +321,6 @@ class StarFit(Logged):
                 # Adjust z list for the new combined elements
                 ile = np.invert(np.in1d(list_comb, elements[1:]))
                 list_comb = list_comb[ile]
-
         else:
             comb_abudata = full_abudata
             comb_ions = full_ions
@@ -348,7 +356,7 @@ class StarFit(Logged):
         for line in wrap(" ".join([str(ion) for ion in eval_data.element]), 60):
             self.logger.info("    " + line)
 
-        n = np.sum(eval_data.error < 0)
+        n = np.count_nonzero(eval_data.error < 0)
         if n > 0:
             self.logger.info(f"including {n} upper limits in the data:")
             for line in wrap(
@@ -357,7 +365,7 @@ class StarFit(Logged):
             ):
                 self.logger.info("    " + line)
 
-        n = np.sum(lolim_index_star)
+        n = np.count_nonzero(lolim_index_star)
         if n > 0:
             self.logger.info(f"including {n} lower limits in the models:")
             for line in wrap(
@@ -419,7 +427,7 @@ class StarFit(Logged):
         """Call plotting routines to plot the best fit."""
 
         bestsol = self.sorted_stars[index]
-        self.labels, self.plotdata = starplot.abuplot(
+        self.labels, self.plotdata = abuplot(
             indices=bestsol["index"].tolist(),
             offsets=bestsol["offset"].tolist(),
             star=self.star,
