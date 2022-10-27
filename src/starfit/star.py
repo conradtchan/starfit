@@ -98,7 +98,7 @@ class Star(Logged):
             assert np.all(
                 (n_data == 3) | (n_data == n_corr + 3)
             ), "require consistent correlation vectors, if present"
-        data_type = [
+        self.data_type = [
             ("element", object),
             ("abundance", np.float64),
             ("error", np.float64),
@@ -106,7 +106,7 @@ class Star(Logged):
         ]
 
         # Initialize zeroed numpy array
-        data_array = np.recarray(n_elem, dtype=data_type)
+        data_array = np.recarray(n_elem, dtype=self.data_type)
         data_array[:] = 0
 
         # i lines, j elements on each line

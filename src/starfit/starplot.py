@@ -138,7 +138,14 @@ def abuplot(
     y_star = eval_data.abundance - logsun_star
 
     x_star = np.array([ion.Z for ion in eval_data.element])
-    y_star_err = np.tile(np.abs(eval_data.error), (2, 1))
+
+    y_star_ucorr = np.abs(eval_data.error)
+    y_star_corr = np.sqrt(np.sum(eval_data.corr**2, axis=1))
+    y_star_err = np.sqrt(y_star_corr**2 + y_star_ucorr**2)
+
+    y_star_err = np.tile(y_star_err, (2, 1))
+    y_star_ucorr = np.tile(y_star_ucorr, (2, 1))
+
     # set asymmetric error for upper limits
     up_lims = uplim_index_star
     y_star_err[1, up_lims] = 0
@@ -390,6 +397,20 @@ def abuplot(
     )
     leg.set_draggable(True)
 
+    # Show correlated errors
+    corr_sel = (y_star_corr > 0) & ~up_lims
+    ax.errorbar(
+        np.array(x_star)[corr_sel],
+        y_star[corr_sel],
+        yerr=y_star_ucorr[:, corr_sel],
+        ls="None",
+        marker="o",
+        ms=0,
+        capsize=data_size,
+        color=(0.7, 0.7, 0.7),
+        mfc=(0, 0, 0),
+        uplims=False,
+    )
     # Plot for the excluded data points
     ax.errorbar(
         np.array(x_star)[exclude_index],

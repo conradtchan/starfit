@@ -83,6 +83,7 @@ class StarFit(Logged):
         z_lolim=None,
         y_floor=1.0e-99,
         cdf=True,
+        corr=True,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -213,7 +214,18 @@ class StarFit(Logged):
             ]
         )
         eval_data = star.element_abundances[mask_zmax]
-        # eval_data = eval_data #The other one gets chopped and changed
+        if corr is False:
+            data_type = star.data_type.copy()
+            assert data_type[-1][0] == "corr"
+            data_type[-1] = data_type[-1][:2] + (0,)
+
+            eval_data_new = np.recarray(eval_data.shape[0], dtype=data_type)
+            eval_data_new.element = eval_data.element
+            eval_data_new.abundance = eval_data.abundance
+            eval_data_new.error = np.sign(eval_data.error) * np.sqrt(
+                eval_data.error**2 + np.sum(eval_data.corr**2, axis=1)
+            )
+            eval_data = eval_data_new
 
         # Remove upper limit elements if upper limits is not enabled
         mask_uplim = np.array([error > 0 for error in eval_data.error])
