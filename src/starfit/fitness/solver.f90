@@ -190,14 +190,15 @@ subroutine calfun(n, x, f)
 
 end subroutine calfun
 
-subroutine fitness(f, c, obs, err, abu, nstar, nel, nsol, ls, icdf)
+subroutine fitness(f, c, obs, err, corr, abu, nstar, nel, nsol, ncorr, ls, icdf)
     implicit none
     integer*8,      parameter           :: dp = selected_real_kind(15)
 
-    integer*8,      intent(in)          :: nstar, nel, nsol
+    integer*8,      intent(in)          :: nstar, nel, nsol, ncorr
     real(dp),       intent(in)          :: obs(nel)
     real(dp),       intent(in)          :: err(nel)
     real(dp),       intent(in)          :: abu(nsol, nstar, nel)
+    real(dp),       intent(in)          :: corr(nel, ncorr)
     logical,        intent(in)          :: ls
     integer*8,      intent(in)          :: icdf
 

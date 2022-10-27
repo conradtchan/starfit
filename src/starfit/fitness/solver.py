@@ -6,6 +6,7 @@ from . import _solver
 def fitness(
     observed,
     error,
+    corr,
     abu,
     offsets,
     cdf=None,
@@ -15,6 +16,7 @@ def fitness(
     nsol = abu.shape[0]
     nstar = abu.shape[1]
     nel = abu.shape[2]
+    ncorr = corr.shape[1]
 
     if cdf is None:
         cdf = True
@@ -32,10 +34,12 @@ def fitness(
         c=offsets,
         obs=observed,
         err=error,
+        corr=corr,
         abu=abu,
         nstar=nstar,
         nel=nel,
         nsol=nsol,
+        ncorr=ncorr,
         ls=ls,
         icdf=icdf,
     )

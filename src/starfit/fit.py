@@ -21,20 +21,22 @@ def get_fitness(
     If abundance is directly given in the case of smart GA, use that.
     """
 
+    # TODO: for multiple calls, such as GA, stardb (and star) data
+    # should be passed only once.
+
     if fixed_offsets:
         offset = ejecta[sol["index"]]
         ls = False
     else:
         offset = sol["offset"]
 
-    error = np.copy(eval_data.error)
-    error[z_exclude_index] = 1.0e99
-
-    abu = np.transpose(trimmed_db[:, sol["index"]], (1, 2, 0))
+    eval_data = eval_data[~z_exclude_index]
+    abu = np.transpose(trimmed_db[~z_exclude_index][:, sol["index"]], (1, 2, 0))
 
     fitness, offsets = solver.fitness(
         eval_data.abundance,
-        error,
+        eval_data.error,
+        eval_data.corr,
         abu,
         offset,
         cdf=cdf,
@@ -42,7 +44,7 @@ def get_fitness(
     )
 
     sol["offset"] = offsets
-    fitness /= eval_data.error.shape[0] - np.count_nonzero(z_exclude_index) - 1
+    fitness /= eval_data.error.shape[0] - 1
     return fitness
 
 
