@@ -3,6 +3,13 @@ import numpy as np
 from . import _solver
 
 
+def check_offsets(offsets):
+    if np.any(offsets > 1):
+        ii = np.any(offsets > 1, axis=-1)
+        i = np.where(ii)[0][0]
+        raise AttributeError(f"invalid offset > 1 at index {i}: {offsets[i]}")
+
+
 def fitness(
     observed,
     error,
@@ -25,12 +32,18 @@ def fitness(
     else:
         icdf = 0
 
-    if np.any(offsets > 1):
-        ii = np.any(offsets > 1, axis=-1)
-        i = np.where(ii)[0][0]
-        raise AttributeError(f"invalid offset > 1 at index {i}: {offsets[i]}")
+    check_offsets(offsets)
 
-    return _solver.solver.fitness(
+    if ls is True:
+        ils = 1
+    elif ls is False:
+        ils = 0
+    elif ls is None:
+        ils = 2
+    else:
+        raise Exception(f"Unknown search option {ls=}")
+
+    fitness, offset = _solver.solver.fitness(
         c=offsets,
         obs=observed,
         err=error,
@@ -40,20 +53,24 @@ def fitness(
         nel=nel,
         nsol=nsol,
         ncorr=ncorr,
-        ls=ls,
+        ls=ils,
         icdf=icdf,
     )
 
+    check_offsets(offset)
+
+    return fitness, offset
+
 
 def testf():
-    obs = [-5.0, -5.0]
-    err = [0.3, -0.15]
-    abu = [
-        [1.0e-05, 1.0e-05],
-        [1.7e-05, 1.3e-05],
-    ]
-    nstar = 2
-    nel = 2
+    # obs = [-5.0, -5.0]
+    # err = [0.3, -0.15]
+    # abu = [
+    #     [1.0e-05, 1.0e-05],
+    #     [1.7e-05, 1.3e-05],
+    # ]
+    # nstar = 2
+    # nel = 2
 
     # obs = [ -5.86418771e0, -6.19418771e0, -6.23418771e0, -9.26418771e0, -8.39418771e0, -9.48418771e0, -10.60418771e0, -12.36418771e0, -10.20418771e0 ]
     # err = [0.24e0, 0.3e0, 0.24e0, 0.08e0, 0.07e0, 0.09e0, 0.2e0, 0.2e0, 0.15e0]
@@ -80,9 +97,12 @@ def testf():
     # plot(x,y2)
     # plot(x,y3)
 
-    c = np.ndarray((3,))
-    c[:] = 1.0e-7
-    cnew = _solver.solver.newton(c, obs, err, abu, nstar, nel)
-    print(cnew)
-    f, f1, f2 = _solver.solver.chisq(cnew, obs, err, abu, nstar, nel)
-    print(f)
+    # === interface has changed ===
+    # c = np.ndarray((3,))
+    # c[:] = 1.0e-7
+    # cnew = _solver.solver.newton(c, obs, err, abu, nstar, nel)
+    # print(cnew)
+    # f, f1, f2 = _solver.solver.chisq(cnew, obs, err, abu, nstar, nel)
+    # print(f)
+
+    pass

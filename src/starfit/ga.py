@@ -180,13 +180,17 @@ class Ga(StarFit):
                 mutants,
             ],
         )
+
         if not self.local_search:
+            w0 = w["offset"] * np.exp(
+                self.rng.normal(scale=self.mut_offset_magnitude, size=w.shape)
+            )
+            w0 = w0 / (1 + w0)
             w["offset"] = np.choose(
                 self.rng.uniform(size=w.shape) < self.mut_rate_offset,
                 [
                     w["offset"],
-                    np.exp(self.rng.normal(self.mut_offset_magnitude, size=w.shape))
-                    * w["offset"],
+                    w0,
                 ],
             )
 
