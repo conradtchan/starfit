@@ -1,0 +1,11 @@
+module type_def
+
+  implicit none
+
+  INTEGER, PARAMETER :: int64 = SELECTED_INT_KIND(16)
+  INTEGER, PARAMETER :: int32 = SELECTED_INT_KIND(8)
+
+  INTEGER, PARAMETER :: real64 = SELECTED_REAL_KIND(15)
+  INTEGER, PARAMETER :: real32 = SELECTED_REAL_KIND(6)
+
+end module type_def

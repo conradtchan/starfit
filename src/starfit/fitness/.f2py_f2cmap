@@ -1,0 +1,7 @@
+
+{
+   'real': {'real32': 'float', 'real64': 'double', 'real128': 'long_double'},
+   'integer': {'int8': 'signed_char', 'int16': 'short', 'int32': 'int', 'int64': 'long', 'int128': 'long_long'},
+   'complex': {'comp32': 'complex_float', 'comp64': 'complex_double', 'comp128': 'complex_long_double'},
+   'character': {'char8' : 'char'},
+}
