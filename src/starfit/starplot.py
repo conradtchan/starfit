@@ -510,7 +510,7 @@ def abuplot(
     return labels, (x_a, y_a)
 
 
-def fitplot(starname, generations, popsize, genesize, times, history):
+def fitplot(starname, generations, popsize, genesize, times, history, gen=False):
     fig = plt.figure(
         figsize=(10, 6),
         dpi=102,
@@ -518,7 +518,11 @@ def fitplot(starname, generations, popsize, genesize, times, history):
         edgecolor="white",
     )
     ax = fig.add_subplot(111)
-    ax.set_xlabel("Time (s)")
+    if gen:
+        ax.set_xlabel("Generations")
+        times = np.arange(generations + 1)
+    else:
+        ax.set_xlabel("Time (s)")
     ax.set_ylabel("Fitness (Error)")
     ax.set_title(
         "{starname:s} - Generations: {generations:d}, Population size: {popsize:d}, Gene size: {genesize:d}".format(

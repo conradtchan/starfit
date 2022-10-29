@@ -1,5 +1,6 @@
 """Genetic algorithm"""
 
+import sys
 import time
 
 import numpy as np
@@ -8,6 +9,7 @@ from .autils.human import time2human
 from .fit import get_fitness
 from .starfit import StarFit
 from .starplot import fitplot
+from .utils import getch
 
 
 class Ga(StarFit):
@@ -16,7 +18,7 @@ class Ga(StarFit):
     def __init__(
         self,
         *args,
-        gen=10,
+        gen=1000,
         time_limit=20,
         pop_size=200,
         sol_size=None,
@@ -32,6 +34,8 @@ class Ga(StarFit):
         seed=None,
         max_pop=2**13,
         cover=None,
+        n_top=20,
+        interactive=True,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -68,6 +72,7 @@ class Ga(StarFit):
         self.mut_offset_magnitude = mut_offset_magnitude
         self.max_pop = max_pop
         self.cover = cover
+        self.n_top = n_top
 
         self.logger.info(f"Time limit: {time2human(time_limit)}")
 
@@ -115,31 +120,156 @@ class Ga(StarFit):
         self.initsol = self.s[np.argmin(self.f)]
         self.times += [0]
 
+        if gen is None or gen <= 0:
+            gen = 2**30
+
         # Iterate
         i = 0
 
-        while i <= gen or time_limit is not None:
-            t_start = time.time()
+        if not self.silent:
+            self.print_header()
+            self.print_empty_table()
+
+        time_start = time.perf_counter()
+        elapsed = 0
+        self.elapsed = elapsed
+        t_start = time.time()
+
+        while i < gen:
             self._step()
             self.history["best"] += [self.f[0]]
             self.history["average"] += [np.mean(self.f)]
             self.history["worst"] += [self.f[-1]]
 
-            t_total += time.time() - t_start
+            t_new = time.time()
+            t_total += t_new - t_start
             self.times += [t_total]
+            t_start = t_new
             i += 1
+
+            elapsed = time.perf_counter() - time_start
+            if elapsed - self.elapsed > 1 or i == 1:
+                self.n_solved = i
+                if time_limit is None:
+                    time_frac_done = 0
+                else:
+                    time_frac_done = elapsed / time_limit
+                if gen > 2**29:
+                    gen_frac_done = 0
+                else:
+                    gen_frac_done = i / gen
+                self.frac_done = max(time_frac_done, gen_frac_done)
+
+                try:
+                    self.cycle_time = (
+                        0.01 * (elapsed - self.elapsed) + 0.99 * self.cycle_time
+                    )
+                except:
+                    self.cycle_time = 1.0e-10
+
+                self.elapsed = elapsed
+
+                if not self.silent:
+                    self.print_update()
+
             if time_limit is not None:
-                gen = i
-                if t_total >= time_limit:
+                if elapsed >= time_limit:
+                    break
+            if not self.silent and interactive:
+                if len(getch()) > 0:
                     break
 
         self.sorted_stars = self.s
         self.sorted_fitness = self.f
 
-        self.gen = gen
+        self.gen = i
         self.logger.info("Best fitness:")
         self.logger.info(f" {self.sorted_fitness[0]}")
         self.close_logger(timing="Finished in")
+
+    def print_header(self):
+        print("\n")
+        print("=================================================================")
+        print(
+            f"Evolving Population of {self.pop_size:,d} combinations of {self.sol_size} stars"
+        )
+        if self.db_n == 1:
+            print(f"Database: {self.db[0].name}")
+        else:
+            print("Databases:")
+            self.print_db(ind=4)
+        print(f"Star: {self.star.name}")
+        print(
+            f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} limits)"
+        )
+        if self.fixed_offsets:
+            print("Offsets are ejecta mass")
+        else:
+            print("Offsets solved using Newton-Raphson")
+        print("=================================================================")
+
+        fmt_head_star = " Index  Offset"
+        fmt_data_star = "{:>6d}  {:6.2f}"
+        fmt_pad = " " * 5
+        if self.db_n > 1:
+            fmt_head_star = "DB " + fmt_head_star
+            fmt_data_star = "{:>2d} " + fmt_data_star
+        fmt_head_star = fmt_pad + fmt_head_star
+        fmt_data_star = fmt_pad + fmt_data_star
+        self.fmt_head = "Fitness" + fmt_head_star * self.sol_size
+        self.fmt_results = "{:7.2f}" + fmt_data_star * self.sol_size
+        self.fmt_hbar = "-" * len(self.fmt_head)
+
+    def print_empty_table(self):
+        if self.n_top <= 50:
+            for i in range(self.n_top + 6):
+                print("")
+        else:
+            print("")
+
+    def print_update(self):
+        n_top = min(self.n_top, len(self.f))
+        if n_top > 0:
+            for i in range(6 + n_top):
+                sys.stdout.write("\x1b[A")
+            print(
+                "{percent:6.2f} %    Rate: {rate:>9,g}/s   Elapsed: {elapsed:<8}   ETA: {remain:<8}".format(
+                    percent=self.frac_done * 100,
+                    rate=self.n_solved / self.elapsed,
+                    elapsed=time2human(self.elapsed),
+                    remain=time2human(self.elapsed / self.frac_done - self.elapsed),
+                )
+            )
+            print(
+                f"            Best: {self.f[0]:>6.2f}        Average: {np.average(self.f):>6.2f}   Worst: {self.f[-1]:>6.2f}"
+            )
+            print(self.fmt_hbar)
+            print(self.fmt_head)
+            print(self.fmt_hbar)
+            for i, solution in enumerate(self.s[:n_top]):
+                vals = list()
+                vals.append(self.f[i])
+                for j in range(self.sol_size):
+                    index, offset = solution[j]
+                    db_idx = self.db_idx[index]
+                    dbindex = index - self.db_off[db_idx]
+                    if self.db_n > 1:
+                        vals.append(db_idx + 1)
+                    vals.append(dbindex)
+                    vals.append(np.log10(offset))
+                print(self.fmt_results.format(*vals))
+            print(self.fmt_hbar)
+        else:
+            sys.stdout.write("\x1b[A")
+            sys.stdout.write("\x1b[A")
+            print(
+                "{percent:6.2f} %   Rate: {rate:>9,g}/s   Elapsed: {elapsed:<8}   ETA: {remain:<8}".format(
+                    percent=self.frac_done * 100,
+                    rate=self.n_solved / self.elapsed,
+                    elapsed=time2human(self.elapsed),
+                    remain=time2human(self.elapsed / self.frac_done - self.elapsed),
+                )
+            )
 
     def _step(self):
         """Perform one step of the genetic algorithm"""
@@ -364,7 +494,7 @@ class Ga(StarFit):
 
         return s
 
-    def plot_fitness(self):
+    def plot_fitness(self, gen=False):
         # Fitness over time plot
         fitplot(
             starname=self.star.name,
@@ -373,4 +503,5 @@ class Ga(StarFit):
             genesize=self.sol_size,
             times=self.times,
             history=self.history,
+            gen=gen,
         )

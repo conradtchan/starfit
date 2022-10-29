@@ -1,5 +1,7 @@
 from os import getpid
 from pathlib import Path
+from select import select
+from sys import stdin
 
 from psutil import Process
 
@@ -102,3 +104,15 @@ def find_all(subdir, pattern, complete=False):
 def set_priority(value: int):
     p = Process(getpid())
     p.nice(value)
+
+
+def getch():
+    try:
+        i, o, e = select([stdin], [], [], 0)
+        if i:
+            ch = stdin.read(1)
+        else:
+            ch = ""
+    except:
+        ch = ""
+    return ch
