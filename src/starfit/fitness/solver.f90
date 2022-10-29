@@ -565,7 +565,7 @@ contains
          corr
     real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
          abu
-    logical, intent(in) :: &
+    integer(kind=int64), intent(in) :: &
          ls
     integer(kind=int64), intent(in) :: &
          icdf
@@ -588,8 +588,11 @@ contains
          c
 
     ! If localsearch is enabled, modify the offsets first
+    ! otherwise keep relative weights fixed
 
-    if (ls .eqv. .true.) then
+    ! first, find masks for currelated, uncorreclated, and limit errors
+
+    if (ls == 1) then
        do i = 1, nsol
           if (nstar == 1) then
              if (icdf == 0) then
@@ -604,10 +607,13 @@ contains
              !return
              call psolve(c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
           endif
+          scale = sum(c(i,:))
+          if (scale > 1.d0) then
+             c(i,:) = c(i,:) * (1.d0 / scale)
+          endif
           call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
        end do
-    else
-       return
+    else if (ls == 0) then
        do i = 1, nsol
           scale = 1.d0
           summed(:) = 0.d0
@@ -621,9 +627,15 @@ contains
           else
              call singlesolve(scale, obs, err, summed, nel, icdf)
           endif
-          c(i,:) = c(i,:) * scale
+          c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
           call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
        enddo
+    else if (ls == 2) then
+       do i = 1, nsol
+          call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
+       enddo
+    else
+       error stop 'invalid local search option'
     endif
 
   end subroutine fitness
