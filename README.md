@@ -116,7 +116,7 @@ The legend as well as the star name and copyright string can be moved (dragged).
 `starfit.Multi` fits an abundance pattern to a combination of models from the database(s).  This can take a long time as there can be many combinations.
 
 Additional arguments:
-- `fixed`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
+- `fixed_offsets`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
 - `threads`: Number of threads to use.  Default is to use the CPU count (including hyperthreading)
 - `nice`: Nice level of background threads.  Default is 19 (lowest priority on unix systems).
 - `partition`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `partition` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data bases needs to match the number of stars (`sol_size`) matched.
@@ -132,7 +132,7 @@ s = starfit.Multi(
     z_lolim = [21, 29],
     upper_lim = True,
     cdf = True,
-    fixed = False,
+    fixed_offsets = False,
     sol_size = 2,
     partition = True,
     )
@@ -143,7 +143,8 @@ s = starfit.Multi(
 `starfit.Ga` fits an abundance pattern to a combination of two or more models from the database. The solution is approximate, but approaches the best solution with increased run time.
 
 Additional arguments:
-- `time_limit`: amount of time (in seconds) to search for solution
+- `gen`: maximum number of generations (iterations) to search; no limit if `0` or `None`.  Defaut is `1000`.
+- `time_limit`: maximum amount of time (in seconds) to search for solution.  Infinite if `None`.  Default is `20 s`.
 - `sol_size`: number of explosion models to find combinations of
 - `pop_size`: GA parameter - number of solutions in the population
 - `tour_size`: GA parameter - number of solutions per tournament selection
@@ -156,7 +157,6 @@ Additional arguments:
 - `cover`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 
 The default GA parameters should be used unless you really know what you are doing.
-
 ```python
 s = starfit.Ga(
     filename = 'HE1327-2326.dat',
@@ -175,6 +175,16 @@ s = starfit.Ga(
     sol_size = 3,
     cover = True,
     )
+```
+The execution can be terminated pressing the `<Enter>` key.
+
+### Evolutionary History
+The history of fitness evolution can be plotted using the `plot_fitness` method.
+
+Additional arguments:
+- `gen`: when set to `True`, plot as a function of generation number.  Otheriwse, plot as a function of computational time (default).
+```python
+s.plot_fitness(gen=True)
 ```
 
 ## Matching specific star combinations

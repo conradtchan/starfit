@@ -31,7 +31,7 @@ class Multi(StarFit):
         self,
         *args,
         n_top=10,  # How many solutions do we want to see?
-        fixed=False,  # Fixed offsets based on ejecta mass?
+        fixed_offsets=False,  # Fixed offsets based on ejecta mass?
         threads=None,
         nice=19,
         save=False,
@@ -65,7 +65,7 @@ class Multi(StarFit):
         self.sol_size = sol_size
         self.partition = partition
 
-        self.fixed = fixed
+        self.fixed_offsets = fixed_offsets
         self.n_top = n_top
 
         if self.partition:
@@ -184,7 +184,7 @@ class Multi(StarFit):
                     get_solution,
                     gen_start=slice_range[i],
                     gen_end=slice_range[i + 1],
-                    fixed=self.fixed,
+                    fixed=self.fixed_offsets,
                     eval_data=self.eval_data,
                     exclude_index=self.exclude_index,
                     trimmed_db=self.trimmed_db,
@@ -216,14 +216,12 @@ class Multi(StarFit):
             print(f"Database: {self.db[0].name}")
         else:
             print("Databases:")
-            # for i, db in enumerate(self.db):
-            #     print(f"{i+1:>6d}: {db.name}")
             self.print_db(ind=4)
         print(f"Star: {self.star.name}")
         print(
             f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} limits)"
         )
-        if self.fixed:
+        if self.fixed_offsets:
             print("Offsets are ejecta mass")
         else:
             print("Offsets solved using Newton-Raphson")
@@ -314,7 +312,7 @@ class Multi(StarFit):
             f.write(
                 f"Using {self.fit_size:d} elements ({np.sum(self.eval_data.error < 0):d} upper limits)\n"
             )
-            if self.fixed:
+            if self.fixed_offsets:
                 f.write("Offsets are according to ejecta mass\n")
             else:
                 f.write("Offsets solved using UOBYQA\n")
