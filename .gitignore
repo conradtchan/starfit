@@ -3,8 +3,11 @@
 /src/starfit/data/db/*.gz
 /src/starfit/data/db/*.bz
 /src/starfit/data/db/*.xz
+*.mod
 *.DS_Store
 *.so
+*.o
+a.out
 *~
 /build/
 /src/starfit.egg-info

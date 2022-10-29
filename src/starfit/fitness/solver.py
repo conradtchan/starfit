@@ -30,7 +30,7 @@ def fitness(
         i = np.where(ii)[0][0]
         raise AttributeError(f"invalid offset > 1 at index {i}: {offsets[i]}")
 
-    return _solver.fitness(
+    return _solver.solver.fitness(
         c=offsets,
         obs=observed,
         err=error,
@@ -82,7 +82,7 @@ def testf():
 
     c = np.ndarray((3,))
     c[:] = 1.0e-7
-    cnew = _solver.newton(c, obs, err, abu, nstar, nel)
+    cnew = _solver.solver.newton(c, obs, err, abu, nstar, nel)
     print(cnew)
-    f, f1, f2 = _solver.chisq(cnew, obs, err, abu, nstar, nel)
+    f, f1, f2 = _solver.solver.chisq(cnew, obs, err, abu, nstar, nel)
     print(f)
