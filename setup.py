@@ -22,10 +22,9 @@ module_solver = Extension(
         ]
     ),
     extra_f90_compile_args=flags,
-    f2py_options=[  # "fitness",
+    f2py_options=[
         "--f2cmap",
         os.path.join(starfit_src, "fitness", ".f2py_f2cmap"),
-        #    "only:", "fitness", ":",
     ],
 )
 
