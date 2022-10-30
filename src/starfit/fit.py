@@ -1,6 +1,7 @@
 """Fitting stars"""
 
 import numpy as np
+from scipy.special import comb
 
 from .fitness import solver
 from .solgen._solgen import gen_slice
@@ -48,13 +49,44 @@ def get_fitness(
     return fitness
 
 
-def gen_map(gen_start, gen_end, num):
+def gen_map(gen_start, gen_end, num, size=None, com=None):
+    if size is None:
+        size = np.full(len(num), 1, dtype=np.int64)
+    if com is None:
+        com = np.array(
+            [int(comb(n, s)) for n, s in zip(num, size)],
+            dtype=np.int64,
+        )
+    idx = np.arange(gen_start, gen_end, dtype=np.int64)
+    idx = np.array(np.unravel_index(idx, com)).T
+
     off = np.cumsum(num)
     off[1:] = off[0:-1]
     off[0] = 0
-    idx = np.arange(gen_start, gen_end, dtype=np.int64)
-    idx = np.array(np.unravel_index(idx, num)).T
-    return idx + off
+
+    off_ = list()
+    for o, s in zip(off, size):
+        off_.extend([o] * s)
+    off = np.array(off_)
+
+    size_off = np.array([0] + np.cumsum(size).tolist())
+    ind = np.ndarray((gen_end - gen_start, sum(size)), dtype=np.int64)
+    for i, s in enumerate(size):
+        ii = np.where(idx[:, i] == 0)
+        if len(ii) == 0:
+            ix = gen_slice(idx[0, i], idx[-1, i] + 1, s)
+            ind[:, size_off[i] : size_off[i + 1]] = ix[idx[:, i] - idx[0, i], :]
+        elif len(ii) > 1 or (len(ii) == 1 and idx[0, i] <= idx[-1, i] + 1):
+            ix = gen_slice(0, com[i], s)
+            ind[:, size_off[i] : size_off[i + 1]] = ix[idx[:, i], :]
+        else:
+            i = ii[0][0]
+            ix = gen_slice(idx[0, i], comb[i], s)
+            ind[:i, size_off[i] : size_off[i + 1]] = ix[idx[:i, i] - idx[0, i], :]
+            ix = gen_slice(0, idx[-1, i], s)
+            ind[i:, size_off[i] : size_off[i + 1]] = ix[idx[i:, i], :]
+
+    return ind + off
 
 
 def get_solution(
@@ -67,6 +99,9 @@ def get_solution(
     return_size=None,
     sol_size=None,
     num=None,
+    size=None,
+    com=None,
+    index=None,
     **kwargs,
 ):
     """
@@ -75,17 +110,13 @@ def get_solution(
     """
 
     solutions = np.ndarray(
-        (gen_end - gen_start, sol_size), dtype=[("index", "int"), ("offset", "f8")]
+        (gen_end - gen_start, sol_size),
+        dtype=[("index", np.int64), ("offset", np.float64)],
     )
 
-    if num is None:
-        solutions["index"][:] = gen_slice(gen_start, gen_end, sol_size)
-    else:
-        solutions["index"][:] = gen_map(gen_start, gen_end, num)
+    solutions["index"][:] = index[gen_map(gen_start, gen_end, num, size, com)]
 
     if fixed:
-        # for i in range(2):
-        #     solutions["offset"][:, i] = ejecta[solutions["index"][:, i]]
         solutions["offset"][:, :] = ejecta[solutions["index"][:, :]]
     else:
         solutions[:, :]["offset"] = 1.0e-5

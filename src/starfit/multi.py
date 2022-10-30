@@ -9,6 +9,7 @@ import numpy as np
 from scipy.special import comb
 
 from .autils.human import time2human
+from .autils.utils import is_iterable
 from .fit import get_solution
 from .starfit import StarFit
 from .utils import set_priority
@@ -25,6 +26,9 @@ class Multi(StarFit):
     sol_size:
         None:
             if partition is True, set sol_size to number of DBs
+
+    TODO - allow multiple contributions form one partition
+           (sol_size becomes vector with length of number of partitions)
     """
 
     def __init__(
@@ -47,34 +51,93 @@ class Multi(StarFit):
         if sol_size is None:
             if partition is None:
                 partition = True
-            if partition:
+            if partition is True:
                 sol_size = self.db_n
-            else:
+            elif partition is False:
                 # make a million matches
                 sol_size = max(1, int(6 / np.log10(self.db_size)))
+                self.logger.info(f"setting {sol_size=}")
+            elif is_iterable(partition):
+                sol_size = len(partition)
                 self.logger.info(f"setting {sol_size=}")
         if partition is None:
             partition = sol_size == self.db_n
         if sol_size == 1:
             partition = False
-        if partition and sol_size != self.db_n:
-            raise AttributeError(
-                f"currently {partition=} requires {sol_size=} == len(DB)={self.db_n}"
-            )
+        if partition is True:
+            partition = [[i] for i in range(self.db_n)]
+        elif partition is False:
+            partition = [[i for i in range(self.db_n)]]
+        elif is_iterable(partition):
+            if np.all([isinstance(i, int) for i in partition]):
+                pnew = list()
+                i = 0
+                for p in partition:
+                    assert p > 0, "invalid partition size {p=}"
+                    pnew.append([j + i for j in range(p)])
+                    i += p
+                assert (
+                    i == self.db_n
+                ), f"invalid total number of DBs in partition n={i} vs. db_n={self.db_n}"
+                partition = pnew
+            else:
+                pt = list()
+                for p in partition:
+                    assert is_iterable(p)
+                    for pi in p:
+                        assert isinstance(pi, int)
+                        assert pi >= 0
+                        assert pi < self.db_n
+                        assert pi not in pt
+                        pt.append(p)
+                assert len(pt) == self.db_n
+                assert len(set(pt)) == self.db_n
+        else:
+            raise AttributeError(f"[{self.__class__.__name__}] unknown {partition=}")
+
+        partition_n = len(partition)
+        partition_num = np.array([np.sum(self.db_num[p]) for p in partition])
+
+        if is_iterable(sol_size):
+            sol_sizes = np.array(sol_size, dtype=np.int64)
+            sol_size = int(np.sum(sol_sizes))
+        else:
+            if partition_n == 1:
+                sol_sizes = np.array([sol_size])
+            else:
+                sol_sizes = np.full(sol_size, 1, dtype=np.int64)
+
+        if len(partition) != len(sol_sizes):
+            raise AttributeError(f"require {len(partition)=} == {len(sol_sizes)=}")
+
+        partition_comb = np.array(
+            [int(comb(p, s)) for p, s in zip(partition_num, sol_sizes)]
+        )
+
+        partition_index = np.ndarray(self.db_size, dtype=np.int64)
+        i0 = 0
+        for pp in partition:
+            for p in pp:
+                n = self.db_num[p]
+                i1 = i0 + n
+                partition_index[i0:i1] = np.arange(n) + self.db_off[p]
+                i0 = i1
 
         self.sol_size = sol_size
+        self.sol_sizes = sol_sizes
         self.partition = partition
+        self.partition_n = partition_n
+        self.partition_num = partition_num
+        self.partition_comb = partition_comb
+        self.partition_index = partition_index
 
         self.fixed_offsets = fixed_offsets
         self.n_top = n_top
 
-        if self.partition:
-            self.n_combinations = int(np.product(self.db_num))
-        else:
-            self.n_combinations = int(comb(self.db_size, self.sol_size))
+        self.n_combinations = np.product(self.partition_comb)
 
         if self.n_top is None:
-            self.n_top = self.n_combinations
+            self.n_top = min(self.n_combinations, 20)
 
         self.block_size = min(block_size, self.n_combinations)
 
@@ -172,11 +235,6 @@ class Multi(StarFit):
         slice_range = np.arange(n_blocks + 1, dtype="int") * self.block_size
         slice_range[-1] = self.n_combinations
 
-        if self.partition:
-            num = self.db_num
-        else:
-            num = None
-
         futures = list()
         for i in range(n_blocks):
             futures.append(
@@ -191,7 +249,10 @@ class Multi(StarFit):
                     ejecta=self.ejecta,
                     sol_size=self.sol_size,
                     cdf=self.cdf,
-                    num=num,
+                    num=self.partition_num,
+                    size=self.sol_sizes,
+                    com=self.partition_comb,
+                    index=self.partition_index,
                     return_size=self.n_top,
                 )
             )
@@ -210,8 +271,8 @@ class Multi(StarFit):
         print(
             f"Matching {self.n_combinations:,d} combinations of {self.sol_size} stars"
         )
-        if self.partition:
-            print(f"Partitioning: {' x '.join(str(i) for i in self.db_num)}")
+        if len(self.partition) > 1:
+            print(f"Partitioning: {' x '.join(str(i) for i in self.partition_comb)}")
         if self.db_n == 1:
             print(f"Database: {self.db[0].name}")
         else:
