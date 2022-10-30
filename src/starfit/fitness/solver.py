@@ -13,7 +13,7 @@ def check_offsets(offsets):
 def fitness(
     observed,
     error,
-    corr,
+    covariance,
     abu,
     offsets,
     cdf=None,
@@ -23,7 +23,7 @@ def fitness(
     nsol = abu.shape[0]
     nstar = abu.shape[1]
     nel = abu.shape[2]
-    ncorr = corr.shape[1]
+    ncov = covariance.shape[1]
 
     if cdf is None:
         cdf = True
@@ -47,12 +47,12 @@ def fitness(
         c=offsets,
         obs=observed,
         err=error,
-        corr=corr,
+        cov=covariance,
         abu=abu,
-        nstar=nstar,
         nel=nel,
+        ncov=ncov,
+        nstar=nstar,
         nsol=nsol,
-        ncorr=ncorr,
         ls=ils,
         icdf=icdf,
     )

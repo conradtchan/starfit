@@ -31,8 +31,8 @@ module mleqs
     real(kind=real64) :: &
          ajji,r
 
-    a = a0
-    x = b0
+    a(:,:) = a0(:,:)
+    x(:) = b0(:)
 
     n1=n-1
 
