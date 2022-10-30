@@ -271,7 +271,7 @@ class Multi(StarFit):
                     db_idx = self.db_idx[index]
                     dbindex = index - self.db_off[db_idx]
                     if self.db_n > 1:
-                        vals.append(db_idx + 1)
+                        vals.append(db_idx)
                     vals.append(dbindex)
                     vals.append(np.log10(offset))
                 print(self.fmt_results.format(*vals))
