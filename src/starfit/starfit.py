@@ -569,7 +569,7 @@ class StarFit(Logged):
                     line.append("")
                 line.append(f"{np.log10(offset):7.2f}")
                 if self.db_n > 1:
-                    line.append(f"{db_idx + 1:>d}")
+                    line.append(f"{db_idx:>d}")
                 line.append(f"{dbindex:6d}")
                 if wide:
                     for k in range(nfield):
@@ -612,7 +612,7 @@ class StarFit(Logged):
             dbx = range(self.db_n)
         for i in dbx:
             db = self.db[i]
-            string.append(pad + f"{i+1:>2d}  {db.name}")
+            string.append(pad + f"{i:>2d}  {db.name}")
         string = "\n".join(string)
         return string
 
@@ -628,7 +628,7 @@ class StarFit(Logged):
             if i == 0:
                 string.append("=" * npad)
             if self.db_n > 1:
-                string.append(f"{i+1:>2d}:  {db.name}")
+                string.append(f"{i:>2d}:  {db.name}")
             else:
                 string.append(f"{db.name}")
             string.append("-" * npad)

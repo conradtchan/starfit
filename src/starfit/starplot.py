@@ -199,7 +199,7 @@ def abuplot(
         db = database[db_idx]
         dbindex = index - database_off[database_idx[index]]
         if len(database) > 1:
-            db_name = f"DB {db_idx+1:d}"
+            db_name = f"DB {db_idx:d}"
             raw.append(db_name)
             parameters.append(db_name)
         for j in range(len(db.fieldnames)):

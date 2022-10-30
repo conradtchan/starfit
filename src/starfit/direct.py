@@ -28,18 +28,18 @@ class Direct(StarFit):
         if stars.ndim == 1:
             stars = stars.reshape((1, -1))
         if stars.ndim == 2 and self.db_n == 1:
-            stars = np.stack((np.full_like(stars, 1), stars), axis=-1)
+            stars = np.stack((np.full_like(stars, 0), stars), axis=-1)
         assert stars.ndim == 3, "require database info"
         assert (
             stars.shape[-1] == 2
         ), "expecting sequence of 2 for DB and index as last dimension"
-        assert np.all(stars[:, :, 0] > 0), "DB index starts at 1"
+        assert np.all(stars[:, :, 0] >= 0), "DB index starts at 0"
         assert np.all(
-            stars[:, :, 0] <= self.db_n
-        ), f"DB index needs to be <= {self.db_n}"
+            stars[:, :, 0] < self.db_n
+        ), f"DB index needs to be < number of data bases ({self.db_n})"
 
         # convert to actual indices
-        stars = self.db_off[stars[:, :, 0] - 1] + stars[:, :, 1]
+        stars = self.db_off[stars[:, :, 0]] + stars[:, :, 1]
 
         sol, fitness = self.run(
             stars=stars, offsets=offsets, fixed_offsets=fixed_offsets

@@ -150,7 +150,7 @@ Additional arguments:
 - `tour_size`: GA parameter - number of solutions per tournament selection
 - `frac_mating_pool`: GA parameter - fraction of solutions in the mating pool
 - `frac_elite`: GA parameter - top fraction of elite solutions
-- `mut_rate_index`: GA parameter - mutation rate of the database index
+- `mut_rate_index`: GA parameter - mutation rate of the star index in the database(s)
 - `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
 - `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
@@ -192,9 +192,9 @@ s.plot_fitness(gen=True)
 `starfit.Direct` allows to find the best fit to pre-selected group, or groups of stars.
 
 Additional arguments:
-- `stars`: List of lists of models.  For each model, specify a list of database and index.  The database index is 1-based, the index is 0-based.
+- `stars`: List of lists of models.  For each model, specify a list of database and index.  Both, the database index and the star index, are `0`-based.
 
-The following selects two groups of models: the first selects model index `0` from the first database (`1`) and model index `1` from the second database; the second selects model index `2` from the first database (`1`) and model index `3` from the second database:
+The following selects two groups of models: the first selects model index `0` from the first database with index `0`, and the second model (index `1`) from the second database (index `1`); the second selects the third model (index `2`) from the first database (index `0`) and the fourth model (index `3`) from the second database (index `1`):
 ```python
 s = starfit.Direct(
     filename = 'HE1327-2326.dat',
@@ -203,8 +203,8 @@ s = starfit.Direct(
         'rproc.just15.star.el.y.stardb.xz',
         ),
     stars = [
-        [[1,0], [2,1]],
-        [[1,2], [2,3]]],
+        [[0,0], [1,1]],
+        [[0,2], [1,3]]],
     )
 ```
 The results are sorted by fitness and stored in the returned object as usual, allowing to print and plot the results.
