@@ -90,19 +90,19 @@ class Star(Logged):
         n_data = np.array([len(d) for d in data])
         n_elem = len(n_data)
         if self.version < 10100:
-            n_corr = 0
+            n_cov = 0
             assert np.all(n_data == 3), "error in star data format, require 3 columns"
         else:
-            n_corr = np.max(n_data) - 3
-            assert n_corr >= 0, "error in star data format, require at least 3 columns"
+            n_cov = np.max(n_data) - 3
+            assert n_cov >= 0, "error in star data format, require at least 3 columns"
             assert np.all(
-                (n_data == 3) | (n_data == n_corr + 3)
-            ), "require consistent correlation vectors, if present"
+                (n_data == 3) | (n_data == n_cov + 3)
+            ), "require consistent covariance vectors, if present"
         self.data_type = [
             ("element", object),
             ("abundance", np.float64),
             ("error", np.float64),
-            ("corr", np.float64, n_corr),
+            ("covariance", np.float64, n_cov),
         ]
 
         # Initialize zeroed numpy array
@@ -118,7 +118,7 @@ class Star(Logged):
                 elif j < 3:
                     data_array[i][j] = float(item)
                 else:
-                    data_array[i].corr[j - 3] = float(item)
+                    data_array[i].covariance[j - 3] = float(item)
         return data_array
 
     # Read file
@@ -269,7 +269,7 @@ class Star(Logged):
         elif data_format == 7:
             # sigma is not given logarthmically in dex but absolute
             array.error[:] = array.error / (array.abundance * np.log(10.0))
-            array.corr[:, :] = array.corr[:, :] / (
+            array.covariance[:, :] = array.covariance[:, :] / (
                 array.abundance.reshape(-1, 1) * np.log(10.0)
             )
             # Since this is format 7, norm_element is actually Y(Si) * 1e6

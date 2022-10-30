@@ -158,7 +158,7 @@ contains
          i
 
     integer(kind=int64), parameter :: &
-         n = -lim1*0.75
+         n = ceiling(-lim1 * 0.75d0)
     real(kind=real64), parameter, dimension(n) :: &
          a = (/(1.d0 - 2.d0 * i,i=1,n)/)
 
@@ -292,7 +292,7 @@ contains
        return
     endif
 
-    if (x < 0.d0) then
+    if (xi < 0.d0) then
        upper = .FALSE.
        x = -xi
     else
@@ -356,7 +356,7 @@ contains
          n, sn
 
     real(kind=real64) :: &
-         xn, oans, term, eps
+         xn, oans, term
 
     if (abs(x) >= 1.d0) then
        y = 0.d0 !  NaN
@@ -593,7 +593,7 @@ contains
 !     Evaluate  lnanorm  for 0.67448975 <= |x| <= sqrt(32)
 !------------------------------------------------------------------
     else if (xa <= root32) then
-       xnum = c(8)*y
+       xnum = c(8) * xa
        xden = xa
        do i=0,6
           xnum = (xnum + c(i)) * xa

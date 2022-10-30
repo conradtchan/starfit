@@ -83,7 +83,7 @@ class StarFit(Logged):
         z_lolim=None,
         y_floor=1.0e-99,
         cdf=True,
-        corr=True,
+        cov=True,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -214,16 +214,16 @@ class StarFit(Logged):
             ]
         )
         eval_data = star.element_abundances[mask_zmax]
-        if corr is False:
+        if cov is False:
             data_type = star.data_type.copy()
-            assert data_type[-1][0] == "corr"
+            assert data_type[-1][0] == "covariance"
             data_type[-1] = data_type[-1][:2] + (0,)
 
             eval_data_new = np.recarray(eval_data.shape[0], dtype=data_type)
             eval_data_new.element = eval_data.element
             eval_data_new.abundance = eval_data.abundance
             eval_data_new.error = np.sign(eval_data.error) * np.sqrt(
-                eval_data.error**2 + np.sum(eval_data.corr**2, axis=1)
+                eval_data.error**2 + np.sum(eval_data.covariance**2, axis=1)
             )
             eval_data = eval_data_new
 
@@ -295,10 +295,12 @@ class StarFit(Logged):
                 ae = abu * (10**error - 1) ** 2
                 eval_data.error[i0] = np.log10(np.sqrt(np.sum(ae) / np.sum(abu)) + 1)
 
-                # do the same for correlations
-                corr = eval_data.corr[ii]
-                ac = abu[:, np.newaxis] * (10**corr - 1)
-                eval_data.corr[i0] = np.log10(np.sum(ac, axis=0) / np.sum(abu) + 1)
+                # do the same for covariances
+                cov = eval_data.covariance[ii]
+                ac = abu[:, np.newaxis] * (10**cov - 1)
+                eval_data.covariance[i0] = np.log10(
+                    np.sum(ac, axis=0) / np.sum(abu) + 1
+                )
 
                 # Do the same process for the sun
                 # Sum

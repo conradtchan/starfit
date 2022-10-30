@@ -1,4 +1,4 @@
-module callfun_data
+module abu_data
 
   use type_def, only: &
        real64, int64
@@ -8,49 +8,141 @@ module callfun_data
   save
 
   integer(kind=int64) :: &
-       nel_, nstar_
-  real(kind=real64), dimension(:), allocatable :: &
-       obs_, err_
+       nel, nstar
   real(kind=real64), dimension(:, :), allocatable :: &
-       abu_
-  integer(kind=int64) :: &
-       icdf_
+       abu
 
 contains
 
-  subroutine set_data(nel, nstar, obs, err, abu, icdf)
+  subroutine set_abu_data(abu_, nel_, nstar_)
 
     implicit none
 
     integer(kind=int64), intent(in) :: &
-         nel, nstar, icdf
-    real(kind=real64), dimension(:), intent(in) :: &
-         obs, err
+         nel_, nstar_
     real(kind=real64), dimension(:,:), intent(in) :: &
-         abu
+         abu_
 
-    if (allocated(abu_)) then
-       deallocate(abu_, obs_, err_)
+    if (allocated(abu)) then
+       deallocate(abu)
     endif
 
-    if (.not. (size(obs, 1) == nel)) error stop 'obs dimeension mismatch'
-    if (.not. (size(err, 1) == nel)) error stop 'err dimeension mismatch'
-    if (.not. (size(abu, 2) == nel)) error stop 'abu dimeension 2 mismatch'
-    if (.not. (size(abu, 1) == nstar)) error stop 'abu dimeension 1 mismatch'
+    if (.not. (size(abu_, 1) == nstar_)) then
+       print*, 'abu', size(abu_, 1),  nstar_
+       error stop 'abu dimeension 1 mismatch with nstar'
+    endif
+    if (.not. (size(abu_, 2) == nel_  )) then
+       print*, 'abu', size(abu_, 2),  nel_
+       error stop 'abu dimeension 2 mismatch with nel'
+    endif
 
-    nel_ = nel
-    nstar_ = nstar
-    icdf_ = icdf
+    nel = nel_
+    nstar = nstar_
 
     ! allocate implicitly
 
-    obs_ = obs
-    err_ = err
-    abu_ = abu
+    abu = abu_
 
-  end subroutine set_data
+  end subroutine set_abu_data
 
-end module callfun_data
+end module abu_data
+
+
+module star_data
+
+  use type_def, only: &
+       real64, int64
+
+  implicit none
+
+  save
+
+  integer(kind=int64) :: &
+       nel, ncov
+  real(kind=real64), dimension(:), allocatable :: &
+       obs, err
+  real(kind=real64), dimension(:, :), allocatable :: &
+       cov
+  integer(kind=int64) :: &
+       icdf
+
+  logical, dimension(:), allocatable :: &
+       upper, covar, uncor
+
+contains
+
+  subroutine set_star_data(obs_, err_, cov_, nel_, ncov_, icdf_)
+
+    implicit none
+
+    integer(kind=int64), intent(in) :: &
+         nel_, ncov_, icdf_
+    real(kind=real64), dimension(:), intent(in) :: &
+         obs_, err_
+    real(kind=real64), dimension(:,:), intent(in) :: &
+         cov_
+
+    if (allocated(obs)) then
+       deallocate(obs, err, cov)
+    endif
+
+
+    if (.not. (size(obs_, 1) == nel_)) then
+       print*, 'obs', size(obs_, 1),  nel_
+       error stop 'obs dimension mismatch with nel'
+    endif
+
+    if (.not. (size(err_, 1) == nel_)) then
+       print*, 'err', size(obs_, 1),  nel_
+       error stop 'err dimension mismatch with nel'
+    endif
+
+    if (.not. (size(cov_, 1) == nel_)) then
+       print*, 'cov', size(cov_, 1),  nel_
+       error stop 'cov dimension 1 mismatch with nel'
+    endif
+
+    if (.not. (size(cov_, 2) == ncov_)) then
+       print*, 'cov', size(cov_, 2),  ncov_
+       error stop 'cov dimension 2 mismatch with ncov'
+    endif
+
+    nel = nel_
+    ncov = ncov_
+    icdf = icdf_
+
+    ! allocate implicitly
+
+    obs = obs_
+    err = err_
+    cov = cov_
+
+  end subroutine set_star_data
+
+  subroutine set_domains
+
+    implicit none
+
+    if (allocated(upper)) then
+       deallocate(upper, covar, uncor)
+    endif
+
+    allocate(upper(nel), covar(nel), uncor(nel))
+
+    ! first, find masks for correlated, uncorreclated, and limit errors
+
+    upper(:) = err < 0.d0
+    covar(:) = any(cov /= 0, 2)
+    uncor(:) = .not.(upper.or.covar)
+
+    print*,'upper', upper
+    print*,'covar', covar
+    print*,'uncor', uncor
+
+  end subroutine set_domains
+
+
+end module star_data
 
 
 
@@ -69,7 +161,13 @@ module solver
 
 contains
 
-  subroutine chisq(f, f1, f2, c, obs, err, abu, nstar, nel, icdf, ider)
+  ! Due to poor f2py / numpy.distutils code we need to carry nel
+  ! rather than taking it from star_data
+
+  subroutine chisq(f, f1, f2, c, abu, nel, nstar, ider)
+
+    use star_data, only: &
+         icdf, obs, err
 
     use norm, only: &
          logcdf, logcdfp
@@ -83,11 +181,9 @@ contains
          ln10i2m = -ln10i2
 
     integer(kind=int64), intent(in) :: &
-         nstar, nel, icdf
+         nel, nstar
     real(kind=real64), intent(in), dimension(nstar)  :: &
          c
-    real(kind=real64), intent(in), dimension(nel) :: &
-         obs, err
     real(kind=real64), intent(in), dimension(nstar, nel) :: &
          abu
     integer(kind=int64), optional :: &
@@ -98,7 +194,7 @@ contains
          f
     real(kind=real64), intent(out), dimension(nstar) :: &
          f1, f2
-
+    !f2py integer,intent(hide),depend(abu) :: nel_=shape(abu, 1)
     real(kind=real64), dimension(nel) :: &
          summed, diff, diffe, diffe2, errsum, erri, errsumi
     real(kind=real64) :: &
@@ -180,7 +276,7 @@ contains
   end subroutine chisq
 
 
-  subroutine newton(c, obs, err, abu, nstar, nel, icdf)
+  subroutine newton(c, abu, nel, nstar)
 
     implicit none
 
@@ -188,13 +284,9 @@ contains
          trials = 20
 
     integer(kind=int64), intent(in) :: &
-         nstar, nel
-    real(kind=real64), dimension(nel), intent(in) :: &
-         obs, err
+         nel, nstar
     real(kind=real64), dimension(nstar, nel), intent(in) :: &
          abu
-    integer(kind=int64), intent(in) :: &
-         icdf
 
     real(kind=real64), intent(inout), dimension(nstar) :: &
          c
@@ -243,7 +335,7 @@ contains
 
           ! Evaluate function and derivatives
 
-          call chisq(f, f1, f2, c, obs, err, abu, nstar, nel, icdf, ider)
+          call chisq(f, f1, f2, c, abu, nel, nstar, ider)
 
           ! If any NaNs are present, redo step with half the step size
 
@@ -280,7 +372,7 @@ contains
           end if
        end do
 
-       call chisq(f, f1, f2, c, obs, err, abu, nstar, nel, icdf, inoder)
+       call chisq(f, f1, f2, c, abu, nel, nstar, inoder)
 
        recordc(j,:) = c
        recordf(j) = f
@@ -298,10 +390,10 @@ contains
   end subroutine newton
 
 
-  subroutine psolve(c, obs, err, abu, nstar, nel, icdf)
+  subroutine psolve(c, abu, nel, nstar)
 
-    use callfun_data, only: &
-         set_data
+    use abu_data, only: &
+         set_abu_data
 
     use powell, only: &
          uobyqa
@@ -309,13 +401,9 @@ contains
     implicit none
 
     integer(kind=int64), intent(in) :: &
-         nstar, nel
-    real(kind=real64), intent(in), dimension(nel) :: &
-         obs, err
+         nel, nstar
     real(kind=real64), intent(in), dimension(nstar, nel) :: &
          abu
-    integer(kind=int64), intent(in) :: &
-         icdf
 
     real(kind=real64), intent(inout), dimension(nstar) :: &
          c
@@ -329,7 +417,7 @@ contains
 
     ! an pointer to an allocated data structure should be used instead.
 
-    call set_data(nel, nstar, obs, err, abu, icdf)
+    call set_abu_data(abu, nel, nstar)
 
     ! Options for the uobyqa solver
 
@@ -354,7 +442,9 @@ contains
   end subroutine psolve
 
 
-  subroutine singlesolve(c, obs, err, abu, nel, icdf)
+  subroutine singlesolve(c, abu, nel)
+
+    ! single NR solver
 
     implicit none
 
@@ -362,25 +452,23 @@ contains
          ln10 = log(10.0d0), &
          ln10i = 1.d0 / ln10
 
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
     integer(kind=int64), intent(in) :: &
          nel
-    real(kind=real64), intent(in), dimension(nel) :: &
-         obs, err, abu
-    integer(kind=int64), intent(in) :: &
-         icdf
 
     real(kind=real64), intent(inout) :: &
          c
 
     real(kind=real64) :: &
-         x, f, f1, f2, delta
+         x, f1, f2, delta
 
     integer(kind=int64) :: &
          i
 
     x = log(c) * ln10i
     do i = 1, 20
-       call prime(x, f1, f2, obs, err, abu, nel, icdf)
+       call prime(x, f1, f2, abu, nel)
        if (f2 == 0.d0) exit
        delta = f1 / f2
        x = x - delta
@@ -393,7 +481,10 @@ contains
   end subroutine singlesolve
 
 
-  subroutine analyticsolve(c, obs, err, abu, nel)
+  subroutine analyticsolve(c, abu, nel)
+
+    use star_data, only: &
+         obs, err
 
     implicit none
 
@@ -401,12 +492,12 @@ contains
          ln10 = log(10.0d0), &
          ln10i = 1.d0 / ln10
 
-    integer(kind=int64), intent(in) :: &
-         nel
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
     real(kind=real64), intent(out) :: &
          c
-    real(kind=real64), intent(in), dimension(nel) :: &
-         obs, err, abu
+    integer(kind=int64), intent(in) :: &
+         nel
 
     real(kind=real64) :: &
          x, newdiff
@@ -480,7 +571,10 @@ contains
 
   end subroutine analyticsolve
 
-  subroutine prime(x, f1, f2, obs, error, abu, nel, icdf)
+  subroutine prime(x, f1, f2, abu, nel)
+
+    use star_data, only: &
+         icdf, obs, err
 
     use norm, only: &
          logcdfp
@@ -490,21 +584,20 @@ contains
     ! Returns the derivatives with respect to log(s)
     ! For single star fits only!
 
-    integer(kind=int64), intent(in) :: &
-         nel
-    real(kind=real64), intent(in), dimension(nel) :: &
-         abu, obs, error
     real(kind=real64), intent(in) :: &
          x
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
     integer(kind=int64), intent(in) :: &
-         icdf
+         nel
 
-    real(kind=real64), intent(out) :: f1, f2
+    real(kind=real64), intent(out) :: &
+         f1, f2
 
     real(kind=real64), dimension(nel) :: &
          ei, ei2
     real(kind=real64) :: &
-         diff, de, df, e2
+         diff, de, df
 
     integer(kind=int64) :: &
          i
@@ -513,26 +606,26 @@ contains
     f2 = 0.d0
 
     if (icdf == 0) then
-       ei2 = 1.d0 / error**2
+       ei2 = 1.d0 / err**2
        do i = 1, nel
           diff = log10(abu(i)) + x - obs(i)
 
           ! Upper limits
 
-          if ( (diff > 0.d0) .or. (error(i) > 0.d0) ) then
+          if ( (diff > 0.d0) .or. (err(i) > 0.d0) ) then
              f1 = f1 + diff * ei2(i)
              f2 = f2 + ei2(i)
           endif
        enddo
     else
-       ei = 1.d0 / error
+       ei = 1.d0 / err
        ei2 = ei**2
        do i = 1, nel
           diff = (log10(abu(i)) + x - obs(i)) * ei(i)
 
           ! Upper limits if error < 0 (NOTE: changes sign of diff)
 
-          if (error(i) > 0.d0)  then
+          if (err(i) > 0.d0)  then
              f1  = f1 + diff * ei(i)
              f2 = f2 + ei2(i)
           else
@@ -546,7 +639,10 @@ contains
   end subroutine prime
 
 
-  subroutine fitness(f, c, obs, err, corr, abu, nstar, nel, nsol, ncorr, ls, icdf)
+  subroutine fitness(f, c, obs, err, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+
+    use star_data, only: &
+         set_star_data
 
     use type_def, only: &
          real64, int64
@@ -556,13 +652,16 @@ contains
 
     implicit none
 
+    integer(kind=int64), parameter :: &
+         isolve = 2
+
     integer(kind=int64), intent(in) :: &
-         nstar, nel, nsol, ncorr
+         nstar, nel, nsol, ncov
 
     real(kind=real64), dimension(nel), intent(in) :: &
          obs, err
-    real(kind=real64), dimension(nel, ncorr), intent(in) :: &
-         corr
+    real(kind=real64), dimension(nel, ncov), intent(in) :: &
+         cov
     real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
          abu
     integer(kind=int64), intent(in) :: &
@@ -590,28 +689,29 @@ contains
     ! If localsearch is enabled, modify the offsets first
     ! otherwise keep relative weights fixed
 
-    ! first, find masks for currelated, uncorreclated, and limit errors
+    call set_star_data(obs, err, cov, nel, ncov, icdf)
 
     if (ls == 1) then
        do i = 1, nsol
           if (nstar == 1) then
              if (icdf == 0) then
-                call analyticsolve(c(i,1), obs, err, abu(i,1,:), nel)
+                call analyticsolve(c(i,1), abu(i,1,:), nel)
              else
-                call singlesolve(c(i,1), obs, err, abu(i,1,:), nel, icdf)
+                call singlesolve(c(i,1), abu(i,1,:), nel)
              endif
           else
-             !! Dodgy NR solver
-             ! call newton(c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
-             ! Slower, but more reliable UOBYQA solver
-             !return
-             call psolve(c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
+             if (isolve == 1) then
+                ! Dodgy NR solver
+                call newton(c(i,:), abu(i,:,:), nel, nstar)
+             else
+                ! Slower, but more reliable UOBYQA solver
+                call psolve(c(i,:), abu(i,:,:), nel, nstar)
+             endif
           endif
           scale = sum(c(i,:))
           if (scale > 1.d0) then
              c(i,:) = c(i,:) * (1.d0 / scale)
           endif
-          call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
        end do
     else if (ls == 0) then
        do i = 1, nsol
@@ -623,21 +723,22 @@ contains
              enddo
           enddo
           if (icdf == 0) then
-             call analyticsolve(scale, obs, err, summed, nel)
+             call analyticsolve(scale, summed, nel)
           else
-             call singlesolve(scale, obs, err, summed, nel, icdf)
+             call singlesolve(scale, summed, nel)
           endif
           c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
-          call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
        enddo
-    else if (ls == 2) then
-       do i = 1, nsol
-          call chisq(f(i), f1, f2, c(i,:), obs, err, abu(i,:,:), nstar, nel, icdf)
-       enddo
-    else
+    else if (ls /= 2) then
        error stop 'invalid local search option'
+    else
     endif
 
+    ! get final fit value for possibly adjusted scales
+
+    do i = 1, nsol
+       call chisq(f(i), f1, f2, c(i,:), abu(i,:,:), nel, nstar)
+    enddo
   end subroutine fitness
 
 end module solver
@@ -645,13 +746,16 @@ end module solver
 ! =======================================================================
 
 
-subroutine calfun(n, x, f)
+subroutine calfun(nstar, x, f)
 
   use type_def, only: &
        int64, real64
 
-  use callfun_data, only: &
-       obs_, err_, abu_, nel_, icdf_
+  use abu_data, only: &
+       abu
+
+  use star_data, only: &
+       nel
 
   use solver, only: &
        chisq
@@ -659,14 +763,14 @@ subroutine calfun(n, x, f)
   implicit none
 
   integer(kind=int64), intent(in) :: &
-       n
-  real(kind=real64), intent(in), dimension(n) :: &
+       nstar
+  real(kind=real64), intent(in), dimension(nstar) :: &
        x
 
   real(kind=real64), intent(out) :: &
        f
 
-  real(kind=real64), dimension(n) :: &
+  real(kind=real64), dimension(nstar) :: &
        tanhx, f1, f2
   integer(kind=int64) :: &
        i
@@ -678,11 +782,11 @@ subroutine calfun(n, x, f)
 
   ! Calculate the chisq
 
-  call chisq(f, f1, f2, tanhx, obs_, err_, abu_(1:n,1:nel_), n, nel_, icdf_)
+  call chisq(f, f1, f2, tanhx, abu(1:nstar,1:nel), nel, nstar)
 
   ! Build a wall at zero
 
-  do i = 1, n
+  do i = 1, nstar
      if (abs(x(i)) > 12.d0) then
         f = f * exp((abs(x(i)) - 12.d0)**2)
      endif
@@ -706,19 +810,22 @@ program test
   ! integer(kind=int64), parameter :: &
   !      nstar = 3, &
   !      nel = 9
-  integer(kind=int64), parameter :: &
-       nstar = 1, &
-       nel = 1
-  real(kind=real64), dimension(nel) :: &
-       obs, err
-  real(kind=real64), dimension(nstar, nel) :: &
-       abu
-  real(kind=real64), dimension(nstar) :: &
-       c, f1, f2, f1up, f1do, f2up, f2do, cup, cdo
-  real(kind=real64) :: &
-       f, fup, fdo, h
-  integer(kind=int64) :: &
-       i
+  ! integer(kind=int64), parameter :: &
+  !      nstar = 1, &
+  !      nel = 1, &
+  !      ncov = 0
+  ! real(kind=real64), dimension(nel) :: &
+  !      obs, err
+  ! real(kind=real64), dimension(nel, ncov) :: &
+  !      cov
+  ! real(kind=real64), dimension(nstar, nel) :: &
+  !      abu
+  ! real(kind=real64), dimension(nstar) :: &
+  !      c, f1, f2, f1up, f1do, f2up, f2do, cup, cdo
+  ! real(kind=real64) :: &
+  !      f, fup, fdo, h
+  ! integer(kind=int64) :: &
+  !      i
 
     ! obs = (/ -5.86418771d0, -6.19418771d0, -6.23418771d0, &
     ! -9.26418771d0, -8.39418771d0, -9.48418771d0, -10.60418771d0, &
@@ -769,5 +876,7 @@ program test
     ! print*,f2
 
     ! call newton(c, obs, err, abu, nstar, nel, 1)
+
+  print *, 'Hello world!'
 
 end program test
