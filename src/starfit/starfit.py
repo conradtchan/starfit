@@ -83,7 +83,7 @@ class StarFit(Logged):
         z_lolim=None,
         y_floor=1.0e-99,
         cdf=True,
-        cov=True,
+        cov=False,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.

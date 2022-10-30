@@ -55,7 +55,7 @@ contains
 !                                /-oo
 !
 
-  function logcdf(x) result(y)
+  elemental pure function logcdf(x) result(y)
 
     implicit None
 
@@ -88,7 +88,7 @@ contains
 !     the first summand (i=0) is just 1
 !     fastest method for x < -20 and -Ofast
 
-  function logcdf2(x) result(y)
+  elemental pure function logcdf2(x) result(y)
 
     implicit None
 
@@ -133,7 +133,7 @@ contains
 
 !=======================================================================
 !     a slightly optimized version
-  function logcdf2a(x) result(y)
+  elemental pure function logcdf2a(x) result(y)
 
     implicit None
 
@@ -201,7 +201,7 @@ contains
 !                    sqrt(2 pi)  |
 !                                /-oo
 
-   function cdf(x) result(y)
+   elemental pure function cdf(x) result(y)
 
      implicit None
 
@@ -232,7 +232,7 @@ contains
 !                                 /-oo
 !
 
-  function logcdfp(x) result(y)
+  elemental pure function logcdfp(x) result(y)
 
     implicit None
 
@@ -260,7 +260,7 @@ contains
 !    Last modified: October 26, 2007
 !    converted to FORTRAN on 20140323 by Alexander Heger
 
-  function lnenorm(xi) result(y)
+  elemental pure function lnenorm(xi) result(y)
 
     implicit none
 
@@ -342,7 +342,7 @@ contains
 !     and so I know the algorithm will terminate quickly.
 !     The closer x is to 1, the slower this will be.
 
-  pure function log1p(x) result(y)
+  elemental pure function log1p(x) result(y)
 
     implicit none
 
@@ -468,7 +468,7 @@ contains
 !
 ! -----------------------------------------------------------------
 
-  function lnanorm(arg) result(y)
+  elemental pure function lnanorm(arg) result(y)
 
     implicit None
 
@@ -661,7 +661,7 @@ contains
 !     It takes a double precision argument and returns double precision
 !
 
-  function lnnorm(zi) result(y)
+  elemental pure function lnnorm(zi) result(y)
 
     implicit None
 
@@ -814,7 +814,7 @@ contains
 !     Last modified: October 16, 2007
 !     converted to Fortran 20140324 by Alexander Heger
 
-  function enorm(xi) result(y)
+  elemental pure function enorm(xi) result(y)
 
     implicit none
 

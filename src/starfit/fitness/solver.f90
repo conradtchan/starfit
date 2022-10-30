@@ -1,151 +1,3 @@
-module abu_data
-
-  use type_def, only: &
-       real64, int64
-
-  implicit none
-
-  save
-
-  integer(kind=int64) :: &
-       nel, nstar
-  real(kind=real64), dimension(:, :), allocatable :: &
-       abu
-
-contains
-
-  subroutine set_abu_data(abu_, nel_, nstar_)
-
-    implicit none
-
-    integer(kind=int64), intent(in) :: &
-         nel_, nstar_
-    real(kind=real64), dimension(:,:), intent(in) :: &
-         abu_
-
-    if (allocated(abu)) then
-       deallocate(abu)
-    endif
-
-    if (.not. (size(abu_, 1) == nstar_)) then
-       print*, 'abu', size(abu_, 1),  nstar_
-       error stop 'abu dimeension 1 mismatch with nstar'
-    endif
-    if (.not. (size(abu_, 2) == nel_  )) then
-       print*, 'abu', size(abu_, 2),  nel_
-       error stop 'abu dimeension 2 mismatch with nel'
-    endif
-
-    nel = nel_
-    nstar = nstar_
-
-    ! allocate implicitly
-
-    abu = abu_
-
-  end subroutine set_abu_data
-
-end module abu_data
-
-
-module star_data
-
-  use type_def, only: &
-       real64, int64
-
-  implicit none
-
-  save
-
-  integer(kind=int64) :: &
-       nel, ncov
-  real(kind=real64), dimension(:), allocatable :: &
-       obs, err
-  real(kind=real64), dimension(:, :), allocatable :: &
-       cov
-  integer(kind=int64) :: &
-       icdf
-
-  logical, dimension(:), allocatable :: &
-       upper, covar, uncor
-
-contains
-
-  subroutine set_star_data(obs_, err_, cov_, nel_, ncov_, icdf_)
-
-    implicit none
-
-    integer(kind=int64), intent(in) :: &
-         nel_, ncov_, icdf_
-    real(kind=real64), dimension(:), intent(in) :: &
-         obs_, err_
-    real(kind=real64), dimension(:,:), intent(in) :: &
-         cov_
-
-    if (allocated(obs)) then
-       deallocate(obs, err, cov)
-    endif
-
-
-    if (.not. (size(obs_, 1) == nel_)) then
-       print*, 'obs', size(obs_, 1),  nel_
-       error stop 'obs dimension mismatch with nel'
-    endif
-
-    if (.not. (size(err_, 1) == nel_)) then
-       print*, 'err', size(obs_, 1),  nel_
-       error stop 'err dimension mismatch with nel'
-    endif
-
-    if (.not. (size(cov_, 1) == nel_)) then
-       print*, 'cov', size(cov_, 1),  nel_
-       error stop 'cov dimension 1 mismatch with nel'
-    endif
-
-    if (.not. (size(cov_, 2) == ncov_)) then
-       print*, 'cov', size(cov_, 2),  ncov_
-       error stop 'cov dimension 2 mismatch with ncov'
-    endif
-
-    nel = nel_
-    ncov = ncov_
-    icdf = icdf_
-
-    ! allocate implicitly
-
-    obs = obs_
-    err = err_
-    cov = cov_
-
-  end subroutine set_star_data
-
-  subroutine set_domains
-
-    implicit none
-
-    if (allocated(upper)) then
-       deallocate(upper, covar, uncor)
-    endif
-
-    allocate(upper(nel), covar(nel), uncor(nel))
-
-    ! first, find masks for correlated, uncorreclated, and limit errors
-
-    upper(:) = err < 0.d0
-    covar(:) = any(cov /= 0, 2)
-    uncor(:) = .not.(upper.or.covar)
-
-    print*,'upper', upper
-    print*,'covar', covar
-    print*,'uncor', uncor
-
-  end subroutine set_domains
-
-
-end module star_data
-
-
-
 module solver
 
   use type_def, only: &
@@ -168,6 +20,9 @@ contains
 
     use star_data, only: &
          icdf, obs, err
+
+    ! use star_data, only: &
+    !      diff_covariance, iuncor, iupper, nupper
 
     use norm, only: &
          logcdf, logcdfp
@@ -210,12 +65,12 @@ contains
             summed(j) = summed(j) + c(i) * abu(i,j)
         enddo
     enddo
+    diff(:) = obs(:) - log(summed(:)) * ln10i
 
-    diff(:) = obs(:) - log10(summed(:))
+
     erri(:) = 1.d0 / abs(err(:))
     diffe(:) = diff(:) * erri(:)
     diffe2(:) = diffe(:)**2
-
     f = 0.d0
     do i = 1, nel
         if (err(i) > 0.d0) then
@@ -230,6 +85,24 @@ contains
             endif
         endif
     enddo
+
+    ! f = diff_covariance(diff)
+    ! f = f + sum((diff(iuncor) / err(iuncor))**2)
+    ! if (icdf == 1) then
+    !    f = f - 2.d0* sum(logcdf(-diff(iupper) / err(iupper)))
+    !    ! do i=1, nupper
+    !    !    ie = iupper(i)
+    !    !    f = f - 2.d0*logcdf(-diff(ie) / err(ie))
+    !    ! enddo
+    ! else
+    !    do i=1, nupper
+    !       j = iupper(i)
+    !       if (diff(j) < 0.d0) then
+    !          f = f - diff(j) / err(j)
+    !       endif
+    !    enddo
+    !    ! f = f + sum((min(diff(iupper), 0.d0) / err(iupper))**2)
+    ! endif
 
     ! Enable derivatives for using the NR solver
 
@@ -514,7 +387,7 @@ contains
 
     logabu(:) = log(abu(:)) * ln10i
 
-    ! First, ignore upper limits
+    ! First, include all upper limits as if they were detections
 
     do i = 1, nel
        ei2(i) = 1.d0 / err(i)**2
@@ -642,13 +515,10 @@ contains
   subroutine fitness(f, c, obs, err, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
 
     use star_data, only: &
-         set_star_data
+         set_star_data, abu_covariance
 
     use type_def, only: &
          real64, int64
-
-    ! use solver, only: &
-    !      analyticsolve, singlesolve, psolve, chisq
 
     implicit none
 
@@ -739,6 +609,7 @@ contains
     do i = 1, nsol
        call chisq(f(i), f1, f2, c(i,:), abu(i,:,:), nel, nstar)
     enddo
+
   end subroutine fitness
 
 end module solver

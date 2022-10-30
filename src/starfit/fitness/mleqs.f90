@@ -1,7 +1,7 @@
 module mleqs
 
   use type_def, only: &
-       int32, real64
+       int64, real64
 
   contains
 
@@ -11,7 +11,7 @@ module mleqs
 
     save
 
-    integer(kind=int32), intent(in) :: &
+    integer(kind=int64), intent(in) :: &
          n
     real(kind=real64), dimension(n, n), intent(in) :: &
          a0
@@ -26,7 +26,7 @@ module mleqs
 
     ! this subroutine solves the  linear system a*dy=b,
 
-    integer(kind=int32) :: &
+    integer(kind=int64) :: &
          k,i,j,n1
     real(kind=real64) :: &
          ajji,r

@@ -1,13 +1,18 @@
 SOURCE ?= .
 
 LIBRARY_OBJECTS = \
+	type_def.o \
 	mleqs.o \
 	norm.o \
 	powell.o \
+	abu_data.o \
+	star_data.o \
 	solver.o \
-	type_def.o
 
-F90 = gfortran -c -Ofast -fno-finite-math-only -fPIC -Wall
+
+FFLAGS = -c -Ofast -fno-finite-math-only -fPIC -Wall
+
+F90 = gfortran
 
 a.out	: ${LIBRARY_OBJECTS}
 	gfortran ${LIBRARY_OBJECTS} -o a.out
@@ -23,7 +28,7 @@ norm.o norm.mod &: ${SOURCE}/norm.f90 \
 
 powell.o powell.mod &: ${SOURCE}/powell.f90 \
 	type_def.mod
-	@rm -f morm.mod
+	@rm -f powell.mod
 	$(F90) $(FFLAGS) $<
 
 mleqs.o mleqs.mod &: ${SOURCE}/mleqs.f90 \
@@ -31,9 +36,20 @@ mleqs.o mleqs.mod &: ${SOURCE}/mleqs.f90 \
 	@rm -f mleqs.mod
 	$(F90) $(FFLAGS) $<
 
-solver.o solver.mod star_data.mod abu_data.mod &: ${SOURCE}/solver.f90 \
+abu_data.o abu_data.mod &: ${SOURCE}/abu_data.f90 \
 	type_def.mod
-	@rm -f solver.mod abu_data.mod star_data.mod
+	@rm -f abu_data.mod
+	$(F90) $(FFLAGS) $<
+
+star_data.o star_data.mod &: ${SOURCE}/star_data.f90 \
+	type_def.mod mleqs.mod
+	@rm -f star_data.mod
+	$(F90) $(FFLAGS) $<
+
+solver.o solver.mod &: ${SOURCE}/solver.f90 \
+	type_def.mod powell.mod mleqs.mod norm.mod \
+	star_data.mod abu_data.mod
+	@rm -f solver.mod
 	$(F90) $(FFLAGS) $<
 
 .PHONY:	clean
