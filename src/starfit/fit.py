@@ -72,6 +72,9 @@ def gen_map(gen_start, gen_end, num, size=None, com=None):
     size_off = np.array([0] + np.cumsum(size).tolist())
     ind = np.ndarray((gen_end - gen_start, sum(size)), dtype=np.int64)
     for i, s in enumerate(size):
+        if s == 1:
+            ind[:, size_off[i]] = idx[:, i]
+            continue
         ii = np.where(idx[:, i] == 0)
         if len(ii) == 0:
             ix = gen_slice(idx[0, i], idx[-1, i] + 1, s)
