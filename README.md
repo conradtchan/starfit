@@ -160,15 +160,16 @@ Additional arguments:
 - `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
 - `spread`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
+- `group`: grouping of data bases, for use with `spread`: try to cover each group but not each database within it separately.  Provide a vector of group length or of tuples with database indices (`0`-based), no duplications allowed.  Same rules as above apply: if group is specified, you need to a provide grouping that covers each database listed by index.
 
 The default GA parameters should be used unless you really know what you are doing.
 ```python
 s = starfit.Ga(
     filename = 'HE1327-2326.dat',
     db = (
-        'he2sn.HW02.star.el.y.stardb.gz',
         'rproc.just15.star.el.y.stardb.xz',
         'znuc2012.S4.star.el.y.stardb.gz',
+	'rproc.wu.star.el.y.stardb.xz',
         ),
     combine = [[6, 7, 8]],
     z_max = 30,
@@ -177,8 +178,9 @@ s = starfit.Ga(
     upper_lim = True,
     cdf = True,
     time_limit = 20,
-    sol_size = 3,
+    sol_size = 2,
     spread = True,
+    group=[[0,2],[1]]
     )
 ```
 The execution can be terminated pressing the `<Enter>` key.

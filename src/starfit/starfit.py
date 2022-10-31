@@ -692,3 +692,60 @@ class StarFit(Logged):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.star.name})"
+
+    def _setup_group(self, group):
+        if group is True:
+            group = [[i] for i in range(self.db_n)]
+        elif group is False:
+            group = [[i for i in range(self.db_n)]]
+        elif is_iterable(group):
+            if np.all([isinstance(i, int) for i in group]):
+                gnew = list()
+                ndb = 0
+                for nmembers in group:
+                    assert nmembers > 0, "invalid group size {nmembers}"
+                    gnew.append([idb + ndb for idb in range(nmembers)])
+                    ndb += nmembers
+                assert (
+                    ndb == self.db_n
+                ), f"invalid total number of databses in group {ndb=}, vs. db_n={self.db_n}"
+                group = gnew
+            else:
+                all_db = list()
+                for members in group:
+                    assert is_iterable(members)
+                    for idb in members:
+                        assert isinstance(idb, int)
+                        assert idb >= 0
+                        assert idb < self.db_n
+                        assert idb not in all_db
+                        all_db.append(idb)
+                assert len(all_db) == self.db_n
+                assert len(set(all_db)) == self.db_n
+        else:
+            raise AttributeError(f"[{self.__class__.__name__}] unknown {group=}")
+
+        group_n = len(group)
+        group_num = np.array([np.sum(self.db_num[g]) for g in group])
+
+        group_index = np.ndarray(self.db_size, dtype=np.int64)
+        group_idx = np.ndarray(self.db_n, dtype=np.int64)
+        i0 = 0
+        for i, members in enumerate(group):
+            for idb in members:
+                n = self.db_num[idb]
+                i1 = i0 + n
+                group_index[i0:i1] = np.arange(n) + self.db_off[idb]
+                i0 = i1
+                group_idx[idb] = i
+
+        group_off = np.cumsum(group_num, dtype=np.int64)
+        group_off[1:] = group_off[0:-1]
+        group_off[0] = 0
+
+        self.group = group
+        self.group_n = group_n
+        self.group_num = group_num
+        self.group_off = group_off
+        self.group_idx = group_idx
+        self.group_index = group_index

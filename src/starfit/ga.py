@@ -34,6 +34,7 @@ class Ga(StarFit):
         seed=None,
         max_pop=2**13,
         spread=None,
+        group=None,
         n_top=20,
         interactive=True,
         **kwargs,
@@ -41,15 +42,21 @@ class Ga(StarFit):
         super().__init__(*args, **kwargs)
 
         t_total = 0
-        self.sol_size = sol_size
 
         self.rng = np.random.default_rng(seed)
+
+        if group is None:
+            group = False
+        if sol_size == 1:
+            group = False
+
+        self._setup_group(group)
 
         if sol_size is None:
             if spread is None:
                 spread = True
-            if self.db_n > 1 and spread:
-                sol_size = self.db_n
+            if self.group_n > 1 and spread:
+                sol_size = self.group_n
             else:
                 sol_size = 2
         if spread is None:
@@ -212,8 +219,11 @@ class Ga(StarFit):
         fmt_data_star = "{:>6d}  {:6.2f}"
         fmt_pad = " " * 5
         if self.db_n > 1:
-            fmt_head_star = "DB " + fmt_head_star
-            fmt_data_star = "{:>2d} " + fmt_data_star
+            db_len = 2
+            for l in self.db_lab:
+                db_len = max(db_len, len(l))
+            fmt_head_star = f"{'DB':>{db_len}} " + fmt_head_star
+            fmt_data_star = f"{{:>{db_len}}} " + fmt_data_star
         fmt_head_star = fmt_pad + fmt_head_star
         fmt_data_star = fmt_pad + fmt_data_star
         self.fmt_head = "Fitness" + fmt_head_star * self.sol_size
@@ -254,7 +264,7 @@ class Ga(StarFit):
                     db_idx = self.db_idx[index]
                     dbindex = index - self.db_off[db_idx]
                     if self.db_n > 1:
-                        vals.append(db_idx)
+                        vals.append(self.db_lab[db_idx])
                     vals.append(dbindex)
                     vals.append(np.log10(offset))
                 print(self.fmt_results.format(*vals))
@@ -298,8 +308,11 @@ class Ga(StarFit):
         # Mutation is performed using a crossover-like method,
         # between the original array, and a fully mutant array
         if self.spread:
-            mut_db = self.rng.integers(self.db_n, size=w.shape)
-            mutants = self.db_off[mut_db] + self.rng.integers(self.db_num[mut_db])
+            mut_group = self.rng.integers(self.group_n, size=w.shape)
+            mutants = self.group_off[mut_group] + self.rng.integers(
+                self.group_num[mut_group]
+            )
+            mutants = self.group_index[mutants]
         else:
             mutants = self.rng.integers(self.db_size, size=w.shape)
 
@@ -365,12 +378,12 @@ class Ga(StarFit):
         o = o[mask]
         f = f[mask]
 
-        # If requested, eliminate solutions that do not span all DBs.
+        # If requested, eliminate solutions that do not span all groupss.
         if self.spread:
-            idb = self.db_idx[o["index"]]
-            mask = np.all(idb[:, 1:] <= idb[:, :-1] + 1, axis=-1)
-            mask &= idb[:, 0] == 0
-            mask &= idb[:, -1] == self.db_n - 1
+            igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
+            mask = np.all(igr[:, 1:] <= igr[:, :-1] + 1, axis=-1)
+            mask &= igr[:, 0] == 0
+            mask &= igr[:, -1] == self.group_n - 1
             o = o[mask]
             f = f[mask]
             # n = np.count_nonzero(~mask)
@@ -443,30 +456,31 @@ class Ga(StarFit):
 
         if self.spread:
             assert np.all(
-                self.db_num > (self.sol_size - self.db_n + 1)
-            ), "at least one db has too few elements for requested solution size"
-            idb = self.rng.permuted(
+                self.group_num > (self.sol_size - self.group_n + 1)
+            ), "at least one group has too few elements for requested solution size"
+            igr = self.rng.permuted(
                 np.tile(
-                    np.arange(self.db_n, dtype=np.int64),
+                    np.arange(self.group_n, dtype=np.int64),
                     (self.pop_size, 1),
                 ),
                 axis=-1,
             )[:, : self.sol_size]
-            if self.db_n < self.sol_size:
-                idb = np.concatenate(
+
+            if self.group_n < self.sol_size:
+                igr = np.concatenate(
                     (
-                        idb,
+                        igr,
                         self.rng.integers(
-                            self.db_n,
+                            self.group_n,
                             size=(
                                 self.pop_size,
-                                self.sol_size - self.db_n,
+                                self.sol_size - self.group_n,
                             ),
                         ),
                     ),
                     axis=-1,
                 )
-            idx = self.db_off[idb] + self.rng.integers(self.db_num[idb])
+            idx = self.group_off[igr] + self.rng.integers(self.group_num[igr])
 
             # replace duplicates
             while True:
@@ -474,9 +488,10 @@ class Ga(StarFit):
                 ii = np.any(idx_sorted[:, 1:] == idx_sorted[:, :-1], axis=-1)
                 if not np.any(ii):
                     break
-                idx[ii] = self.db_off[idb[ii]] + self.rng.integers(self.db_num[idb[ii]])
-
-            s["index"] = idx
+                idx[ii] = self.group_off[igr[ii]] + self.rng.integers(
+                    self.group_num[igr[ii]]
+                )
+            s["index"] = self.group_index[idx]
         else:
             # ensure no duplicates
             n = 0
