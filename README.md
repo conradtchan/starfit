@@ -119,10 +119,10 @@ Additional arguments:
 - `fixed_offsets`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
 - `threads`: Number of threads to use.  Default is to use the CPU count (including hyperthreading)
 - `nice`: Nice level of background threads.  Default is 19 (lowest priority on unix systems).
-- `partition`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `partition` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data base partitons needs to match the number of stars (`sol_size`).  `partition` can be a vector with number of data bases to group into each partition.  The number of partitions needs match the `sol_size` vector.
+- `group`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `group` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data base partitons needs to match the number of stars (`sol_size`).  `group` can be a vector with number of data bases to group into each group.  The number of groups needs match the `sol_size` vector.
 
 Changed arguments:
-- sol_size can now be a vector with one entry for each partiton.  The number of entries need to match the number of partition.  A scalar value is equivalent to vector with that many `1`s.  All combinations in each partition (without repetitions) are tested.
+- sol_size can now be a vector with one entry for each partiton.  The number of entries need to match the number of groups.  A scalar value is equivalent to vector with that many `1`s.  All combinations in each group (without repetitions) are tested.
 ```python
 s = starfit.Multi(
     filename = 'SMSS2003-1142.dat',
@@ -138,7 +138,7 @@ s = starfit.Multi(
     cdf = True,
     fixed_offsets = False,
     sol_size = [2,1],
-    partition = [1,2],
+    group = [1,2],
     )
 ```
 
@@ -261,7 +261,16 @@ python -m pytest
 ```
 and include these changes in a follow-up commit.
 
-2. Code tests using `pytest`. New tests can be added to the `tests/` directory.
+2. If you changed the Fortran code and want to test locally, remeber to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
+```shell
+# Set environment variable to allow for editable installs
+export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
+
+# "-e" creates an editable install, "[testing]" installs additional dependencies for testing
+pip3 install -e .[testing]
+```
+
+3. Code tests using `pytest`. New tests can be added to the `tests/` directory.
 
 ## Development branch
 

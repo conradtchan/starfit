@@ -20,15 +20,15 @@ class Multi(StarFit):
     Find the best fit for multiple stars (complete search).
     The search results are printed live.
 
-    partition:
+    group:
         if number of data bases matches sol_size, take one from each DB
 
     sol_size:
         None:
-            if partition is True, set sol_size to number of DBs
+            if group is True, set sol_size to number of DBs
 
-    TODO - allow multiple contributions form one partition
-           (sol_size becomes vector with length of number of partitions)
+    TODO - allow multiple contributions form one group
+           (sol_size becomes vector with length of number of groups)
     """
 
     def __init__(
@@ -43,98 +43,96 @@ class Multi(StarFit):
         path=None,
         block_size=2**17,
         sol_size=None,
-        partition=None,
+        group=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         if sol_size is None:
-            if partition is None:
-                partition = True
-            if partition is True:
+            if group is None:
+                group = True
+            if group is True:
                 sol_size = self.db_n
-            elif partition is False:
+            elif group is False:
                 # make a million matches
                 sol_size = max(1, int(6 / np.log10(self.db_size)))
                 self.logger.info(f"setting {sol_size=}")
-            elif is_iterable(partition):
-                sol_size = len(partition)
+            elif is_iterable(group):
+                sol_size = len(group)
                 self.logger.info(f"setting {sol_size=}")
-        if partition is None:
-            partition = sol_size == self.db_n
+        if group is None:
+            group = sol_size == self.db_n
         if sol_size == 1:
-            partition = False
-        if partition is True:
-            partition = [[i] for i in range(self.db_n)]
-        elif partition is False:
-            partition = [[i for i in range(self.db_n)]]
-        elif is_iterable(partition):
-            if np.all([isinstance(i, int) for i in partition]):
-                pnew = list()
+            group = False
+        if group is True:
+            group = [[i] for i in range(self.db_n)]
+        elif group is False:
+            group = [[i for i in range(self.db_n)]]
+        elif is_iterable(group):
+            if np.all([isinstance(i, int) for i in group]):
+                gnew = list()
                 i = 0
-                for p in partition:
-                    assert p > 0, "invalid partition size {p=}"
-                    pnew.append([j + i for j in range(p)])
-                    i += p
+                for g in group:
+                    assert g > 0, "invalid group size {p=}"
+                    gnew.append([j + i for j in range(g)])
+                    i += g
                 assert (
                     i == self.db_n
-                ), f"invalid total number of DBs in partition n={i} vs. db_n={self.db_n}"
-                partition = pnew
+                ), f"invalid total number of DBs in group n={i} vs. db_n={self.db_n}"
+                group = gnew
             else:
-                pt = list()
-                for p in partition:
-                    assert is_iterable(p)
-                    for pi in p:
-                        assert isinstance(pi, int)
-                        assert pi >= 0
-                        assert pi < self.db_n
-                        assert pi not in pt
-                        pt.append(p)
-                assert len(pt) == self.db_n
-                assert len(set(pt)) == self.db_n
+                gt = list()
+                for g in group:
+                    assert is_iterable(g)
+                    for gi in g:
+                        assert isinstance(gi, int)
+                        assert gi >= 0
+                        assert gi < self.db_n
+                        assert gi not in gt
+                        gt.append(g)
+                assert len(gt) == self.db_n
+                assert len(set(gt)) == self.db_n
         else:
-            raise AttributeError(f"[{self.__class__.__name__}] unknown {partition=}")
+            raise AttributeError(f"[{self.__class__.__name__}] unknown {group=}")
 
-        partition_n = len(partition)
-        partition_num = np.array([np.sum(self.db_num[p]) for p in partition])
+        group_n = len(group)
+        group_num = np.array([np.sum(self.db_num[g]) for g in group])
 
         if is_iterable(sol_size):
             sol_sizes = np.array(sol_size, dtype=np.int64)
             sol_size = int(np.sum(sol_sizes))
         else:
-            if partition_n == 1:
+            if group_n == 1:
                 sol_sizes = np.array([sol_size])
             else:
                 sol_sizes = np.full(sol_size, 1, dtype=np.int64)
 
-        if len(partition) != len(sol_sizes):
-            raise AttributeError(f"require {len(partition)=} == {len(sol_sizes)=}")
+        if len(group) != len(sol_sizes):
+            raise AttributeError(f"require {len(group)=} == {len(sol_sizes)=}")
 
-        partition_comb = np.array(
-            [int(comb(p, s)) for p, s in zip(partition_num, sol_sizes)]
-        )
+        group_comb = np.array([int(comb(g, s)) for g, s in zip(group_num, sol_sizes)])
 
-        partition_index = np.ndarray(self.db_size, dtype=np.int64)
+        group_index = np.ndarray(self.db_size, dtype=np.int64)
         i0 = 0
-        for pp in partition:
-            for p in pp:
-                n = self.db_num[p]
+        for gg in group:
+            for g in gg:
+                n = self.db_num[g]
                 i1 = i0 + n
-                partition_index[i0:i1] = np.arange(n) + self.db_off[p]
+                group_index[i0:i1] = np.arange(n) + self.db_off[g]
                 i0 = i1
 
         self.sol_size = sol_size
         self.sol_sizes = sol_sizes
-        self.partition = partition
-        self.partition_n = partition_n
-        self.partition_num = partition_num
-        self.partition_comb = partition_comb
-        self.partition_index = partition_index
+        self.group = group
+        self.group_n = group_n
+        self.group_num = group_num
+        self.group_comb = group_comb
+        self.group_index = group_index
 
         self.fixed_offsets = fixed_offsets
         self.n_top = n_top
 
-        self.n_combinations = np.product(self.partition_comb)
+        self.n_combinations = np.product(self.group_comb)
 
         if self.n_top is None:
             self.n_top = min(self.n_combinations, 20)
@@ -249,10 +247,10 @@ class Multi(StarFit):
                     ejecta=self.ejecta,
                     sol_size=self.sol_size,
                     cdf=self.cdf,
-                    num=self.partition_num,
+                    num=self.group_num,
                     size=self.sol_sizes,
-                    com=self.partition_comb,
-                    index=self.partition_index,
+                    com=self.group_comb,
+                    index=self.group_index,
                     return_size=self.n_top,
                 )
             )
@@ -271,8 +269,8 @@ class Multi(StarFit):
         print(
             f"Matching {self.n_combinations:,d} combinations of {self.sol_size} stars"
         )
-        if len(self.partition) > 1:
-            print(f"Partitioning: {' x '.join(str(i) for i in self.partition_comb)}")
+        if len(self.group) > 1:
+            print(f"Grouping: {' x '.join(str(i) for i in self.group_comb)}")
         if self.db_n == 1:
             print(f"Database: {self.db[0].name}")
         else:
@@ -285,7 +283,7 @@ class Multi(StarFit):
         if self.fixed_offsets:
             print("Offsets are ejecta mass")
         else:
-            print("Offsets solved using Newton-Raphson")
+            print("Offsets solved using iterative numerical method")
         print("=================================================================")
 
         fmt_head_star = " Index  Offset"

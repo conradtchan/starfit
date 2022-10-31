@@ -10,7 +10,7 @@ def test():
     EXPECTED_RESULT = 32.885971124847515
 
     test_result = starfit.Multi(
-        TEST_STAR, TEST_DB, sol_size=2, partition=False, silent=True, z_max=30
+        TEST_STAR, TEST_DB, sol_size=2, group=False, silent=True, z_max=30
     ).sorted_fitness[0]
 
     assert np.isclose(test_result, EXPECTED_RESULT)
