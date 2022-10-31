@@ -283,7 +283,7 @@ class Multi(StarFit):
         if self.fixed_offsets:
             print("Offsets are ejecta mass")
         else:
-            print("Offsets solved using Newton-Raphson")
+            print("Offsets solved using iterative numerical method")
         print("=================================================================")
 
         fmt_head_star = " Index  Offset"
