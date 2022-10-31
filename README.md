@@ -161,6 +161,7 @@ Additional arguments:
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
 - `spread`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 - `group`: grouping of data bases, for use with `spread`: try to cover each group but not each database within it separately.  Provide a vector of group length or of tuples with database indices (`0`-based), no duplications allowed.  Same rules as above apply: if group is specified, you need to a provide grouping that covers each database listed by index.
+- `pin`: number or list of groups to require to be included.  Repetirions are allowed to enforce multiple selections from that group.
 
 The default GA parameters should be used unless you really know what you are doing.
 ```python
