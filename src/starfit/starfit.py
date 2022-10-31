@@ -33,6 +33,9 @@ _title_translate = {
 }
 
 
+DB_LABEL_SIZE = 8
+
+
 class StarFit(Logged):
     """
     Object for running the various algorithms and a container for the results
@@ -82,6 +85,7 @@ class StarFit(Logged):
         upper_lim=True,
         z_lolim=None,
         y_floor=1.0e-99,
+        db_labels=None,
         cdf=True,
         cov=False,
     ):
@@ -162,6 +166,26 @@ class StarFit(Logged):
                 self.db_off[i] = n0
                 self.db_num[i] = n
                 n0 = n1
+
+        if db_labels is None:
+            self.db_lab = list()
+            for i, d in enumerate(self.db):
+                if hasattr(d, "label"):
+                    self.db_lab.append(d.label)
+                else:
+                    self.db_lab.append(f"{i:d}")
+        else:
+            self.db_lab = db_labels.copy()
+        assert (
+            is_iterable(self.db_lab) and len(self.db_lab) == self.db_n
+        ), "number of labels ({len(self.db_lab)}) does not match number of databases ({self.db_n})."
+        for i, l in enumerate(self.db_lab):
+            assert isinstance(l, str), f"require labels to be strings: '{l}'"
+            if len(l) > DB_LABEL_SIZE:
+                self.logger.warn(
+                    f"truncating label to {DB_LABEL_SIZE:d} chracters: '{l}' -> '{l[:4]}'"
+                )
+                self.db_lab[i] = l[:DB_LABEL_SIZE]
 
         if combine is None:
             combine = []
@@ -448,6 +472,7 @@ class StarFit(Logged):
             database=self.db,
             database_idx=self.db_idx,
             database_off=self.db_off,
+            database_label=self.db_lab,
             full_abudata=self.full_abudata,
             eval_data=self.eval_data,
             list_db=self.list_db,
@@ -569,7 +594,7 @@ class StarFit(Logged):
                     line.append("")
                 line.append(f"{np.log10(offset):7.2f}")
                 if self.db_n > 1:
-                    line.append(f"{db_idx:>d}")
+                    line.append(f"{self.db_lab[db_idx]}")
                 line.append(f"{dbindex:6d}")
                 if wide:
                     for k in range(nfield):
@@ -607,12 +632,15 @@ class StarFit(Logged):
 
     def format_db(self, ind=0, dbx=None):
         pad = " " * ind
-        string = [pad + "DB  Name"]
         if dbx is None:
             dbx = range(self.db_n)
+        db_len = 2
+        for i in dbx:
+            db_len = max(db_len, len(self.db_lab[i]))
+        string = [pad + f"{'DB':>{db_len}}  Name"]
         for i in dbx:
             db = self.db[i]
-            string.append(pad + f"{i:>2d}  {db.name}")
+            string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
         string = "\n".join(string)
         return string
 
@@ -628,7 +656,7 @@ class StarFit(Logged):
             if i == 0:
                 string.append("=" * npad)
             if self.db_n > 1:
-                string.append(f"{i:>2d}:  {db.name}")
+                string.append(f"{self.db_lab[i]}:  {db.name}")
             else:
                 string.append(f"{db.name}")
             string.append("-" * npad)

@@ -81,6 +81,7 @@ def abuplot(
     sun_full=None,
     sun_star=None,
     combine=None,
+    database_label=None,
     exclude_index=None,
     uplim_index_star=None,
     lolim_index_all=None,
@@ -150,6 +151,9 @@ def abuplot(
     up_lims = uplim_index_star
     y_star_err[1, up_lims] = 0
 
+    if database_label is None:
+        database_label = [f"{i:d}" for i in range(len(database))]
+
     legt = ax.legend(
         [],
         [],
@@ -199,7 +203,12 @@ def abuplot(
         db = database[db_idx]
         dbindex = index - database_off[database_idx[index]]
         if len(database) > 1:
-            db_name = f"DB {db_idx:d}"
+            db_name = database_label[db_idx]
+            try:
+                int(db_name)
+                db_name = f"DB {db_name}"
+            except:
+                pass
             raw.append(db_name)
             parameters.append(db_name)
         for j in range(len(db.fieldnames)):
