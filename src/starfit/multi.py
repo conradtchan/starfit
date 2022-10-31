@@ -60,74 +60,33 @@ class Multi(StarFit):
             elif is_iterable(group):
                 sol_size = len(group)
                 self.logger.info(f"setting {sol_size=}")
+
         if group is None:
             group = sol_size == self.db_n
         if sol_size == 1:
             group = False
-        if group is True:
-            group = [[i] for i in range(self.db_n)]
-        elif group is False:
-            group = [[i for i in range(self.db_n)]]
-        elif is_iterable(group):
-            if np.all([isinstance(i, int) for i in group]):
-                gnew = list()
-                i = 0
-                for g in group:
-                    assert g > 0, "invalid group size {p=}"
-                    gnew.append([j + i for j in range(g)])
-                    i += g
-                assert (
-                    i == self.db_n
-                ), f"invalid total number of DBs in group n={i} vs. db_n={self.db_n}"
-                group = gnew
-            else:
-                gt = list()
-                for g in group:
-                    assert is_iterable(g)
-                    for gi in g:
-                        assert isinstance(gi, int)
-                        assert gi >= 0
-                        assert gi < self.db_n
-                        assert gi not in gt
-                        gt.append(g)
-                assert len(gt) == self.db_n
-                assert len(set(gt)) == self.db_n
-        else:
-            raise AttributeError(f"[{self.__class__.__name__}] unknown {group=}")
 
-        group_n = len(group)
-        group_num = np.array([np.sum(self.db_num[g]) for g in group])
+        self._setup_group(group)
 
         if is_iterable(sol_size):
             sol_sizes = np.array(sol_size, dtype=np.int64)
             sol_size = int(np.sum(sol_sizes))
         else:
-            if group_n == 1:
+            if self.group_n == 1:
                 sol_sizes = np.array([sol_size])
             else:
                 sol_sizes = np.full(sol_size, 1, dtype=np.int64)
 
-        if len(group) != len(sol_sizes):
-            raise AttributeError(f"require {len(group)=} == {len(sol_sizes)=}")
+        if len(self.group) != len(sol_sizes):
+            raise AttributeError(f"require {len(self.group)=} == {len(sol_sizes)=}")
 
-        group_comb = np.array([int(comb(g, s)) for g, s in zip(group_num, sol_sizes)])
-
-        group_index = np.ndarray(self.db_size, dtype=np.int64)
-        i0 = 0
-        for gg in group:
-            for g in gg:
-                n = self.db_num[g]
-                i1 = i0 + n
-                group_index[i0:i1] = np.arange(n) + self.db_off[g]
-                i0 = i1
+        group_comb = np.array(
+            [int(comb(g, s)) for g, s in zip(self.group_num, sol_sizes)]
+        )
+        self.group_comb = group_comb
 
         self.sol_size = sol_size
         self.sol_sizes = sol_sizes
-        self.group = group
-        self.group_n = group_n
-        self.group_num = group_num
-        self.group_comb = group_comb
-        self.group_index = group_index
 
         self.fixed_offsets = fixed_offsets
         self.n_top = n_top
