@@ -159,7 +159,7 @@ Additional arguments:
 - `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
 - `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
-- `cover`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
+- `spread`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 
 The default GA parameters should be used unless you really know what you are doing.
 ```python
@@ -178,7 +178,7 @@ s = starfit.Ga(
     cdf = True,
     time_limit = 20,
     sol_size = 3,
-    cover = True,
+    spread = True,
     )
 ```
 The execution can be terminated pressing the `<Enter>` key.
