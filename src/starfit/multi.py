@@ -290,8 +290,11 @@ class Multi(StarFit):
         fmt_data_star = "{:>6d}  {:6.2f}"
         fmt_pad = " " * 5
         if self.db_n > 1:
-            fmt_head_star = "DB " + fmt_head_star
-            fmt_data_star = "{:>2d} " + fmt_data_star
+            db_len = 2
+            for l in self.db_lab:
+                db_len = max(db_len, len(l))
+            fmt_head_star = f"{'DB':>{db_len}} " + fmt_head_star
+            fmt_data_star = f"{{:>{db_len}}} " + fmt_data_star
         fmt_head_star = fmt_pad + fmt_head_star
         fmt_data_star = fmt_pad + fmt_data_star
         self.fmt_head = "Fitness" + fmt_head_star * self.sol_size
@@ -330,7 +333,7 @@ class Multi(StarFit):
                     db_idx = self.db_idx[index]
                     dbindex = index - self.db_off[db_idx]
                     if self.db_n > 1:
-                        vals.append(db_idx)
+                        vals.append(self.db_lab[db_idx])
                     vals.append(dbindex)
                     vals.append(np.log10(offset))
                 print(self.fmt_results.format(*vals))
