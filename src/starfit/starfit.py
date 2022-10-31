@@ -88,6 +88,7 @@ class StarFit(Logged):
         db_labels=None,
         cdf=True,
         cov=False,
+        debug=False,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -98,6 +99,7 @@ class StarFit(Logged):
            string of, path to, or object of data base.
            multiple data bases are provided as an iterable.
         """
+        self.debug = debug
 
         if db in ("*", ..., "...", "**"):
             db = find_all(

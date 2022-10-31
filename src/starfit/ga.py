@@ -2,11 +2,15 @@
 
 import sys
 import time
+from collections import Counter
 
 import numpy as np
+from scipy.special import comb
 
 from .autils.human import time2human
+from .autils.utils import is_iterable
 from .fit import get_fitness
+from .solgen._solgen import gen_slice
 from .starfit import StarFit
 from .starplot import fitplot
 from .utils import getch
@@ -35,6 +39,7 @@ class Ga(StarFit):
         max_pop=2**13,
         spread=None,
         group=None,
+        pin=None,
         n_top=20,
         interactive=True,
         **kwargs,
@@ -61,6 +66,25 @@ class Ga(StarFit):
                 sol_size = 2
         if spread is None:
             spread = False
+
+        # pinning
+        if pin is None:
+            pin = list()
+        if isinstance(pin, int):
+            pin = [pin]
+        assert is_iterable(pin), "require list for {pin=}"
+        for p in pin:
+            assert isinstance(p, int), f"require integer database index for pin ({p})"
+            assert 0 <= p < self.group_n, f"pin needs to be valid group index ({p})"
+        # assert len(pin) == len(set(pin)), f"require unique pin indices: {pin=}"
+        assert len(pin) <= sol_size, f"can't pin more than {sol_size=} groups"
+        pin_free = [p for p in range(self.group_n) if p not in pin]
+        counter = Counter(pin)
+        self.pin = np.array(list(counter.keys()), dtype=np.int64)
+        self.pin_count = np.array(list(counter.values()), dtype=np.int64)
+        self.pin_n = int(np.sum(self.pin_count))
+        self.pin_free = np.array(pin_free, dtype=np.int64)
+        self.pin_free_n = len(pin_free)
 
         # If offsets is fixed, there is no offset mutation
         if fixed_offsets:
@@ -378,7 +402,7 @@ class Ga(StarFit):
         o = o[mask]
         f = f[mask]
 
-        # If requested, eliminate solutions that do not span all groupss.
+        # If requested, eliminate solutions that do not span all groups.
         if self.spread:
             igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
             mask = np.all(igr[:, 1:] <= igr[:, :-1] + 1, axis=-1)
@@ -386,9 +410,12 @@ class Ga(StarFit):
             mask &= igr[:, -1] == self.group_n - 1
             o = o[mask]
             f = f[mask]
-            # n = np.count_nonzero(~mask)
-            # if n > 0:
-            #     self.logger.info(f"spread: eliminating {n} candidates, {f.shape[0]} remaining.")
+            if self.debug:
+                n = np.sum(~mask)
+                if n > 0:
+                    self.logger.info(
+                        f"spread: eliminating {n} candidates, {f.shape[0]} remaining."
+                    )
             assert f.shape[0] > 0, "spread: no data left candidate elimination"
 
         # Duplicate elimination
@@ -408,11 +435,29 @@ class Ga(StarFit):
             ]
         else:
             sel = np.unique(f, return_index=True)[1]
-        # n = f.shape[0] - len(sel)
         o = o[sel]
         f = f[sel]
-        # self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
+        if self.debug:
+            n = np.sum(~sel)
+            if n > 0:
+                self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
         assert f.shape[0] > 0, "no data left after elimiation of duplicates"
+
+        # eliminate solutions that do not include pin'ned groups
+        if self.pin_n > 0:
+            igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
+            mask = np.full(igr.shape[0], True)
+            for p, c in zip(self.pin, self.pin_count):
+                mask &= np.sum(igr[:, :] == p, axis=1) >= c
+            o = o[mask]
+            f = f[mask]
+            if self.debug:
+                n = np.sum(~mask)
+                if n > 0:
+                    self.logger.info(
+                        f"pin: eliminating {n} candidates, {f.shape[0]} remaining."
+                    )
+            assert f.shape[0] > 0, "pin: no data left candidate elimination"
 
         # Selection
         # Order by fitness
@@ -454,32 +499,59 @@ class Ga(StarFit):
             dtype=[("index", np.int64), ("offset", np.float64)],
         )
 
+        j0 = 0
+        if self.pin_n > 0:
+            for p, c in zip(self.pin, self.pin_count):
+                ncomb = int(comb(self.group_num[p], c))
+                if ncomb > self.pop_size:
+                    i0 = self.rng.integers(ncomb - self.pop_size)
+                    idx = gen_slice(i0, i0 + self.pop_size, c)
+                    ii = self.rng.permutation(self.pop_size)
+                    idx = idx[ii]
+                else:
+                    idx = np.array((self.pop_size, c), dtype=np.int64)
+                    n = 0
+                    while n < self.pop_size:
+                        m = min(ncomb, self.pop_size - n)
+                        ii = self.rng.permutation(m)
+                        idx[n : n + m, :] = gen_slice(0, m, c)[ii]
+                        n += m
+                idx = idx + self.group_off[p]
+                idx = self.group_index[idx]
+                j1 = j0 + c
+                s["index"][:, j0:j1] = idx
+                j0 = j1
+
         if self.spread:
             assert np.all(
                 self.group_num > (self.sol_size - self.group_n + 1)
             ), "at least one group has too few elements for requested solution size"
+            k = self.sol_size - self.pin_n
             igr = self.rng.permuted(
                 np.tile(
-                    np.arange(self.group_n, dtype=np.int64),
+                    np.arange(self.pin_free_n, dtype=np.int64),
                     (self.pop_size, 1),
                 ),
                 axis=-1,
-            )[:, : self.sol_size]
+            )[:, :k]
 
-            if self.group_n < self.sol_size:
+            n = self.sol_size - self.pin_n - self.pin_free_n
+            if n > 0:
                 igr = np.concatenate(
                     (
                         igr,
                         self.rng.integers(
-                            self.group_n,
+                            self.pin_free_n,
                             size=(
                                 self.pop_size,
-                                self.sol_size - self.group_n,
+                                n,
                             ),
                         ),
                     ),
                     axis=-1,
                 )
+
+            igr = self.pin_free[igr]
             idx = self.group_off[igr] + self.rng.integers(self.group_num[igr])
 
             # replace duplicates
@@ -491,15 +563,16 @@ class Ga(StarFit):
                 idx[ii] = self.group_off[igr[ii]] + self.rng.integers(
                     self.group_num[igr[ii]]
                 )
-            s["index"] = self.group_index[idx]
+            s["index"][:, j0:] = self.group_index[idx]
         else:
-            # ensure no duplicates
+            # have few no duplicates
             n = 0
             while n < self.pop_size:
-                m = min(self.db_size // self.sol_size, self.pop_size - n)
-                s["index"][n : n + m, :] = self.rng.permutation(self.db_size)[
-                    : m * self.sol_size
-                ].reshape(-1, self.sol_size)
+                k = self.sol_size - self.pin_n
+                m = min(self.db_size // k, self.pop_size - n)
+                s["index"][n : n + m, j0:] = self.rng.permutation(self.db_size)[
+                    : m * k
+                ].reshape(-1, k)
                 n += m
         s["offset"] = (
             self.rng.uniform(size=(self.pop_size, self.sol_size))
