@@ -33,7 +33,7 @@ class Ga(StarFit):
         upper_lim=True,
         seed=None,
         max_pop=2**13,
-        cover=None,
+        spread=None,
         n_top=20,
         interactive=True,
         **kwargs,
@@ -46,14 +46,14 @@ class Ga(StarFit):
         self.rng = np.random.default_rng(seed)
 
         if sol_size is None:
-            if cover is None:
-                cover = True
-            if self.db_n > 1 and cover:
+            if spread is None:
+                spread = True
+            if self.db_n > 1 and spread:
                 sol_size = self.db_n
             else:
                 sol_size = 2
-        if cover is None:
-            cover = False
+        if spread is None:
+            spread = False
 
         # If offsets is fixed, there is no offset mutation
         if fixed_offsets:
@@ -71,7 +71,7 @@ class Ga(StarFit):
         self.mut_rate_offset = mut_rate_offset
         self.mut_offset_magnitude = mut_offset_magnitude
         self.max_pop = max_pop
-        self.cover = cover
+        self.spread = spread
         self.n_top = n_top
 
         self.logger.info(f"Time limit: {time2human(time_limit)}")
@@ -297,7 +297,7 @@ class Ga(StarFit):
         # Mutate
         # Mutation is performed using a crossover-like method,
         # between the original array, and a fully mutant array
-        if self.cover:
+        if self.spread:
             mut_db = self.rng.integers(self.db_n, size=w.shape)
             mutants = self.db_off[mut_db] + self.rng.integers(self.db_num[mut_db])
         else:
@@ -366,7 +366,7 @@ class Ga(StarFit):
         f = f[mask]
 
         # If requested, eliminate solutions that do not span all DBs.
-        if self.cover:
+        if self.spread:
             idb = self.db_idx[o["index"]]
             mask = np.all(idb[:, 1:] <= idb[:, :-1] + 1, axis=-1)
             mask &= idb[:, 0] == 0
@@ -375,8 +375,8 @@ class Ga(StarFit):
             f = f[mask]
             # n = np.count_nonzero(~mask)
             # if n > 0:
-            #     self.logger.info(f"cover: eliminating {n} candidates, {f.shape[0]} remaining.")
-            assert f.shape[0] > 0, "cover: no data left candidate elimination"
+            #     self.logger.info(f"spread: eliminating {n} candidates, {f.shape[0]} remaining.")
+            assert f.shape[0] > 0, "spread: no data left candidate elimination"
 
         # Duplicate elimination
         if self.local_search or self.fixed_offsets:
@@ -441,7 +441,7 @@ class Ga(StarFit):
             dtype=[("index", np.int64), ("offset", np.float64)],
         )
 
-        if self.cover:
+        if self.spread:
             assert np.all(
                 self.db_num > (self.sol_size - self.db_n + 1)
             ), "at least one db has too few elements for requested solution size"
