@@ -1,0 +1,30 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module _solver ! in
+    interface  ! in :_solver
+        module solver ! in :_solver:solver.f90
+            use type_def, only: real64,int64
+            subroutine fitness(f,c,obs,err,cov,abu,nel,ncov,nstar,nsol,ls,icdf) ! in :_solver:solver.f90:solver
+                use star_data, only: set_star_data,abu_covariance
+                use type_def, only: real64,int64
+                real(kind=real64) dimension(nsol),intent(out),depend(nsol) :: f
+                real(kind=real64) dimension(nsol,nstar),intent(in,out) :: c
+                real(kind=real64) dimension(nel),intent(in) :: obs
+                real(kind=real64) dimension(nel),intent(in),depend(nel) :: err
+                real(kind=real64) dimension(nel,ncov),intent(in),depend(nel) :: cov
+                real(kind=real64) dimension(nsol,nstar,nel),intent(in),depend(nstar,nsol,nel) :: abu
+                integer(kind=int64), optional,intent(in),check(shape(obs, 0) == nel),depend(obs) :: nel=shape(obs, 0)
+                integer(kind=int64), optional,intent(in),check(shape(cov, 1) == ncov),depend(cov) :: ncov=shape(cov, 1)
+                integer(kind=int64), optional,intent(in),check(shape(c, 1) == nstar),depend(c) :: nstar=shape(c, 1)
+                integer(kind=int64), optional,intent(in),check(shape(c, 0) == nsol),depend(c) :: nsol=shape(c, 0)
+                integer(kind=int64) intent(in) :: ls
+                integer(kind=int64) intent(in) :: icdf
+            end subroutine fitness
+        end module solver
+    end interface
+end python module _solver
+
+! This file was auto-generated with f2py (version:1.23.4).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e
