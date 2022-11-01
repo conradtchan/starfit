@@ -45,13 +45,15 @@ class Ga(StarFit):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        if self.show:
+            return
 
         t_total = 0
 
         self.rng = np.random.default_rng(seed)
 
         if group is None:
-            group = False
+            group = True
         if sol_size == 1:
             group = False
 
@@ -70,10 +72,22 @@ class Ga(StarFit):
         # pinning
         if pin is None:
             pin = list()
-        if isinstance(pin, int):
+        if isinstance(pin, (int, str)):
             pin = [pin]
         assert is_iterable(pin), "require list for {pin=}"
-        for p in pin:
+        for i, p in enumerate(pin):
+            # convert db name string to group index if group of length 1
+            if isinstance(p, str):
+                for j, db in enumerate(self.db):
+                    if p == db.name:
+                        for k, g in enumerate(self.group):
+                            if len(g) == 1 and g[0] == j:
+                                pin[i] = p = k
+                                break
+                        if isinstance(p, int):
+                            break
+                    if isinstance(p, int):
+                        break
             assert isinstance(p, int), f"require integer database index for pin ({p})"
             assert 0 <= p < self.group_n, f"pin needs to be valid group index ({p})"
         # assert len(pin) == len(set(pin)), f"require unique pin indices: {pin=}"
@@ -85,6 +99,8 @@ class Ga(StarFit):
         self.pin_n = int(np.sum(self.pin_count))
         self.pin_free = np.array(pin_free, dtype=np.int64)
         self.pin_free_n = len(pin_free)
+        self.pin_free_min = np.min(self.pin_free)
+        self.pin_free_max = np.max(self.pin_free)
 
         # If offsets is fixed, there is no offset mutation
         if fixed_offsets:
@@ -402,12 +418,33 @@ class Ga(StarFit):
         o = o[mask]
         f = f[mask]
 
+        # eliminate solutions that do not include pin'ned groups at correct numbers
+        if self.pin_n > 0:
+            igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
+            mask = np.full(igr.shape[0], True)
+            for p, c in zip(self.pin, self.pin_count):
+                mask &= np.sum(igr[:, :] == p, axis=1) == c
+            o = o[mask]
+            f = f[mask]
+            if self.debug:
+                n = np.sum(~mask)
+                if n > 0:
+                    self.logger.info(
+                        f"pin: eliminating {n} candidates, {f.shape[0]} remaining."
+                    )
+            assert f.shape[0] > 0, "pin: no data left candidate elimination"
+
         # If requested, eliminate solutions that do not span all groups.
         if self.spread:
             igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
-            mask = np.all(igr[:, 1:] <= igr[:, :-1] + 1, axis=-1)
-            mask &= igr[:, 0] == 0
-            mask &= igr[:, -1] == self.group_n - 1
+            for p in self.pin:
+                igr = igr[igr != p].reshape(igr.shape[0], -1)
+            if self.sol_size - self.pin_n >= self.pin_free_n:
+                mask = np.all(igr[:, 1:] <= igr[:, :-1] + 1, axis=-1)
+                mask &= igr[:, 0] == self.pin_free_min
+                mask &= igr[:, -1] == self.pin_free_max
+            else:
+                mask = np.all(igr[:, 1:] > igr[:, :-1], axis=-1)
             o = o[mask]
             f = f[mask]
             if self.debug:
@@ -442,22 +479,6 @@ class Ga(StarFit):
             if n > 0:
                 self.logger.info(f"eliminating {n} duplicates, {f.shape[0]} remaining.")
         assert f.shape[0] > 0, "no data left after elimiation of duplicates"
-
-        # eliminate solutions that do not include pin'ned groups
-        if self.pin_n > 0:
-            igr = np.sort(self.group_idx[self.db_idx[o["index"]]], axis=-1)
-            mask = np.full(igr.shape[0], True)
-            for p, c in zip(self.pin, self.pin_count):
-                mask &= np.sum(igr[:, :] == p, axis=1) >= c
-            o = o[mask]
-            f = f[mask]
-            if self.debug:
-                n = np.sum(~mask)
-                if n > 0:
-                    self.logger.info(
-                        f"pin: eliminating {n} candidates, {f.shape[0]} remaining."
-                    )
-            assert f.shape[0] > 0, "pin: no data left candidate elimination"
 
         # Selection
         # Order by fitness
@@ -509,7 +530,7 @@ class Ga(StarFit):
                     ii = self.rng.permutation(self.pop_size)
                     idx = idx[ii]
                 else:
-                    idx = np.array((self.pop_size, c), dtype=np.int64)
+                    idx = np.ndarray((self.pop_size, c), dtype=np.int64)
                     n = 0
                     while n < self.pop_size:
                         m = min(ncomb, self.pop_size - n)

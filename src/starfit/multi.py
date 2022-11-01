@@ -47,6 +47,8 @@ class Multi(StarFit):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        if self.show:
+            return
 
         if sol_size is None:
             if group is None:

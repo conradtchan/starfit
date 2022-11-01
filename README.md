@@ -60,6 +60,7 @@ Optional arguments:
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
 - `y_floor`: floor value for abundaces to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
 - `db_label`: a list of labels for the data bases to be used in plots and tables.  Will only be shown if there are more than one databases specified.  If present, needs to match the number of databases specified.  If not present, databases will be numbbeded starting with `0`, unless the `StarDB` has a `label` field that will be used instead.  The maximum label length currently allowed is `8`.
+- `show`: show list of loaded databases with label/number and name, then quit.
 ```python
 import starfit
 

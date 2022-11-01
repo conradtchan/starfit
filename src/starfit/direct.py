@@ -21,6 +21,8 @@ class Direct(StarFit):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        if self.show:
+            return
 
         assert stars is not None, "require stars"
 

@@ -89,6 +89,7 @@ class StarFit(Logged):
         cdf=True,
         cov=False,
         debug=False,
+        show=False,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -101,23 +102,24 @@ class StarFit(Logged):
         """
         self.debug = debug
 
-        if db in ("*", ..., "...", "**"):
-            db = find_all(
-                DB,
-                "*.stardb.*",
-                complete=db
-                in (
-                    Ellipsis,
-                    "...",
-                    "**",
-                ),
-            )
-
         if isinstance(db, (str, Path, StarDB)):
             db = (db,)
         database = list()
         for d in db:
-            if str(d).find("*") >= 0 or str(d).find("*") >= 0:
+            if d in ("*", ..., "...", "**"):
+                database.extend(
+                    find_all(
+                        DB,
+                        "*.stardb.*",
+                        complete=d
+                        in (
+                            Ellipsis,
+                            "...",
+                            "**",
+                        ),
+                    )
+                )
+            elif str(d).find("*") >= 0 or str(d).find("*") >= 0:
                 database.extend(find_all(DB, d))
             else:
                 database.append(d)
@@ -433,6 +435,11 @@ class StarFit(Logged):
         del self.data
         del self.ions
 
+        if show:
+            print()
+            self.print_db(ind=4)
+        self.show = show
+
     def run(
         self,
         stars,
@@ -638,22 +645,42 @@ class StarFit(Logged):
         elif full is False:
             self.print_db(dbx=dbx)
 
-    def format_db(self, ind=0, dbx=None):
-        pad = " " * ind
+    def format_db(self, ind=0, pad="", dbx=None):
+        if pad is None:
+            pad = ""
+        pad = " " * ind + pad
         if dbx is None:
             dbx = range(self.db_n)
         db_len = 2
+        num = True
         for i in dbx:
-            db_len = max(db_len, len(self.db_lab[i]))
-        string = [pad + f"{'DB':>{db_len}}  Name"]
+            lab = self.db_lab[i]
+            db_len = max(db_len, len(lab))
+            try:
+                num &= int(lab) == i
+            except:
+                pass
+        if num:
+            string = [pad + f"{'DB':>{db_len}}  Name"]
+        else:
+            string = [pad + f"NR  {'DB':>{db_len}}  Name"]
         for i in dbx:
             db = self.db[i]
-            string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
+            if num:
+                string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
+            else:
+                string.append(pad + f"{i:>2d}  {self.db_lab[i]:>{db_len}}  {db.name}")
         string = "\n".join(string)
         return string
 
     def print_db(self, *args, **kwargs):
-        print(self.format_db(*args, **kwargs))
+        logger = kwargs.pop("logger", False)
+        text = self.format_db(*args, **kwargs)
+        if logger:
+            for l in text.splitlines():
+                self.logger.info(l)
+            return
+        print(text)
 
     def format_comments(self, npad=72, dbx=None):
         string = list()
