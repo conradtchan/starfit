@@ -81,6 +81,11 @@ the `print` method allows to specify the number of lines to be printed (`n`), th
 s.print(n0=3, n=1, wide=8, format=None)
 ```
 
+The `info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info uee
+```python
+s.info(2)
+```
+
 The **database indices** of the best fitting models (sorted from best to worst) are given by:
 ```python
 s.sorted_stars['index']

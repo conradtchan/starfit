@@ -85,7 +85,7 @@ class StarFit(Logged):
         upper_lim=True,
         z_lolim=None,
         y_floor=1.0e-99,
-        db_labels=None,
+        db_label=None,
         cdf=True,
         cov=False,
         debug=False,
@@ -169,7 +169,7 @@ class StarFit(Logged):
                 self.db_num[i] = n
                 n0 = n1
 
-        if db_labels is None:
+        if db_label is None:
             self.db_lab = list()
             for i, d in enumerate(self.db):
                 if hasattr(d, "label"):
@@ -177,7 +177,7 @@ class StarFit(Logged):
                 else:
                     self.db_lab.append(f"{i:d}")
         else:
-            self.db_lab = db_labels.copy()
+            self.db_lab = db_label.copy()
         assert (
             is_iterable(self.db_lab) and len(self.db_lab) == self.db_n
         ), "number of labels ({len(self.db_lab)}) does not match number of databases ({self.db_n})."
@@ -522,6 +522,7 @@ class StarFit(Logged):
         ii = np.full((len(x), np.max([len(_) for _ in x])), -1, dtype=np.int64)
         fields = list()
         nfield = 0
+        nfield_short = 0
         for j, y in enumerate(x):
             for jj, yy in enumerate(y):
                 if yy in fields:
@@ -530,6 +531,7 @@ class StarFit(Logged):
                     ii[j, jj] = nfield
                     fields.append(yy)
                     nfield += 1
+            nfield_short = max(nfield_short, len(y))
         fieldmap = np.full((self.db_n, ii.shape[1]), -1, dtype=np.int64)
         for j, i in enumerate(dbx):
             fieldmap[i] = ii[j]
@@ -571,7 +573,10 @@ class StarFit(Logged):
                 units = base_units
             else:
                 title = units = empty_title
-            _head(title, units, db.fieldnames, db.fieldunits)
+            pad = [""] * (nfield_short - db.nfield)
+            fieldnames = list(db.fieldnames) + pad
+            fieldunits = list(db.fieldunits) + pad
+            _head(title, units, fieldnames, fieldunits)
 
         db_idx0 = dbidx[0, 0]
         if wide:
@@ -607,6 +612,7 @@ class StarFit(Logged):
                             line.append("")
                 else:
                     line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
+                    line.extend([""] * (nfield_short - db.nfield))
                 text.append(line)
             if self.sol_size > 1:
                 text.append("")
@@ -688,6 +694,12 @@ class StarFit(Logged):
         if _return_dbx:
             return string, dbx
         return string
+
+    def info(self, i=0, **kwargs):
+        kwargs["n0"] = i
+        kwargs["n"] = 1
+        kwargs.setdefault("wide", 20)
+        self.print(**kwargs)
 
     def __str__(self):
         return self.format(n=10)
