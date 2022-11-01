@@ -10,7 +10,7 @@ module star_data
   integer(kind=int64) :: &
        nel, ncov
   real(kind=real64), dimension(:), allocatable :: &
-       obs, err
+       obs, err, det
   real(kind=real64), dimension(:, :), allocatable :: &
        cov
   integer(kind=int64) :: &
@@ -33,19 +33,19 @@ module star_data
 
 contains
 
-  subroutine set_star_data(obs_, err_, cov_, nel_, ncov_, icdf_)
+  subroutine set_star_data(obs_, err_, det_, cov_, nel_, ncov_, icdf_)
 
     implicit none
 
     integer(kind=int64), intent(in) :: &
          nel_, ncov_, icdf_
     real(kind=real64), dimension(:), intent(in) :: &
-         obs_, err_
+         obs_, err_, det_
     real(kind=real64), dimension(:,:), intent(in) :: &
          cov_
 
     if (allocated(obs)) then
-       deallocate(obs, err, cov)
+       deallocate(obs, err, det, cov)
     endif
 
     if (.not. (size(obs_, 1) == nel_)) then
@@ -54,8 +54,13 @@ contains
     endif
 
     if (.not. (size(err_, 1) == nel_)) then
-       print*, '[set_star_data] err', size(obs_, 1),  nel_
+       print*, '[set_star_data] err', size(err_, 1),  nel_
        error stop '[set_star_data] err dimension mismatch with nel'
+    endif
+
+    if (.not. (size(det_, 1) == nel_)) then
+       print*, '[set_star_data] det', size(det_, 1),  nel_
+       error stop '[set_star_data] det dimension mismatch with nel'
     endif
 
     if (.not. (size(cov_, 1) == nel_)) then
@@ -76,6 +81,7 @@ contains
 
     obs = obs_
     err = err_
+    det = det_
     cov = cov_
 
     call init_domains()

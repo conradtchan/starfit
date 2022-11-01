@@ -37,6 +37,7 @@ def get_fitness(
     fitness, offsets = solver.fitness(
         eval_data.abundance,
         eval_data.error,
+        eval_data.detection,
         eval_data.covariance,
         abu,
         offset,
