@@ -5,13 +5,14 @@ python module _solver ! in
     interface  ! in :_solver
         module solver ! in :_solver:solver.f90
             use type_def, only: real64,int64
-            subroutine fitness(f,c,obs,err,cov,abu,nel,ncov,nstar,nsol,ls,icdf) ! in :_solver:solver.f90:solver
+            subroutine fitness(f,c,obs,err,det,cov,abu,nel,ncov,nstar,nsol,ls,icdf) ! in :_solver:solver.f90:solver
                 use star_data, only: set_star_data,abu_covariance
                 use type_def, only: real64,int64
                 real(kind=real64) dimension(nsol),intent(out),depend(nsol) :: f
                 real(kind=real64) dimension(nsol,nstar),intent(in,out) :: c
                 real(kind=real64) dimension(nel),intent(in) :: obs
                 real(kind=real64) dimension(nel),intent(in),depend(nel) :: err
+                real(kind=real64) dimension(nel),intent(in),depend(nel) :: det
                 real(kind=real64) dimension(nel,ncov),intent(in),depend(nel) :: cov
                 real(kind=real64) dimension(nsol,nstar,nel),intent(in),depend(nstar,nsol,nel) :: abu
                 integer(kind=int64), optional,intent(in),check(shape(obs, 0) == nel),depend(obs) :: nel=shape(obs, 0)

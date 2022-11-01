@@ -13,6 +13,7 @@ def check_offsets(offsets):
 def fitness(
     observed,
     error,
+    detection,
     covariance,
     abu,
     offsets,
@@ -47,6 +48,7 @@ def fitness(
         c=offsets,
         obs=observed,
         err=error,
+        det=detection,
         cov=covariance,
         abu=abu,
         nel=nel,

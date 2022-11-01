@@ -512,7 +512,7 @@ contains
   end subroutine prime
 
 
-  subroutine fitness(f, c, obs, err, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+  subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
 
     use star_data, only: &
          set_star_data, abu_covariance
@@ -529,7 +529,7 @@ contains
          nstar, nel, nsol, ncov
 
     real(kind=real64), dimension(nel), intent(in) :: &
-         obs, err
+         obs, err, det
     real(kind=real64), dimension(nel, ncov), intent(in) :: &
          cov
     real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
@@ -559,7 +559,7 @@ contains
     ! If localsearch is enabled, modify the offsets first
     ! otherwise keep relative weights fixed
 
-    call set_star_data(obs, err, cov, nel, ncov, icdf)
+    call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
     if (ls == 1) then
        do i = 1, nsol
