@@ -13,6 +13,8 @@ class Single(StarFit):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.show:
+            return
 
         self.gene_size = 1
         # Initialize array

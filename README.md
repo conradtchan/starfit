@@ -60,6 +60,7 @@ Optional arguments:
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
 - `y_floor`: floor value for abundaces to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
 - `db_label`: a list of labels for the data bases to be used in plots and tables.  Will only be shown if there are more than one databases specified.  If present, needs to match the number of databases specified.  If not present, databases will be numbbeded starting with `0`, unless the `StarDB` has a `label` field that will be used instead.  The maximum label length currently allowed is `8`.
+- `show`: show list of loaded databases with label/number and name, then quit.
 ```python
 import starfit
 
@@ -79,6 +80,11 @@ s.print()
 the `print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
 ```python
 s.print(n0=3, n=1, wide=8, format=None)
+```
+
+The `info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info uee
+```python
+s.info(2)
 ```
 
 The **database indices** of the best fitting models (sorted from best to worst) are given by:

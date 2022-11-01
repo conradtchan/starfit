@@ -85,10 +85,11 @@ class StarFit(Logged):
         upper_lim=True,
         z_lolim=None,
         y_floor=1.0e-99,
-        db_labels=None,
+        db_label=None,
         cdf=True,
         cov=False,
         debug=False,
+        show=False,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -101,23 +102,24 @@ class StarFit(Logged):
         """
         self.debug = debug
 
-        if db in ("*", ..., "...", "**"):
-            db = find_all(
-                DB,
-                "*.stardb.*",
-                complete=db
-                in (
-                    Ellipsis,
-                    "...",
-                    "**",
-                ),
-            )
-
         if isinstance(db, (str, Path, StarDB)):
             db = (db,)
         database = list()
         for d in db:
-            if str(d).find("*") >= 0 or str(d).find("*") >= 0:
+            if d in ("*", ..., "...", "**"):
+                database.extend(
+                    find_all(
+                        DB,
+                        "*.stardb.*",
+                        complete=d
+                        in (
+                            Ellipsis,
+                            "...",
+                            "**",
+                        ),
+                    )
+                )
+            elif str(d).find("*") >= 0 or str(d).find("*") >= 0:
                 database.extend(find_all(DB, d))
             else:
                 database.append(d)
@@ -169,7 +171,7 @@ class StarFit(Logged):
                 self.db_num[i] = n
                 n0 = n1
 
-        if db_labels is None:
+        if db_label is None:
             self.db_lab = list()
             for i, d in enumerate(self.db):
                 if hasattr(d, "label"):
@@ -177,7 +179,7 @@ class StarFit(Logged):
                 else:
                     self.db_lab.append(f"{i:d}")
         else:
-            self.db_lab = db_labels.copy()
+            self.db_lab = db_label.copy()
         assert (
             is_iterable(self.db_lab) and len(self.db_lab) == self.db_n
         ), "number of labels ({len(self.db_lab)}) does not match number of databases ({self.db_n})."
@@ -433,6 +435,11 @@ class StarFit(Logged):
         del self.data
         del self.ions
 
+        if show:
+            print()
+            self.print_db(ind=4)
+        self.show = show
+
     def run(
         self,
         stars,
@@ -522,6 +529,7 @@ class StarFit(Logged):
         ii = np.full((len(x), np.max([len(_) for _ in x])), -1, dtype=np.int64)
         fields = list()
         nfield = 0
+        nfield_short = 0
         for j, y in enumerate(x):
             for jj, yy in enumerate(y):
                 if yy in fields:
@@ -530,6 +538,7 @@ class StarFit(Logged):
                     ii[j, jj] = nfield
                     fields.append(yy)
                     nfield += 1
+            nfield_short = max(nfield_short, len(y))
         fieldmap = np.full((self.db_n, ii.shape[1]), -1, dtype=np.int64)
         for j, i in enumerate(dbx):
             fieldmap[i] = ii[j]
@@ -571,7 +580,10 @@ class StarFit(Logged):
                 units = base_units
             else:
                 title = units = empty_title
-            _head(title, units, db.fieldnames, db.fieldunits)
+            pad = [""] * (nfield_short - db.nfield)
+            fieldnames = list(db.fieldnames) + pad
+            fieldunits = list(db.fieldunits) + pad
+            _head(title, units, fieldnames, fieldunits)
 
         db_idx0 = dbidx[0, 0]
         if wide:
@@ -607,6 +619,7 @@ class StarFit(Logged):
                             line.append("")
                 else:
                     line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
+                    line.extend([""] * (nfield_short - db.nfield))
                 text.append(line)
             if self.sol_size > 1:
                 text.append("")
@@ -632,22 +645,42 @@ class StarFit(Logged):
         elif full is False:
             self.print_db(dbx=dbx)
 
-    def format_db(self, ind=0, dbx=None):
-        pad = " " * ind
+    def format_db(self, ind=0, pad="", dbx=None):
+        if pad is None:
+            pad = ""
+        pad = " " * ind + pad
         if dbx is None:
             dbx = range(self.db_n)
         db_len = 2
+        num = True
         for i in dbx:
-            db_len = max(db_len, len(self.db_lab[i]))
-        string = [pad + f"{'DB':>{db_len}}  Name"]
+            lab = self.db_lab[i]
+            db_len = max(db_len, len(lab))
+            try:
+                num &= int(lab) == i
+            except:
+                pass
+        if num:
+            string = [pad + f"{'DB':>{db_len}}  Name"]
+        else:
+            string = [pad + f"NR  {'DB':>{db_len}}  Name"]
         for i in dbx:
             db = self.db[i]
-            string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
+            if num:
+                string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
+            else:
+                string.append(pad + f"{i:>2d}  {self.db_lab[i]:>{db_len}}  {db.name}")
         string = "\n".join(string)
         return string
 
     def print_db(self, *args, **kwargs):
-        print(self.format_db(*args, **kwargs))
+        logger = kwargs.pop("logger", False)
+        text = self.format_db(*args, **kwargs)
+        if logger:
+            for l in text.splitlines():
+                self.logger.info(l)
+            return
+        print(text)
 
     def format_comments(self, npad=72, dbx=None):
         string = list()
@@ -688,6 +721,12 @@ class StarFit(Logged):
         if _return_dbx:
             return string, dbx
         return string
+
+    def info(self, i=0, **kwargs):
+        kwargs["n0"] = i
+        kwargs["n"] = 1
+        kwargs.setdefault("wide", 20)
+        self.print(**kwargs)
 
     def __str__(self):
         return self.format(n=10)
