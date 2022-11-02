@@ -8,7 +8,7 @@ module solver
   private
 
   public :: &
-       chisq, newton, fitness, &
+       chi2, newton, fitness, &
        prime, analyticsolve, singlesolve, psolve
 
 contains
@@ -16,10 +16,10 @@ contains
   ! Due to poor f2py / numpy.distutils code we need to carry nel
   ! rather than taking it from star_data
 
-  subroutine chisq(f, f1, f2, c, abu, nel, nstar, ider)
+  subroutine chi2(f, c, abu, nel, nstar)
 
     use star_data, only: &
-         icdf, obs, err
+         icdf, obs, err, det, measu
 
     ! use star_data, only: &
     !      diff_covariance, iuncor, iupper, nupper
@@ -41,112 +41,250 @@ contains
          c
     real(kind=real64), intent(in), dimension(nstar, nel) :: &
          abu
-    integer(kind=int64), optional :: &
-         ider
-    !f2py integer(kind=int64),optional,intent(in) :: ider=0
 
     real(kind=real64), intent(out) :: &
          f
-    real(kind=real64), intent(out), dimension(nstar) :: &
-         f1, f2
-    !f2py integer,intent(hide),depend(abu) :: nel_=shape(abu, 1)
+
     real(kind=real64), dimension(nel) :: &
-         summed, diff, diffe, diffe2, errsum, erri, errsumi
-    real(kind=real64) :: &
-         fd1, fd2
+         logy, diff, diffe, diffe2, erri, &
+         ddif, ddife, ddife2
     integer(kind=int64) :: &
          i, j
-    logical :: &
-         lder
 
-    summed(:) = 0.d0
+    logy(:) = 0.d0
     do i = 1, nstar
-        do j = 1, nel
-            summed(j) = summed(j) + c(i) * abu(i,j)
-        enddo
+       do j = 1, nel
+          logy(j) = logy(j) + c(i) * abu(i,j)
+       enddo
     enddo
-    diff(:) = obs(:) - log(summed(:)) * ln10i
+    logy(:) = log(logy(:)) * ln10i
 
+    diff(:) = logy(:) - obs(:)
 
-    erri(:) = 1.d0 / abs(err(:))
-    diffe(:) = diff(:) * erri(:)
+    erri(:) = 1.d0 / err(:)
+    diffe(:)  = diff(:) * erri(:)
     diffe2(:) = diffe(:)**2
-    f = 0.d0
-    do i = 1, nel
-        if (err(i) > 0.d0) then
-            f = f + diffe2(i)
-        else
-            if (icdf == 1) then
-                f = f - 2.d0*logcdf(diffe(i))
-            else
-                if (diff(i) < 0.d0) then
-                    f = f + diffe2(i)
-                endif
-            endif
-        endif
-    enddo
 
+    ddif(:) = logy(:) - det(:)
+    ddife(:)  = ddif(:) * erri(:)
+    ddife2(:) = ddife(:)**2
+
+    f = 0.d0
+    if (icdf == 0) then
+       do i = 1, nel
+          if (measu(i)) then
+             f = f + diffe2(i)
+             if (ddif(i) < 0.d0) then
+                f = f - ddife2(i)
+             endif
+          else
+             if (diff(i) > 0.d0) then
+                f = f + diffe2(i)
+             endif
+          endif
+       enddo
+    else
+       do i = 1, nel
+          if (measu(i)) then
+             f = f + diffe2(i) + 2.d0*logcdf(ddife(i))
+          else
+             f = f - 2.d0*logcdf(diffe(i))
+          endif
+       enddo
+    endif
+    ! do i = 1, nel
+    !    if (measu(i)) then
+    !       f = f + diffe2(i)
+    !       if (icdf == 1) then
+    !          f = f + 2.d0*logcdf(ddife(i))
+    !       else
+    !          if (ddif(i) < 0.d0) then
+    !             f = f - ddife2(i)
+    !          endif
+    !       endif
+    !    else
+    !       if (icdf == 1) then
+    !          f = f - 2.d0*logcdf(diffe(i))
+    !       else
+    !          if (diff(i) > 0.d0) then
+    !             f = f + diffe2(i)
+    !          endif
+    !       endif
+    !    endif
+    ! enddo
+
+    ! erri(:) = 1.d0 / err(:)
     ! f = diff_covariance(diff)
-    ! f = f + sum((diff(iuncor) / err(iuncor))**2)
+    ! f = f + sum((diff(iuncor) * erri(iuncor))**2)
     ! if (icdf == 1) then
-    !    f = f - 2.d0* sum(logcdf(-diff(iupper) / err(iupper)))
+    !    f = f - 2.d0* sum(logcdf(diff(iupper) * erri(iupper)))
     !    ! do i=1, nupper
-    !    !    ie = iupper(i)
-    !    !    f = f - 2.d0*logcdf(-diff(ie) / err(ie))
+    !    !    j = iupper(i)
+    !    !    f = f - 2.d0*logcdf(diff(j) * erri(j))
+    !    ! enddo
+    !    f = f + 2.d0* sum(logcdf(ddif(imeasu) * erri(imeasu)))
+    !    ! do i=1, nmeasu
+    !    !    j = imeasu(i)
+    !    !    f = f + 2.d0*logcdf(ddif(j) * erri(j))
     !    ! enddo
     ! else
     !    do i=1, nupper
     !       j = iupper(i)
-    !       if (diff(j) < 0.d0) then
-    !          f = f - diff(j) / err(j)
+    !       if (diff(j) > 0.d0) then
+    !          f = f + (diff(j) * erri(j))**2
     !       endif
     !    enddo
-    !    ! f = f + sum((min(diff(iupper), 0.d0) / err(iupper))**2)
+    !    ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
+    !    do i=1, nmeasu
+    !       j = imeasu(i)
+    !       if (ddif(j) < 0.d0) then
+    !          f = f - (ddif(j) * erri(j))**2
+    !       endif
+    !    enddo
+    !    ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
     ! endif
 
-    ! Enable derivatives for using the NR solver
+  end subroutine chi2
 
-    if (present(ider)) then
-       lder = ider == 1
-    else
-       lder = .False.
-    endif
 
-    if (lder) then
-       f1(:) = 0.d0
-       f2(:) = 0.d0
+  subroutine chi2_prime(f1, f2, c, abu, nel, nstar)
 
-       ! This needs to be checked, the sums seem off
+    ! return first and second derivative of chi2
 
-       errsum(:) = err(:) * summed(:)
-       errsumi(:) = 1.d0 / errsum(:)
+    use star_data, only: &
+         icdf, obs, err, det, measu
 
-       do i = 1, nstar
-          do j = 1, nel
-             if (err(j) > 0.d0) then
-                f1(i) = f1(i) + (diffe(j) * abu(i, j)) * errsum(j)
-                f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i + diff(j))
-             else
-                if (icdf == 1) then
-                   fd1 = logcdfp(diffe(j))
-                   fd2 = -fd1 * (fd1 + diffe(j))
-                   f1(i) = f1(i) - abu(i, j) * fd1 * errsumi(j)
-                   f2(i) = f2(i) - erri(j) * (abu(i, j) / summed(j))**2 * (fd2/(ln10 * abs(err(j))) + fd1)
-                else
-                   if (diff(i) < 0) then
-                      f1(i) = f1(i) + (diffe(j) * abu(i, j)) * errsumi(j)
-                      f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i + diff(j))
-                   endif
-                endif
-             endif
-          enddo
+    use norm, only: &
+         logcdf, logcdfp
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         ln10 = log(10.0d0), &
+         ln10i = 1.d0 / ln10, &
+         ln10i2 = 2.d0 / ln10, &
+         ln10i2m = -ln10i2
+
+    integer(kind=int64), intent(in) :: &
+         nel, nstar
+    real(kind=real64), intent(in), dimension(nstar)  :: &
+         c
+    real(kind=real64), intent(in), dimension(nstar, nel) :: &
+         abu
+
+    real(kind=real64), intent(out), dimension(nstar) :: &
+         f1
+    real(kind=real64), intent(out), dimension(nstar, nstar) :: &
+         f2
+
+    real(kind=real64), dimension(nel) :: &
+         y, logy, yi, yi2, diff, diffe, erri, erri2, &
+         ddif, ddife
+    real(kind=real64) :: &
+         ! fd1, fd2, &
+         fa, fi1, fi2
+    integer(kind=int64) :: &
+         i, j, k
+
+    y(:) = 0.d0
+    do i = 1, nel
+       do j = 1, nstar
+          y(i) = y(i) + c(j) * abu(j,i)
        enddo
+    enddo
+    logy(:) = log(y(:)) * ln10i
 
-       f1(:) = f1(:) * ln10i2m
-       f2(:) = f2(:) * ln10i2
+    erri(:) = 1.d0 / err(:)
+    erri2(:) = erri(:)**2
+
+    diff(:) = logy(:) - obs(:)
+    diffe(:)  = diff(:) * erri(:)
+
+    ddif(:) = logy(:) - det(:)
+    ddife(:)  = ddif(:) * erri(:)
+
+    ! This needs to be checked, the sums may be off
+
+    yi(:) = 1.d0 / yi(i)
+    yi2(:) = yi(:)**2
+
+    f1(:)   = 0.d0
+    f2(:,:) = 0.d0
+
+    if (icdf == 0) then
+       do i = 1, nel
+          fi1 = erri(i) * yi(i)
+          fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
+          if (measu(i)) then
+             do j=1, nel
+                fa = fi1 * abu(j, i)
+                f1(j) = f1(j) + diffe(i) * fa
+                if (ddif(i) < 0.d0) then
+                   f1(j) = f1(j) - ddife(i) * fa
+                endif
+                do k=1, nel
+                   ! this is where NR may fail, discontinuous change in derivative
+                   if (ddif(i) > 0.d0) then
+                      f2(j,k) = f2(j,k) + abu(j,i) * abu(k,i) * fi2
+                   endif
+                enddo
+             enddo
+          else
+             ! if (diff(i) > 0.d0) then
+             !    f = f + diffe2(i)
+             ! endif
+          endif
+       enddo
+    else
+       ! do i = 1, nel
+       !    if (measu(i)) then
+       !       f = f + diffe2(i)
+       !       f = f + 2.d0*logcdf(ddife(i))
+       !    else
+       !       f = f - 2.d0*logcdf(diffe(i))
+       !    endif
+       ! enddo
     endif
 
-  end subroutine chisq
+
+    ! do i = 1, nstar
+    !    do j = 1, nel
+    !       if (measu(j)) then
+    !          f1(i) = f1(i) + diffe(j) * erri(j) * abu(i, j) * yi(j)
+    !          ! here we actully need to comoute the Jacobian!
+    !          do k=1, nstar
+    !          f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i - diff(j))
+    !          if (icdf == 1) then
+    !             fd1 = -logcdfp(ddife(j))
+    !             fd2 = fd1 * (fd1 + ddife(j))
+    !             f1(i) = f1(i) - abu(i, j) * fd1 * errsumi(j)
+    !             f2(i) = f2(i) + erri(j) * (abu(i, j) / summed(j))**2 * (fd2/(-ln10 * err(j)) + fd1)
+    !          else
+    !             if (ddif(i) > 0.d0) then
+    !                f1(i) = f1(i) + (ddife(j) * abu(i, j)) * errsumi(j)
+    !                f2(i) = f2(i) - (abu(i, j) * errsumi(j))**2 * (ln10i - ddif(j))
+    !             endif
+    !          endif
+    !       else
+    !          if (icdf == 1) then
+    !             fd1 = logcdfp(diffe(j))
+    !             fd2 = -fd1 * (fd1 + diffe(j))
+    !             f1(i) = f1(i) - abu(i, j) * fd1 * errsumi(j)
+    !             f2(i) = f2(i) + erri(j) * (abu(i, j) / summed(j))**2 * (fd2/(-ln10 * err(j)) + fd1)
+    !          else
+    !             if (diff(i) < 0.d0) then
+    !                f1(i) = f1(i) - (diffe(j) * abu(i, j)) * errsumi(j)
+    !                f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i - diff(j))
+    !             endif
+    !          endif
+    !       endif
+    !    enddo
+    ! enddo
+
+    f1(:) = f1(:) * ln10i2m
+    f2(:,:) = f2(:,:) * ln10i2
+
+  end subroutine chi2_prime
 
 
   subroutine newton(c, abu, nel, nstar)
@@ -176,10 +314,12 @@ contains
          f, fold, &
          maxstep, steplimit, deltalen
     real(kind=real64), dimension(nstar) :: &
-         delta, deltaold, f1, f2, randoms
+         delta, deltaold, f1, randoms
+    real(kind=real64), dimension(nstar, nstar) :: &
+         f2
 
     integer(kind=int64) :: &
-         i, j, jstop, ider, inoder
+         i, j, jstop
 
     !Initial N-R values
 
@@ -187,8 +327,6 @@ contains
     maxstep = 1.0d0
     fold = 1.d6
     f = 1.d3
-    ider = 1
-    inoder = 0
 
     starts(1,:) = c(:)
     do j = 1, trials
@@ -203,12 +341,12 @@ contains
        c(:) = starts(j,:)
        cold(:) = c(:)
        a(:) = log(c(:))
+       call chi2(f, c, abu, nel, nstar)
        do i = 1, 100
-          fold = f
 
           ! Evaluate function and derivatives
 
-          call chisq(f, f1, f2, c, abu, nel, nstar, ider)
+          call chi2_prime(f1, f2, c, abu, nel, nstar)
 
           ! If any NaNs are present, redo step with half the step size
 
@@ -222,7 +360,9 @@ contains
              ! Calculate the step
 
              deltaold(:) = delta(:)
-             delta(:) = (f1(:) / (f1(:) + f2(:)*c(:)))
+
+             ! BUG - replace by LEQS
+             ! delta(:) = (f1(:) / (f1(:) + f2(:)*c(:)))
           endif
 
           ! Calculate the length of the step
@@ -234,18 +374,20 @@ contains
           steplimit = min(0.5d0, maxstep/deltalen)
 
           ! Apply step
-          ! print*,i, '|', f, '|', a, '|', c, '|', f1, '|', f2, '|', delta, '|', deltalen, maxstep, steplimit
           a(:) = a(:) - steplimit*delta(:)
           c(:) = exp(a(:))
 
           ! Convergence detection
 
+          fold = f
+          call chi2(f, c, abu, nel, nstar)
+
+          ! print*,i, '|', f, '|', a, '|', c, '|', f1, '|', f2, '|', delta, '|', deltalen, maxstep, steplimit
+
           if ((fold - f) < 1.d-6) then
              exit
           end if
        end do
-
-       call chisq(f, f1, f2, c, abu, nel, nstar, inoder)
 
        recordc(j,:) = c
        recordf(j) = f
@@ -315,6 +457,100 @@ contains
   end subroutine psolve
 
 
+  subroutine prime(x, f1, f2, abu, nel)
+
+    ! Returns the first and second derivatives of (1/2)*chi^2 with
+    ! respect to x for single star fits
+
+    use star_data, only: &
+         icdf, obs, err, det, measu
+
+    use norm, only: &
+         logcdfp
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         ln10 = log(10.0d0), &
+         ln10i = 1.d0 / ln10
+
+    real(kind=real64), intent(in) :: &
+         x
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
+    integer(kind=int64), intent(in) :: &
+         nel
+
+    real(kind=real64), intent(out) :: &
+         f1, f2
+
+    real(kind=real64), dimension(nel) :: &
+         ei, ei2
+    real(kind=real64) :: &
+         diff, de, df, logabu
+
+    integer(kind=int64) :: &
+         i
+
+    f1 = 0.d0
+    f2 = 0.d0
+
+    if (icdf == 0) then
+       ei2 = 1.d0 / err**2
+       do i = 1, nel
+          logabu = log(abu(i)) * ln10i
+
+          ! Upper limits
+
+          diff = logabu - obs(i) + x
+          if (measu(i) .or. (diff > 0.d0)) then
+             f1 = f1 + diff * ei2(i)
+             f2 = f2 + ei2(i)
+          endif
+
+          ! Detection thresholds
+
+          if (measu(i)) then
+             diff = logabu - det(i) + x
+             if (diff < 0.d0) then
+                f1 = f1 - diff * ei2(i)
+                f2 = f2 - ei2(i)
+             endif
+          endif
+       enddo
+    else
+       ei = 1.d0 / err
+       ei2 = ei**2
+       do i = 1, nel
+          logabu = log(abu(i)) * ln10i
+
+          ! Upper limits if error < 0 (NOTE: changes sign of diff)
+
+          diff = (logabu + x - obs(i)) * ei(i)
+          if (measu(i))  then
+             f1 = f1 + diff * ei(i)
+             f2 = f2 + ei2(i)
+          else
+             df = - logcdfp(diff) * ei(i)
+             de = - diff * ei(i)
+             f1 = f1 + df
+             f2 = f2 + df * (df + de)
+          endif
+
+          ! Detection thresholds
+
+          if (measu(i)) then
+             diff = (logabu + x - det(i)) * ei(i)
+             df = + logcdfp(diff) * ei(i)
+             de = - diff * ei(i)
+             f1 = f1 + df
+             f2 = f2 + df * (df + de)
+          endif
+       enddo
+    endif
+  end subroutine prime
+
+
   subroutine singlesolve(c, abu, nel)
 
     ! single NR solver
@@ -357,7 +593,7 @@ contains
   subroutine analyticsolve(c, abu, nel)
 
     use star_data, only: &
-         obs, err
+         obs, err, det, measu, upper
 
     implicit none
 
@@ -373,12 +609,12 @@ contains
          nel
 
     real(kind=real64) :: &
-         x, newdiff
+         x, diff, ei2s
     real(kind=real64), dimension(nel)  :: &
-         ei2, diff, logabu
+         ei2, logabu, diff_obs, diff_det
 
     logical, dimension(nel) :: &
-         ignore
+         include_obs, include_det
     logical :: &
          change
 
@@ -387,53 +623,49 @@ contains
 
     logabu(:) = log(abu(:)) * ln10i
 
-    ! First, include all upper limits as if they were detections
+    diff_obs(:) = logabu - obs(:)
+    diff_det(:) = logabu - det(:)
 
-    do i = 1, nel
-       ei2(i) = 1.d0 / err(i)**2
-       diff(i) = (logabu(i) - obs(i)) * ei2(i)
-    enddo
-    x = -sum(diff) / sum(ei2)
+    ! First, include all upper limits as if they were detections, and
+    ! exclude all detection thresholds as it you were above
 
-    ! Check position
+    ei2(:) = 1.d0 / err(:)**2
 
-    change = .false.
-    ignore(:) = .false.
-    do i = 1, nel
-       if (err(i) < 0.0d0) then
-          newdiff = logabu(i) + x - obs(i)
-          if (newdiff < 0.0d0) then
-             ignore(i) = .true.
-             change = .true.
-          endif
-       endif
-    enddo
+    change = .true.
 
-    ! Make adjustments until okay
+    include_obs(:) = measu(:)
+    include_det(:) = .false.
 
     do while (change)
 
-       ! Recalculate with ignored elements
+       ! (re)calculate with ignored elements
 
+       ei2s = 0.d0
+       diff = 0.d0
        do i = 1, nel
-          if (ignore(i)) then
-             ei2(i) = 0.d0
-             diff(i) = 0.d0
-          else
-             ei2(i) = 1.d0 / err(i)**2
-             diff(i) = (logabu(i) - obs(i)) * ei2(i)
+          if (include_obs(i)) then
+             ei2s = ei2s + ei2(i)
+             diff = diff + diff_obs(i) * ei2(i)
+          endif
+          if (include_det(i)) then
+             diff = diff - diff_det(i) * ei2(i)
           endif
        enddo
-       x = -sum(diff) / sum(ei2)
 
-       ! Check position
+       x = -diff / ei2s
 
        change = .false.
        do i = 1, nel
-          if ((err(i) < 0.d0) .and. (.not. ignore(i))) then
-             newdiff = logabu(i) + x - obs(i)
-             if (newdiff < 0.d0) then
-                ignore(i) = .true.
+          if (upper(i)) then
+             diff = diff_obs(i) + x
+             if (diff < 0.0d0) then
+                include_obs(i) = .false.
+                change = .true.
+             endif
+          else
+             diff = diff_det(i) + x
+             if (diff < 0.0d0) then
+                include_det(i) = .true.
                 change = .true.
              endif
           endif
@@ -443,73 +675,6 @@ contains
     c = exp(x * ln10)
 
   end subroutine analyticsolve
-
-  subroutine prime(x, f1, f2, abu, nel)
-
-    use star_data, only: &
-         icdf, obs, err
-
-    use norm, only: &
-         logcdfp
-
-    implicit none
-
-    ! Returns the derivatives with respect to log(s)
-    ! For single star fits only!
-
-    real(kind=real64), intent(in) :: &
-         x
-    real(kind=real64), intent(in), dimension(nel) :: &
-         abu
-    integer(kind=int64), intent(in) :: &
-         nel
-
-    real(kind=real64), intent(out) :: &
-         f1, f2
-
-    real(kind=real64), dimension(nel) :: &
-         ei, ei2
-    real(kind=real64) :: &
-         diff, de, df
-
-    integer(kind=int64) :: &
-         i
-
-    f1 = 0.d0
-    f2 = 0.d0
-
-    if (icdf == 0) then
-       ei2 = 1.d0 / err**2
-       do i = 1, nel
-          diff = log10(abu(i)) + x - obs(i)
-
-          ! Upper limits
-
-          if ( (diff > 0.d0) .or. (err(i) > 0.d0) ) then
-             f1 = f1 + diff * ei2(i)
-             f2 = f2 + ei2(i)
-          endif
-       enddo
-    else
-       ei = 1.d0 / err
-       ei2 = ei**2
-       do i = 1, nel
-          diff = (log10(abu(i)) + x - obs(i)) * ei(i)
-
-          ! Upper limits if error < 0 (NOTE: changes sign of diff)
-
-          if (err(i) > 0.d0)  then
-             f1  = f1 + diff * ei(i)
-             f2 = f2 + ei2(i)
-          else
-             df = - logcdfp(diff) * ei(i) !this has correct sign now
-             de = - diff * ei(i)
-             f1 = f1 + df
-             f2 = f2 + df * (df + de)
-          endif
-       enddo
-    endif
-  end subroutine prime
 
 
   subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
@@ -539,8 +704,6 @@ contains
     integer(kind=int64), intent(in) :: &
          icdf
 
-    real(kind=real64), dimension(nstar) :: &
-         f1, f2
     real(kind=real64) :: &
          scale
     real(kind=real64), dimension(nel) :: &
@@ -607,7 +770,7 @@ contains
     ! get final fit value for possibly adjusted scales
 
     do i = 1, nsol
-       call chisq(f(i), f1, f2, c(i,:), abu(i,:,:), nel, nstar)
+       call chi2(f(i), c(i,:), abu(i,:,:), nel, nstar)
     enddo
 
   end subroutine fitness
@@ -629,7 +792,7 @@ subroutine calfun(nstar, x, f)
        nel
 
   use solver, only: &
-       chisq
+       chi2
 
   implicit none
 
@@ -642,7 +805,7 @@ subroutine calfun(nstar, x, f)
        f
 
   real(kind=real64), dimension(nstar) :: &
-       tanhx, f1, f2
+       tanhx
   integer(kind=int64) :: &
        i
 
@@ -651,9 +814,9 @@ subroutine calfun(nstar, x, f)
 
   tanhx = 0.5d0 * (1.0d0 + tanh(x))
 
-  ! Calculate the chisq
+  ! Calculate the chi2
 
-  call chisq(f, f1, f2, tanhx, abu(1:nstar,1:nel), nel, nstar)
+  call chi2(f, tanhx, abu(1:nstar,1:nel), nel, nstar)
 
   ! Build a wall at zero
 
@@ -674,7 +837,7 @@ program test
        real64, int64
 
   use solver, only: &
-       chisq, newton
+       chi2, newton
 
   implicit none
 
@@ -728,9 +891,9 @@ program test
     ! cdo(1) = cdo(1) - h
     ! cup(1) = cup(1) + h
 
-    ! call chisq(f, f1, f2, c, obs, err, abu, nstar, nel, 1)
-    ! call chisq(fdo, f1do, f2do, cdo, obs, err, abu, nstar, nel, 1)
-    ! call chisq(fup, f1up, f2up, cup, obs, err, abu, nstar, nel, 1)
+    ! call chi2(f, f1, f2, c, obs, err, abu, nstar, nel, 1)
+    ! call chi2(fdo, f1do, f2do, cdo, obs, err, abu, nstar, nel, 1)
+    ! call chi2(fup, f1up, f2up, cup, obs, err, abu, nstar, nel, 1)
 
     ! print*,'f:'
     ! print*,f

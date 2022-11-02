@@ -17,11 +17,11 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor
+       upper, covar, uncor, measu
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor
+       nupper, ncovar, nuncor, nmeasu
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor
+       iupper, icovar, iuncor, imeasu
 
   real(kind=real64), dimension(:, :), allocatable :: &
        m
@@ -100,8 +100,8 @@ contains
          i
 
     if (allocated(upper)) then
-       deallocate(upper, covar, uncor)
-       deallocate(iupper, icovar, iuncor)
+       deallocate(upper, covar, uncor, measu)
+       deallocate(iupper, icovar, iuncor, imeasu)
     endif
 
     allocate(upper(nel), covar(nel), uncor(nel))
@@ -111,10 +111,12 @@ contains
     upper(:) = err < 0.d0
     covar(:) = any(cov /= 0, 2)
     uncor(:) = .not.(upper.or.covar)
+    measu(:) = .not.upper
 
     nupper = count(upper)
     ncovar = count(covar)
     nuncor = count(uncor)
+    nmeasu = nel - nupper
 
     allocate(ii(nel))
     do i=1, nel
@@ -123,6 +125,7 @@ contains
     iupper = pack(ii, upper)
     icovar = pack(ii, covar)
     iuncor = pack(ii, uncor)
+    imeasu = pack(ii, measu)
 
   end subroutine init_domains
 
