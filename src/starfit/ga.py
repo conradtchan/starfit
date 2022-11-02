@@ -432,7 +432,7 @@ class Ga(StarFit):
                     self.logger.info(
                         f"pin: eliminating {n} candidates, {f.shape[0]} remaining."
                     )
-            assert f.shape[0] > 0, "pin: no data left candidate elimination"
+            assert f.shape[0] > 0, "pin: no data left after candidate elimination"
 
         # If requested, eliminate solutions that do not span all groups.
         if self.spread:
@@ -453,7 +453,7 @@ class Ga(StarFit):
                     self.logger.info(
                         f"spread: eliminating {n} candidates, {f.shape[0]} remaining."
                     )
-            assert f.shape[0] > 0, "spread: no data left candidate elimination"
+            assert f.shape[0] > 0, "spread: no data left after candidate elimination"
 
         # Duplicate elimination
         if self.local_search or self.fixed_offsets:
@@ -496,6 +496,13 @@ class Ga(StarFit):
             )
             s = np.delete(o, discard_index, axis=0)
             f = np.delete(f, discard_index, axis=0)
+            if self.debug:
+                n = len(discard_index)
+                if n > 0:
+                    self.logger.info(
+                        f"eliminating {n} solutions, {f.shape[0]} remaining."
+                    )
+            assert f.shape[0] > 0, "no data left after elimiation of solutions"
         else:
             self.max_pop = self.pop_size
             s = o
@@ -586,7 +593,7 @@ class Ga(StarFit):
                 )
             s["index"][:, j0:] = self.group_index[idx]
         else:
-            # have few no duplicates
+            # have few duplicates
             n = 0
             while n < self.pop_size:
                 k = self.sol_size - self.pin_n
