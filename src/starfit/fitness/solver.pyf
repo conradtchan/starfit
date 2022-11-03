@@ -1,7 +1,7 @@
 !    -*- f90 -*-
 ! Note: the context of this file is case sensitive.
 
-python module _solver ! in 
+python module _solver ! in
     interface  ! in :_solver
         subroutine fitness_(f,c,obs,err,det,cov,abu,nel,ncov,nstar,nsol,ls,icdf) ! in :_solver:solver.f90
             use fitting, only: fitness
@@ -20,7 +20,7 @@ python module _solver ! in
             integer(kind=int64) intent(in) :: ls
             integer(kind=int64) intent(in) :: icdf
         end subroutine fitness_
-    end interface 
+    end interface
 end python module _solver
 
 ! This file was auto-generated with f2py (version:1.23.4).
