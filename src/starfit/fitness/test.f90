@@ -4,7 +4,7 @@ program test
        real64, int64
 
   use fitting, only: &
-       chi2, newton
+       chi2
 
   implicit none
 

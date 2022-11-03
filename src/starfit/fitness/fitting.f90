@@ -8,7 +8,7 @@ module fitting
   private
 
   public :: &
-       fitness
+       fitness, chi2
 
 contains
 
