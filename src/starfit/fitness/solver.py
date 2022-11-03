@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import _solver
+from ._solver import fitness_
 
 
 def check_offsets(offsets):
@@ -44,7 +44,7 @@ def fitness(
     else:
         raise Exception(f"Unknown search option {ls=}")
 
-    fitness, offset = _solver.solver.fitness(
+    fitness, offset = fitness_(
         c=offsets,
         obs=observed,
         err=error,

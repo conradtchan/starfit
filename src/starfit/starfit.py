@@ -250,6 +250,7 @@ class StarFit(Logged):
             eval_data_new = np.recarray(eval_data.shape[0], dtype=data_type)
             eval_data_new.element = eval_data.element
             eval_data_new.abundance = eval_data.abundance
+            eval_data_new.detection = eval_data.detection
             eval_data_new.error = np.sign(eval_data.error) * np.sqrt(
                 eval_data.error**2 + np.sum(eval_data.covariance**2, axis=1)
             )

@@ -171,7 +171,7 @@ from .autils.logged import Logged
 from .utils import find_data
 
 # low values for detection limits
-LOW = np.array([np.nan] + [-99.0] * 6 + [1.0e-99])
+LOW = np.array([np.nan] + [-199.0] * 6 + [1.0e-199])
 
 
 # A class for each set of readings
@@ -190,10 +190,10 @@ class Star(Logged):
             silent=silent,
         )
         self._read(filename)
-        # Add BBN data
-        self._bbn()
         # Sort star
         self.element_abundances.sort(order="element")
+        # Add BBN data
+        self._bbn()
 
     # Write list into numpy recarray
     def list_to_array(self, data_list):
@@ -254,6 +254,8 @@ class Star(Logged):
                         data_array[i].detection = float(item)
                 else:
                     data_array[i].covariance[j - 3 - n_det] = float(item)
+        if n_det == 0:
+            data_array[:].detection = LOW[self.data_format]
 
         return data_array
 
@@ -390,13 +392,19 @@ class Star(Logged):
             norm_abundance = ((10 ** array[norm_index].abundance) * h_ref) * (
                 sun.Y(norm_element) / sun.Y("H")
             )
+            norm_detection = ((10 ** array[norm_index].detection) * h_ref) * (
+                sun.Y(norm_element) / sun.Y("H")
+            )
             # Calculate the abundance for the norm element on the sun
             norm_solar = sun.Y(norm_element)
-            for a in (array.abundance, array.detection):
+            for a, b in zip(
+                (array.abundance, array.detection),
+                (norm_abundance, norm_detection),
+            ):
                 # Calculate abundances for all the other elements
                 abundances = 10**a * (norm_abundance) * solar / norm_solar
                 # Change the entry for the norm element that we calculated earlier
-                abundances[norm_index] = norm_abundance
+                abundances[norm_index] = b
                 # Log, and then put back into array
                 a[:] = np.log10(abundances)
         elif data_format == 4:
@@ -456,13 +464,15 @@ class Star(Logged):
             "Adding BBN upper limits of H and He into star data if missing"
         )
 
-        entry = np.empty_like(self.element_abundances, shape=())[()]
         for i in range(2):
             element = I(Z=i + 1)
             if self.element_abundances[i].element is not element:
+                entry = np.empty_like(self.element_abundances, shape=())[()]
                 entry.element = element
                 entry.abundance = np.log10(self.BBN_data.Y(entry["element"]))
                 entry.error = -0.1  # This is an upper limit, 0.1 is somewhat arbitrary
+                entry.detection = LOW[5]
+                entry.covariance[:] = 0.0
                 self.element_abundances = self._rec_insert_1d(
                     self.element_abundances, entry, i
                 )

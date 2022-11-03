@@ -17,11 +17,11 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor, measu
+       upper, covar, uncor, measu, tresh
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor, nmeasu
+       nupper, ncovar, nuncor, nmeasu, ntresh
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor, imeasu
+       iupper, icovar, iuncor, imeasu, itresh
 
   real(kind=real64), dimension(:, :), allocatable :: &
        m
@@ -100,23 +100,23 @@ contains
          i
 
     if (allocated(upper)) then
-       deallocate(upper, covar, uncor, measu)
-       deallocate(iupper, icovar, iuncor, imeasu)
+       deallocate(upper, covar, uncor, measu, tresh)
+       deallocate(iupper, icovar, iuncor, imeasu, itresh)
     endif
-
-    allocate(upper(nel), covar(nel), uncor(nel))
 
     ! find masks for correlated, uncorreclated, and limit errors
 
-    upper(:) = err < 0.d0
-    covar(:) = any(cov /= 0, 2)
-    uncor(:) = .not.(upper.or.covar)
-    measu(:) = .not.upper
+    upper = err < 0.d0
+    covar = any(cov /= 0, 2)
+    uncor = .not.(upper.or.covar)
+    measu = .not.upper
+    tresh = measu(:) .and. (det(:) > -80.d0)
 
     nupper = count(upper)
     ncovar = count(covar)
     nuncor = count(uncor)
     nmeasu = nel - nupper
+    ntresh = count(tresh)
 
     allocate(ii(nel))
     do i=1, nel
@@ -126,6 +126,7 @@ contains
     icovar = pack(ii, covar)
     iuncor = pack(ii, uncor)
     imeasu = pack(ii, measu)
+    itresh = pack(ii, tresh)
 
   end subroutine init_domains
 

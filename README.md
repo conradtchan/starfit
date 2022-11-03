@@ -255,8 +255,25 @@ git checkout -b <new_branch>
 git push --set-upstream origin <new_branch>
 ```
 
-Two automated checks (on Github Actions) must be passed:
-1. Code formatting using pre-commit. To ensure your changes are compliant with this project's linters, we recommend installing pre-commit prior to making any commits locally.
+1. If you changed the Fortran code and want to test locally, remeber to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
+```shell
+# Set environment variable to allow for editable installs
+export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
+
+# remove artefacts from previous build
+rm -rf ./build
+make -C ./src/starfit/fitness clean
+
+# "-e" creates an editable install, "[testing]" installs additional dependencies for testing
+pip3 install -e .[testing]
+```
+
+If there are issues with the `fitness` submodule, there is a `Makefile` in its source directory that can be used to compile a test program outside of the python package build process.
+
+
+Two automated checks (on Github Actions) must be passed (Items 2 and 3):
+
+2. Code formatting using pre-commit. To ensure your changes are compliant with this project's linters, we recommend installing pre-commit prior to making any commits locally.
 ```shell
 pip install pre-commit
 pre-commit install
@@ -265,22 +282,15 @@ If you have already made non-compliant commits prior to installing pre-commit, t
 ```shell
 pre-commit run --all
 ```
-and also run tests as a first check
+
+3. Code tests using `pytest`.  New tests can be added to the `tests/` directory.
+
+Run these tests as a check
 ```shell
 python -m pytest
 ```
-and include these changes in a follow-up commit.
+and include any necessary changes in the commit.
 
-2. If you changed the Fortran code and want to test locally, remeber to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
-```shell
-# Set environment variable to allow for editable installs
-export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
-
-# "-e" creates an editable install, "[testing]" installs additional dependencies for testing
-pip3 install -e .[testing]
-```
-
-3. Code tests using `pytest`. New tests can be added to the `tests/` directory.
 
 ## Development branch
 
