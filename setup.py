@@ -11,17 +11,18 @@ starfit_src = os.path.join(cwd, "src/starfit")
 fit_sources = [
     os.path.join(starfit_src, "fitness", x)
     for x in [
-        "fitness.pyf",
+        "solver.pyf",
         "type_def.f90",
         "powell.f90",
         "norm.f90",
         "mleqs.f90",
         "star_data.f90",
         "abu_data.f90",
+        "fitting.f90",
         "solver.f90",
     ]
 ]
-# to skip fitness.pyf if need be
+# to skip solver.pyf if need be
 fit_sources = [x for x in fit_sources if os.path.isfile(x)]
 
 module_solver = Extension(

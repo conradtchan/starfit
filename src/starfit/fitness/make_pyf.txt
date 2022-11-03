@@ -1,3 +1,3 @@
-f2py -m _solver -h fitness.pyf --f2cmap .f2py_f2cmap *.f90 only: fitness :
+f2py -m _solver -h solver.pyf --f2cmap .f2py_f2cmap *.f90 only: fitness_ :
 
-edit fitness.pyf to remove all but the fitness function
+edit solver.pyf to remove all but the fitness_ function

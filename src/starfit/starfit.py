@@ -250,6 +250,7 @@ class StarFit(Logged):
             eval_data_new = np.recarray(eval_data.shape[0], dtype=data_type)
             eval_data_new.element = eval_data.element
             eval_data_new.abundance = eval_data.abundance
+            eval_data_new.detection = eval_data.detection
             eval_data_new.error = np.sign(eval_data.error) * np.sqrt(
                 eval_data.error**2 + np.sum(eval_data.covariance**2, axis=1)
             )
@@ -323,7 +324,12 @@ class StarFit(Logged):
                 ae = abu * (10**error - 1) ** 2
                 eval_data.error[i0] = np.log10(np.sqrt(np.sum(ae) / np.sum(abu)) + 1)
 
-                # do the same for covariances
+                # Do the same for detection thresholds
+                det = eval_data.covariance[ii]
+                ad = abu[:, np.newaxis] * (10**det - 1)
+                eval_data.detection[i0] = np.log10(np.sum(ad) / np.sum(abu) + 1)
+
+                # Do the same for covariances
                 cov = eval_data.covariance[ii]
                 ac = abu[:, np.newaxis] * (10**cov - 1)
                 eval_data.covariance[i0] = np.log10(
