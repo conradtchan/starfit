@@ -91,27 +91,8 @@ contains
           endif
        enddo
     endif
-    ! do i = 1, nel
-    !    if (measu(i)) then
-    !       f = f + diffe2(i)
-    !       if (icdf == 1) then
-    !          f = f + 2.d0*logcdf(ddife(i))
-    !       else
-    !          if (ddif(i) < 0.d0) then
-    !             f = f - ddife2(i)
-    !          endif
-    !       endif
-    !    else
-    !       if (icdf == 1) then
-    !          f = f - 2.d0*logcdf(diffe(i))
-    !       else
-    !          if (diff(i) > 0.d0) then
-    !             f = f + diffe2(i)
-    !          endif
-    !       endif
-    !    endif
-    ! enddo
 
+    ! ! A potntiall faster version (to be timed)
     ! erri(:) = 1.d0 / err(:)
     ! f = diff_covariance(diff)
     ! f = f + sum((diff(iuncor) * erri(iuncor))**2)
@@ -180,8 +161,7 @@ contains
          y, logy, yi, yi2, diff, diffe, erri, erri2, &
          ddif, ddife
     real(kind=real64) :: &
-         ! fd1, fd2, &
-         fa, fi1, fi2
+         fa, fb, fc, fi1, fi2, fi3
     integer(kind=int64) :: &
          i, j, k
 
@@ -202,19 +182,22 @@ contains
     ddif(:) = logy(:) - det(:)
     ddife(:)  = ddif(:) * erri(:)
 
-    ! This needs to be checked, the sums may be off
-
     yi(:) = 1.d0 / yi(i)
     yi2(:) = yi(:)**2
 
     f1(:)   = 0.d0
     f2(:,:) = 0.d0
 
+    ! This needs to be checked
+
     if (icdf == 0) then
        do i = 1, nel
-          fi1 = erri(i) * yi(i)
-          fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
           if (measu(i)) then
+             fi1 = erri(i) * yi(i)
+             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
+             if (ddif(i) > 0.d0) then
+                fi3 = yi2(i) * (erri2(i) - erri(i) * ddif(i))
+             endif
              do j=1, nel
                 fa = fi1 * abu(j, i)
                 f1(j) = f1(j) + diffe(i) * fa
@@ -222,65 +205,60 @@ contains
                    f1(j) = f1(j) - ddife(i) * fa
                 endif
                 do k=1, nel
-                   ! this is where NR may fail, discontinuous change in derivative
+                   fb = abu(j,i) * abu(k,i)
+                   f2(j,k) = f2(j,k) + fb * fi2
                    if (ddif(i) > 0.d0) then
-                      f2(j,k) = f2(j,k) + abu(j,i) * abu(k,i) * fi2
+                      f2(j,k) = f2(j,k) - fb * fi3
                    endif
                 enddo
              enddo
-          else
-             ! if (diff(i) > 0.d0) then
-             !    f = f + diffe2(i)
-             ! endif
+          else if (diff(i) > 0.d0) then
+             fi1 = erri(i) * yi(i)
+             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
+             do j=1, nel
+                fa = fi1 * abu(j, i)
+                f1(j) = f1(j) - diffe(i) * fa
+                do k=1, nel
+                   fb = abu(j,i) * abu(k,i)
+                   f2(j,k) = f2(j,k) + fb * fi2
+                enddo
+             enddo
           endif
        enddo
     else
-       ! do i = 1, nel
-       !    if (measu(i)) then
-       !       f = f + diffe2(i)
-       !       f = f + 2.d0*logcdf(ddife(i))
-       !    else
-       !       f = f - 2.d0*logcdf(diffe(i))
-       !    endif
-       ! enddo
+       do i = 1, nel
+          fi1 = erri(i) * yi(i)
+          fc = logcdfp(ddife(i))
+          if (measu(i)) then
+             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
+             do j=1, nel
+                fa = fi1 * abu(j, i)
+                f1(j) = f1(j) + diffe(i) * fa
+                f1(j) = f1(j) + fc * abu(j,i) * yi(i)
+                do k=1, nel
+                   fb = abu(j,i) * abu(k,i)
+                   f2(j,k) = f2(j,k) + fb * fi2
+                   f2(j,k) = f2(j,k) - fc * fb * yi(i) * &
+                        (1 + (ddife(i) + fc) * yi(i))
+                enddo
+             enddo
+          else
+             fi1 = erri(i) * yi(i)
+             fc = logcdfp(diffe(i))
+             do j=1, nel
+                fa = fi1 * abu(j, i)
+                f1(j) = f1(j) + fc * abu(j,i) * yi(i)
+                do k=1, nel
+                   fb = abu(j,i) * abu(k,i)
+                   f2(j,k) = f2(j,k) + fc * fb * yi(i) * &
+                        (1 + (diffe(i) + fc) * yi(i))
+                enddo
+             enddo
+          endif
+        enddo
     endif
 
-
-    ! do i = 1, nstar
-    !    do j = 1, nel
-    !       if (measu(j)) then
-    !          f1(i) = f1(i) + diffe(j) * erri(j) * abu(i, j) * yi(j)
-    !          ! here we actully need to comoute the Jacobian!
-    !          do k=1, nstar
-    !          f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i - diff(j))
-    !          if (icdf == 1) then
-    !             fd1 = -logcdfp(ddife(j))
-    !             fd2 = fd1 * (fd1 + ddife(j))
-    !             f1(i) = f1(i) - abu(i, j) * fd1 * errsumi(j)
-    !             f2(i) = f2(i) + erri(j) * (abu(i, j) / summed(j))**2 * (fd2/(-ln10 * err(j)) + fd1)
-    !          else
-    !             if (ddif(i) > 0.d0) then
-    !                f1(i) = f1(i) + (ddife(j) * abu(i, j)) * errsumi(j)
-    !                f2(i) = f2(i) - (abu(i, j) * errsumi(j))**2 * (ln10i - ddif(j))
-    !             endif
-    !          endif
-    !       else
-    !          if (icdf == 1) then
-    !             fd1 = logcdfp(diffe(j))
-    !             fd2 = -fd1 * (fd1 + diffe(j))
-    !             f1(i) = f1(i) - abu(i, j) * fd1 * errsumi(j)
-    !             f2(i) = f2(i) + erri(j) * (abu(i, j) / summed(j))**2 * (fd2/(-ln10 * err(j)) + fd1)
-    !          else
-    !             if (diff(i) < 0.d0) then
-    !                f1(i) = f1(i) - (diffe(j) * abu(i, j)) * errsumi(j)
-    !                f2(i) = f2(i) + (abu(i, j) * errsumi(j))**2 * (ln10i - diff(j))
-    !             endif
-    !          endif
-    !       endif
-    !    enddo
-    ! enddo
-
-    f1(:) = f1(:) * ln10i2m
+    f1(:) = f1(:) * ln10i2
     f2(:,:) = f2(:,:) * ln10i2
 
   end subroutine chi2_prime
@@ -288,10 +266,13 @@ contains
 
   subroutine newton(c, abu, nel, nstar)
 
+    use mleqs, only: &
+         leqs
+
     implicit none
 
     integer(kind=int64), parameter :: &
-         trials = 20
+         max_steps = 100
 
     integer(kind=int64), intent(in) :: &
          nel, nstar
@@ -300,106 +281,36 @@ contains
 
     real(kind=real64), intent(inout), dimension(nstar) :: &
          c
-    real(kind=real64), dimension(nstar) :: &
-         cold
-    real(kind=real64), dimension(trials, nstar) :: &
-         starts, recordc
-    real(kind=real64), dimension(trials) :: &
-         recordf
-    real(kind=real64), dimension(nstar) :: &
-         a
 
-    real(kind=real64) :: &
-         f, fold, &
-         maxstep, steplimit, deltalen
     real(kind=real64), dimension(nstar) :: &
-         delta, deltaold, f1, randoms
+         dc, f1
     real(kind=real64), dimension(nstar, nstar) :: &
          f2
+    real(kind=real64) :: &
+         dcr
 
     integer(kind=int64) :: &
-         i, j, jstop
+         i
 
     !Initial N-R values
 
-    delta(:) = 0
-    maxstep = 1.0d0
-    fold = 1.d6
-    f = 1.d3
+    c(:) = max(min(c(:), 1.d0), 1e-8)
 
-    starts(1,:) = c(:)
-    do j = 1, trials
-
-       ! Find random starting points
-
-       if (j > 1) then
-          call random_number(randoms)
-          starts(j,:) = 10.0d0**(-5.0d0*randoms + 1.0d0)
+    do i = 1, max_steps
+       call chi2_prime(f1, f2, c, abu, nel, nstar)
+       dc(:) = leqs(f2, f1, nstar)
+       dcr = maxval(abs(dc) / dc)
+       if (dcr > 0.5) then
+          dc(:) = dc(:) * (0.5d0 / dcr)
        endif
-
-       c(:) = starts(j,:)
-       cold(:) = c(:)
-       a(:) = log(c(:))
-       call chi2(f, c, abu, nel, nstar)
-       do i = 1, 100
-
-          ! Evaluate function and derivatives
-
-          call chi2_prime(f1, f2, c, abu, nel, nstar)
-
-          ! If any NaNs are present, redo step with half the step size
-
-          if (any(isnan(delta))) then
-             delta(:) = 0.50d0*deltaold(:)
-             deltaold(:) = delta(:)
-             c(:) = cold(:)
-             a(:) = log(c(:))
-          else
-
-             ! Calculate the step
-
-             deltaold(:) = delta(:)
-
-             ! BUG - replace by LEQS
-             ! delta(:) = (f1(:) / (f1(:) + f2(:)*c(:)))
-          endif
-
-          ! Calculate the length of the step
-
-          deltalen = sqrt(dot_product(delta,delta))
-
-          ! Calculate how much the step needs to be scaled back
-
-          steplimit = min(0.5d0, maxstep/deltalen)
-
-          ! Apply step
-          a(:) = a(:) - steplimit*delta(:)
-          c(:) = exp(a(:))
-
-          ! Convergence detection
-
-          fold = f
-          call chi2(f, c, abu, nel, nstar)
-
-          ! print*,i, '|', f, '|', a, '|', c, '|', f1, '|', f2, '|', delta, '|', deltalen, maxstep, steplimit
-
-          if ((fold - f) < 1.d-6) then
-             exit
-          end if
-       end do
-
-       recordc(j,:) = c
-       recordf(j) = f
-
-       if (j > 1) then
-          jstop = j
-          if (recordf(j) - recordf(j-1) < 1.d-6) then
-             exit
-          endif
+       if (dcr < 1.0d-6) then
+          exit
        endif
     enddo
 
-    c = recordc(minloc(recordf(1:jstop),1),:)
+    if (i >= max_steps) then
+       error stop '[newton] did not converge.'
+    endif
 
   end subroutine newton
 
@@ -460,6 +371,8 @@ contains
 
     ! Returns the first and second derivatives of (1/2)*chi^2 with
     ! respect to x for single star fits
+
+    ! should not actually be used for icdf == 0
 
     use star_data, only: &
          icdf, obs, err, det, measu
@@ -554,11 +467,16 @@ contains
 
     ! single NR solver
 
+    ! should not be used for icdf == 0
+
     implicit none
 
     real(kind=real64), parameter :: &
          ln10 = log(10.0d0), &
          ln10i = 1.d0 / ln10
+    integer(kind=int64), parameter :: &
+         max_steps = 20
+
 
     real(kind=real64), intent(in), dimension(nel) :: &
          abu
@@ -575,7 +493,7 @@ contains
          i
 
     x = log(c) * ln10i
-    do i = 1, 20
+    do i = 1, max_steps
        call prime(x, f1, f2, abu, nel)
        if (f2 == 0.d0) exit
        delta = f1 / f2
@@ -586,13 +504,17 @@ contains
        endif
     enddo
 
+    if (i >= max_steps) then
+       error stop '[singlesolve] did not converge.'
+    endif
+
   end subroutine singlesolve
 
 
   subroutine analyticsolve(c, abu, nel)
 
     use star_data, only: &
-         obs, err, det, measu, upper
+         obs, err, det, upper
 
     implicit none
 
@@ -736,6 +658,14 @@ contains
                 call singlesolve(c(i,1), abu(i,1,:), nel)
              endif
           else
+
+             ! This is what it should be when chi2_prime has been tested
+             ! if (icdf == 0) then
+             !    call psolve(c(i,:), abu(i,:,:), nel, nstar)
+             ! else
+             !    call newton(c(i,:), abu(i,:,:), nel, nstar)
+             ! endif
+
              if (isolve == 1) then
                 ! Dodgy NR solver
                 ! should work for cdf == 1 but may fail for cdf==0

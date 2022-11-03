@@ -137,6 +137,7 @@ def abuplot(
 
     # The star data points
     y_star = eval_data.abundance - logsun_star
+    y_star_det = eval_data.detection - logsun_star
 
     x_star = np.array([ion.Z for ion in eval_data.element])
 
@@ -406,6 +407,17 @@ def abuplot(
     )
     leg.set_draggable(True)
 
+    # Show detection thresholds
+    for x, y in zip(x_star, y_star_det):
+        if y < 20:
+            continue
+        ax.plot(
+            x + 0.4 * np.array([-1, 1]),
+            np.array([y, y]),
+            ls="-",
+            lw=data_size,
+            color="#0000003f",
+        )
     # Show correlated errors
     cov_sel = (y_star_cov > 0) & ~up_lims
     ax.errorbar(

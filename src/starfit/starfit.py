@@ -324,7 +324,12 @@ class StarFit(Logged):
                 ae = abu * (10**error - 1) ** 2
                 eval_data.error[i0] = np.log10(np.sqrt(np.sum(ae) / np.sum(abu)) + 1)
 
-                # do the same for covariances
+                # Do the same for detection thresholds
+                det = eval_data.covariance[ii]
+                ad = abu[:, np.newaxis] * (10**det - 1)
+                eval_data.detection[i0] = np.log10(np.sum(ad) / np.sum(abu) + 1)
+
+                # Do the same for covariances
                 cov = eval_data.covariance[ii]
                 ac = abu[:, np.newaxis] * (10**cov - 1)
                 eval_data.covariance[i0] = np.log10(
