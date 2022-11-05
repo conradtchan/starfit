@@ -17,9 +17,9 @@ jobs:
         python-version: "3.10"
 
     - name: Install gcc 12
-        run: |
-          sudo apt-get update
-          sudo apt install -y gcc-12
+      run: |
+        sudo apt-get update
+        sudo apt install -y gcc-12
 
     - name: install starfit
       run: |
