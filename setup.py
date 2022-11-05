@@ -7,6 +7,7 @@ flags = ["-fPIC", "-Ofast", "-g", "-funroll-loops", "-fno-second-underscore", "-
 cwd = os.getcwd()
 starfit_src = os.path.join(cwd, "src/starfit")
 
+# TODO - compile modules and ar into a library using Makefile
 
 fit_sources = [
     os.path.join(starfit_src, "fitness", x)

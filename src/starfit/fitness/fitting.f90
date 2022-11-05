@@ -7,6 +7,12 @@ module fitting
 
   private
 
+  real(kind=real64), parameter :: &
+       ln10 = log(10.0d0), &
+       ln10i = 1.d0 / ln10, &
+       ln10i2 = 2.d0 / ln10, &
+       ln10i2m = -ln10i2
+
   public :: &
        fitness, chi2
 
@@ -15,24 +21,146 @@ contains
   ! Due to poor f2py / numpy.distutils code we need to carry nel
   ! rather than taking it from star_data
 
+  ! TODO - as we no longer wrap these routines, refactor to take
+  ! diminsions from module.
+
+  subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+
+    use star_data, only: &
+         set_star_data, abu_covariance, &
+         init_nocov_erri2, &
+         init_covaricance_const
+
+    use type_def, only: &
+         real64, int64
+
+    implicit none
+
+    integer(kind=int64), parameter :: &
+         isolve = 2
+
+    integer(kind=int64), intent(in) :: &
+         nstar, nel, nsol, ncov
+
+    real(kind=real64), dimension(nel), intent(in) :: &
+         obs, err, det
+    real(kind=real64), dimension(nel, ncov), intent(in) :: &
+         cov
+    real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
+         abu
+    integer(kind=int64), intent(in) :: &
+         ls
+    integer(kind=int64), intent(in) :: &
+         icdf
+
+    real(kind=real64) :: &
+         scale
+    real(kind=real64), dimension(nel) :: &
+         y
+
+    integer(kind=int64) :: &
+         i, k
+
+    real(kind=real64), dimension(nsol), intent(out) :: &
+         f
+    real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
+         c
+
+    ! If localsearch is enabled, modify the offsets first
+    ! otherwise keep relative weights fixed
+
+    call set_star_data(obs, err, det, cov, nel, ncov, icdf)
+
+    if (ls == 1) then
+       if (nstar == 1) then
+          call init_nocov_erri2()
+          call init_covaricance_const()
+          if (icdf == 0) then
+             do k = 1, nsol
+                call analytic_solve(c(k,1), abu(k,1,:))
+             enddo
+          else
+             do k = 1, nsol
+                call singles_olve(c(k,1), abu(k,1,:), nel)
+             enddo
+          endif
+       else
+
+          ! This is what it should be when chi2_prime has been tested
+          ! if (icdf == 0) then
+          !    call psolve(c(i,:), abu(i,:,:), nel, nstar)
+          ! else
+          !    call newton(c(i,:), abu(i,:,:), nel, nstar)
+          ! endif
+
+          if (isolve == 1) then
+
+             ! should work for cdf == 1 but may fail for cdf==0
+
+             call init_nocor_erri2()
+             call init_covaricance_const()
+             do k = 1, nsol
+                call newton(c(k,:), abu(k,:,:), nel, nstar)
+             enddo
+          else
+             ! Slower UOBYQA solver that does not depend on C(2)
+             ! function for chi2
+
+             do k = 1, nsol
+                call psolve(c(k,:), abu(k,:,:), nel, nstar)
+             enddo
+          endif
+       endif
+       do k = 1, nsol
+          scale = sum(c(k,:))
+          if (scale > 1.d0) then
+             c(k,:) = c(k,:) * (1.d0 / scale)
+          endif
+       end do
+    else if (ls == 0) then
+       do k = 1, nsol
+          scale = 0.1d0
+          do i = 1, nel
+             y(i) = sum(c(k,:) * abu(k,:,i))
+          enddo
+          call init_covaricance_const()
+          call init_nocov_erri2()
+          if (icdf == 0) then
+             call analytic_solve(scale, y)
+          else
+             call single_solve(scale, y)
+          endif
+          c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
+       enddo
+    else if (ls /= 2) then
+       error stop 'invalid local search option'
+    else
+    endif
+
+    ! get final fit value for possibly adjusted scales
+
+    do i = 1, nsol
+       call chi2(f(i), c(i,:), abu(i,:,:), nel, nstar)
+    enddo
+
+  end subroutine fitness
+
+
   subroutine chi2(f, c, abu, nel, nstar)
 
     use star_data, only: &
-         icdf, obs, err, det, measu
+         icdf, obs, det, &
+         erri
 
-    ! use star_data, only: &
-    !      diff_covariance, iuncor, iupper, nupper
+    use star_data, only: &
+         diff_covariance, &
+         iupper, idetec, ierinv, iuncor, &
+         nupper, ndetec
 
     use norm, only: &
          logcdf, logcdfp
 
     implicit none
-
-    real(kind=real64), parameter :: &
-         ln10 = log(10.0d0), &
-         ln10i = 1.d0 / ln10, &
-         ln10i2 = 2.d0 / ln10, &
-         ln10i2m = -ln10i2
 
     integer(kind=int64), intent(in) :: &
          nel, nstar
@@ -45,84 +173,85 @@ contains
          f
 
     real(kind=real64), dimension(nel) :: &
-         logy, diff, diffe, diffe2, erri, &
-         ddif, ddife, ddife2
+         logy, diff, diffe, &
+         ! diffe2, ddife2, &
+         ddif, ddife
     integer(kind=int64) :: &
-         i, j
+         i, i1
 
-    logy(:) = 0.d0
-    do i = 1, nstar
-       do j = 1, nel
-          logy(j) = logy(j) + c(i) * abu(i,j)
-       enddo
+    do i = 1, nel
+       logy(i) = log(sum(c(:) * abu(i,:))) * ln10i
     enddo
-    logy(:) = log(logy(:)) * ln10i
 
     diff(:) = logy(:) - obs(:)
 
-    erri(:) = 1.d0 / err(:)
-    diffe(:)  = diff(:) * erri(:)
-    diffe2(:) = diffe(:)**2
+    f = diff_covariance(diff)
 
-    ddif(:) = logy(:) - det(:)
-    ddife(:)  = ddif(:) * erri(:)
-    ddife2(:) = ddife(:)**2
+    diffe(ierinv)  = diff(ierinv) * erri(ierinv)
 
-    f = 0.d0
-    if (icdf == 0) then
-       do i = 1, nel
-          if (measu(i)) then
-             f = f + diffe2(i)
-             if (ddif(i) < 0.d0) then
-                f = f - ddife2(i)
-             endif
-          else
-             if (diff(i) > 0.d0) then
-                f = f + diffe2(i)
-             endif
-          endif
-       enddo
-    else
-       do i = 1, nel
-          if (measu(i)) then
-             f = f + diffe2(i) + 2.d0*logcdf(ddife(i))
-          else
-             f = f - 2.d0*logcdf(diffe(i))
-          endif
-       enddo
-    endif
+    ddif(ierinv) = logy(ierinv) - det(ierinv)
+    ddife(ierinv)  = ddif(ierinv) * erri(ierinv)
 
-    ! ! A potntiall faster version (to be timed)
-    ! erri(:) = 1.d0 / err(:)
-    ! f = diff_covariance(diff)
-    ! f = f + sum((diff(iuncor) * erri(iuncor))**2)
-    ! if (icdf == 1) then
-    !    f = f - 2.d0* sum(logcdf(diff(iupper) * erri(iupper)))
-    !    ! do i=1, nupper
-    !    !    j = iupper(i)
-    !    !    f = f - 2.d0*logcdf(diff(j) * erri(j))
-    !    ! enddo
-    !    f = f + 2.d0* sum(logcdf(ddif(imeasu) * erri(imeasu)))
-    !    ! do i=1, nmeasu
-    !    !    j = imeasu(i)
-    !    !    f = f + 2.d0*logcdf(ddif(j) * erri(j))
-    !    ! enddo
+    ! diffe2(ierinv) = diffe(ierinv)**2
+    ! ddife2(ierinv) = ddife(ierinv)**2
+    ! if (icdf == 0) then
+    !    do i = 1, nel
+    !       if (uncor(i)) then
+    !          f = f + diffe2(i)
+    !       end if
+    !       if (detec(i).and.(ddif(i) < 0.d0)) then
+    !          f = f - ddife2(i)
+    !       endif
+    !       if (upper(i).and.(diff(i) > 0.d0)) then
+    !          f = f + diffe2(i)
+    !       endif
+    !    enddo
     ! else
-    !    do i=1, nupper
-    !       j = iupper(i)
-    !       if (diff(j) > 0.d0) then
-    !          f = f + (diff(j) * erri(j))**2
+    !    do i = 1, nel
+    !       if (upper(i)) then
+    !          f = f - 2.d0*logcdf(diffe(i))
+    !          cycle
+    !       endif
+    !       if (uncor(i)) then
+    !          f = f + diffe2(i)
+    !       end if
+    !       if (detec(i)) then
+    !          f = f + 2.d0*logcdf(ddife(i))
     !       endif
     !    enddo
-    !    ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
-    !    do i=1, nmeasu
-    !       j = imeasu(i)
-    !       if (ddif(j) < 0.d0) then
-    !          f = f - (ddif(j) * erri(j))**2
-    !       endif
-    !    enddo
-    !    ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
     ! endif
+
+    ! A potntiall faster version (to be timed)
+
+    f = diff_covariance(diff)
+    f = f + sum((diff(iuncor) * erri(iuncor))**2)
+    if (icdf == 0) then
+       do i1=1, nupper
+          i = iupper(i1)
+          if (diff(i) > 0.d0) then
+             f = f + (diff(i) * erri(i))**2
+          endif
+       enddo
+       ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
+       do i1=1, ndetec
+          i = idetec(i1)
+          if (ddif(i) < 0.d0) then
+             f = f - (ddif(i) * erri(i))**2
+          endif
+       enddo
+       ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
+    else
+       f = f - 2.d0* sum(logcdf(diff(iupper) * erri(iupper)))
+       ! do i1=1, nupper
+       !    i = iupper(i1)
+       !    f = f - 2.d0*logcdf(diff(j) * erri(j))
+       ! enddo
+       f = f + 2.d0* sum(logcdf(ddif(idetec) * erri(idetec)))
+       ! do i1=1, ndetec
+       !    i = idetec(i1)
+       !    f = f + 2.d0*logcdf(ddif(i) * erri(i))
+       ! enddo
+    endif
 
   end subroutine chi2
 
@@ -132,18 +261,13 @@ contains
     ! return first and second derivative of chi2
 
     use star_data, only: &
-         icdf, obs, err, det, measu
+         icdf, obs, det, measu, &
+         erri, erri2
 
     use norm, only: &
          logcdf, logcdfp
 
     implicit none
-
-    real(kind=real64), parameter :: &
-         ln10 = log(10.0d0), &
-         ln10i = 1.d0 / ln10, &
-         ln10i2 = 2.d0 / ln10, &
-         ln10i2m = -ln10i2
 
     integer(kind=int64), intent(in) :: &
          nel, nstar
@@ -158,23 +282,17 @@ contains
          f2
 
     real(kind=real64), dimension(nel) :: &
-         y, logy, yi, yi2, diff, diffe, erri, erri2, &
+         y, logy, yi, yi2, diff, diffe, &
          ddif, ddife
     real(kind=real64) :: &
          fa, fb, fc, fi1, fi2, fi3
     integer(kind=int64) :: &
          i, j, k
 
-    y(:) = 0.d0
     do i = 1, nel
-       do j = 1, nstar
-          y(i) = y(i) + c(j) * abu(j,i)
-       enddo
+       y(i) = sum(c(:) * abu(:,i))
     enddo
     logy(:) = log(y(:)) * ln10i
-
-    erri(:) = 1.d0 / err(:)
-    erri2(:) = erri(:)**2
 
     diff(:) = logy(:) - obs(:)
     diffe(:)  = diff(:) * erri(:)
@@ -315,6 +433,260 @@ contains
   end subroutine newton
 
 
+  subroutine single_prime(x, f1, f2)
+
+    ! Returns the first and second derivatives of (1/2)*chi^2 with
+    ! respect to x for single star fits
+
+    ! should not actually be used for icdf == 0
+
+    use star_data, only: &
+         nel, &
+         icdf, obs, det, &
+         idetec, iuncor, iupper, idetec, &
+         nupper, ndetec, &
+         erri, erri2, &
+         mp, &
+         diff_z
+
+    use abu_data, only: &
+         logabu
+
+    use norm, only: &
+         logcdfp
+
+    implicit none
+
+    real(kind=real64), intent(in) :: &
+         x
+
+    real(kind=real64), intent(out) :: &
+         f1, f2
+
+    real(kind=real64), dimension(nel) :: &
+         diff_obs, diff_det
+    real(kind=real64) :: &
+         de, df
+    integer(kind=int64) :: &
+         i, i1
+
+    diff_obs(:) = logabu(:) - obs(:) + x
+    diff_det(idetec) = logabu(idetec) - det(idetec) + x
+
+    ! correlated errors
+
+    f1 = diff_z(diff_obs)
+    f2 = mp
+
+    ! Uncorrelated errors
+
+    f1 = f1 + sum(diff_obs(iuncor) * erri2(iuncor))
+    f2 = f2 + sum(erri2(iuncor))
+
+    if (icdf == 0) then
+
+       ! This approach is not really good for NR as chi^2 is only C(1)
+       ! but we really need at least C(2)
+
+       ! Upper limits if error < 0 (NOTE: changes sign)
+
+       do i1 = 1, nupper
+          i = iupper(i1)
+          if (diff_obs(i) > 0.d0) then
+             f1 = f1 + diff_obs(i) * erri2(i)
+             f2 = f2 + erri2(i)
+          endif
+       enddo
+
+       ! Detection thresholds
+
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          if (diff_det(i) < 0.d0) then
+             f1 = f1 - diff_det(i) * erri2(i)
+             f2 = f2 - erri2(i)
+          endif
+       enddo
+    else
+
+       ! Upper limits if error < 0 (NOTE: changes sign)
+
+       do i1 = 1, nupper
+          i = iupper(i1)
+          df = - logcdfp(diff_obs(i)*erri(i)) * erri(i)
+          de = - diff_obs(i) * erri2(i)
+          f1 = f1 + df
+          f2 = f2 + df * (df + de)
+       enddo
+
+       ! Detection thresholds
+
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          df = + logcdfp(diff_det(i)*erri(i)) * erri(i)
+          de = - diff_det(i) * erri2(i)
+          f1 = f1 + df
+          f2 = f2 + df * (df + de)
+       enddo
+    endif
+  end subroutine single_prime
+
+
+  subroutine single_solve(c, abu)
+
+    ! single NR solver
+
+    ! should not be used for icdf == 0
+
+    use star_data, only: &
+         nel
+
+    use abu_data, only: &
+         set_abu_data, &
+         init_logabu
+
+    implicit none
+
+    integer(kind=int64), parameter :: &
+         one = 1.d0
+
+    integer(kind=int64), parameter :: &
+         max_steps = 20
+
+    ! real(kind=real64), intent(in), dimension(1, nel) :: &
+    !      abu
+
+    real(kind=real64), intent(in), dimension(nel), target :: &
+         abu
+    real(kind=real64), dimension(:,:), pointer :: &
+         abu_
+
+    real(kind=real64), intent(inout) :: &
+         c
+
+    real(kind=real64) :: &
+         x, f1, f2, delta
+
+    integer(kind=int64) :: &
+         i
+
+    abu_(1:1,1:nel) => abu
+    call set_abu_data(abu_, nel, one)
+    call init_logabu()
+
+    x = log(c) * ln10i
+    do i = 1, max_steps
+       call single_prime(x, f1, f2)
+       if (f2 == 0.d0) exit
+       delta = f1 / f2
+       x = x - delta
+       if (abs(delta) < 1.0d-6) then
+          c = exp(x * ln10)
+          exit
+       endif
+    enddo
+
+    if (i >= max_steps) then
+       error stop '[singlesolve] did not converge.'
+    endif
+
+  end subroutine single_solve
+
+
+  subroutine analytic_solve(c, abu)
+
+    use star_data, only: &
+         nel, &
+         obs, det, upper, &
+         erri2, mp, &
+         inocov, nnocov, idetec, ndetec, &
+         diff_z
+
+    implicit none
+
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
+    real(kind=real64), intent(out) :: &
+         c
+
+    real(kind=real64) :: &
+         x, diff, ei2s, diff_cov
+    real(kind=real64), dimension(nel)  :: &
+         diff_obs, diff_det, logabu
+
+    logical, dimension(nel) :: &
+         include_obs, include_det
+    logical :: &
+         change
+
+    integer(kind=int64) :: &
+         i, i1
+
+    logabu(:) = log(abu(:)) * ln10i
+
+    diff_obs(:) = logabu(:) - obs(:)
+    diff_det(:) = logabu(:) - det(:)
+
+    diff_cov = diff_z(diff_obs)
+
+    ! First, include all upper limits as if they were detections, and
+    ! exclude all detection thresholds as it you were above
+
+    change = .true.
+
+    include_obs(:) = .true.
+    include_det(:) = .false.
+
+    do while (change)
+
+       ! (re)calculate with ignored elements
+
+       ei2s = mp
+       diff = diff_cov
+       do i1 = 1, nnocov
+          i = inocov(i1)
+          if (include_obs(i)) then
+             ei2s = ei2s + erri2(i)
+             diff = diff + diff_obs(i) * erri2(i)
+          endif
+       enddo
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          if (include_det(i)) then
+             diff = diff - diff_det(i) * erri2(i)
+          endif
+       enddo
+
+       x = -diff / ei2s
+
+       change = .false.
+       do i1 = 1, nnocov
+          i = inocov(i1)
+          if (upper(i).and.(include_obs(i))) then
+             diff = diff_obs(i) + x
+             if (diff < 0.0d0) then
+                include_obs(i) = .false.
+                change = .true.
+             endif
+          endif
+       enddo
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          if (.not.include_det(i)) then
+             diff = diff_det(i) + x
+             if (diff < 0.0d0) then
+                include_det(i) = .true.
+                change = .true.
+             endif
+          endif
+       enddo
+    enddo
+
+    c = exp(x * ln10)
+
+  end subroutine analytic_solve
+
+
   subroutine psolve(c, abu, nel, nstar)
 
     use abu_data, only: &
@@ -365,352 +737,6 @@ contains
     c = 0.5d0 * (1.d0 + tanh(x))
 
   end subroutine psolve
-
-
-  subroutine prime(x, f1, f2, abu, nel)
-
-    ! Returns the first and second derivatives of (1/2)*chi^2 with
-    ! respect to x for single star fits
-
-    ! should not actually be used for icdf == 0
-
-    use star_data, only: &
-         icdf, obs, err, det, measu
-
-    use norm, only: &
-         logcdfp
-
-    implicit none
-
-    real(kind=real64), parameter :: &
-         ln10 = log(10.0d0), &
-         ln10i = 1.d0 / ln10
-
-    real(kind=real64), intent(in) :: &
-         x
-    real(kind=real64), intent(in), dimension(nel) :: &
-         abu
-    integer(kind=int64), intent(in) :: &
-         nel
-
-    real(kind=real64), intent(out) :: &
-         f1, f2
-
-    real(kind=real64), dimension(nel) :: &
-         ei, ei2
-    real(kind=real64) :: &
-         diff, de, df, logabu
-
-    integer(kind=int64) :: &
-         i
-
-    f1 = 0.d0
-    f2 = 0.d0
-
-    if (icdf == 0) then
-       ei2 = 1.d0 / err**2
-       do i = 1, nel
-          logabu = log(abu(i)) * ln10i
-
-          ! Upper limits
-
-          diff = logabu - obs(i) + x
-          if (measu(i) .or. (diff > 0.d0)) then
-             f1 = f1 + diff * ei2(i)
-             f2 = f2 + ei2(i)
-          endif
-
-          ! Detection thresholds
-
-          if (measu(i)) then
-             diff = logabu - det(i) + x
-             if (diff < 0.d0) then
-                f1 = f1 - diff * ei2(i)
-                f2 = f2 - ei2(i)
-             endif
-          endif
-       enddo
-    else
-       ei = 1.d0 / err
-       ei2 = ei**2
-       do i = 1, nel
-          logabu = log(abu(i)) * ln10i
-
-          ! Upper limits if error < 0 (NOTE: changes sign of diff)
-
-          diff = (logabu + x - obs(i)) * ei(i)
-          if (measu(i))  then
-             f1 = f1 + diff * ei(i)
-             f2 = f2 + ei2(i)
-          else
-             df = - logcdfp(diff) * ei(i)
-             de = - diff * ei(i)
-             f1 = f1 + df
-             f2 = f2 + df * (df + de)
-          endif
-
-          ! Detection thresholds
-
-          if (measu(i)) then
-             diff = (logabu + x - det(i)) * ei(i)
-             df = + logcdfp(diff) * ei(i)
-             de = - diff * ei(i)
-             f1 = f1 + df
-             f2 = f2 + df * (df + de)
-          endif
-       enddo
-    endif
-  end subroutine prime
-
-
-  subroutine singlesolve(c, abu, nel)
-
-    ! single NR solver
-
-    ! should not be used for icdf == 0
-
-    implicit none
-
-    real(kind=real64), parameter :: &
-         ln10 = log(10.0d0), &
-         ln10i = 1.d0 / ln10
-    integer(kind=int64), parameter :: &
-         max_steps = 20
-
-
-    real(kind=real64), intent(in), dimension(nel) :: &
-         abu
-    integer(kind=int64), intent(in) :: &
-         nel
-
-    real(kind=real64), intent(inout) :: &
-         c
-
-    real(kind=real64) :: &
-         x, f1, f2, delta
-
-    integer(kind=int64) :: &
-         i
-
-    x = log(c) * ln10i
-    do i = 1, max_steps
-       call prime(x, f1, f2, abu, nel)
-       if (f2 == 0.d0) exit
-       delta = f1 / f2
-       x = x - delta
-       if (abs(delta) < 1.0d-6) then
-          c = exp(x * ln10)
-          exit
-       endif
-    enddo
-
-    if (i >= max_steps) then
-       error stop '[singlesolve] did not converge.'
-    endif
-
-  end subroutine singlesolve
-
-
-  subroutine analyticsolve(c, abu, nel)
-
-    use star_data, only: &
-         obs, err, det, upper
-
-    implicit none
-
-    real(kind=real64), parameter :: &
-         ln10 = log(10.0d0), &
-         ln10i = 1.d0 / ln10
-
-    real(kind=real64), intent(in), dimension(nel) :: &
-         abu
-    real(kind=real64), intent(out) :: &
-         c
-    integer(kind=int64), intent(in) :: &
-         nel
-
-    real(kind=real64) :: &
-         x, diff, ei2s
-    real(kind=real64), dimension(nel)  :: &
-         ei2, logabu, diff_obs, diff_det
-
-    logical, dimension(nel) :: &
-         include_obs, include_det
-    logical :: &
-         change
-
-    integer(kind=int64) :: &
-         i
-
-    logabu(:) = log(abu(:)) * ln10i
-
-    diff_obs(:) = logabu - obs(:)
-    diff_det(:) = logabu - det(:)
-
-    ! First, include all upper limits as if they were detections, and
-    ! exclude all detection thresholds as it you were above
-
-    ei2(:) = 1.d0 / err(:)**2
-
-    change = .true.
-
-    include_obs(:) = .true.
-    include_det(:) = .false.
-
-    do while (change)
-
-       ! (re)calculate with ignored elements
-
-       ei2s = 0.d0
-       diff = 0.d0
-       do i = 1, nel
-          if (include_obs(i)) then
-             ei2s = ei2s + ei2(i)
-             diff = diff + diff_obs(i) * ei2(i)
-          endif
-          if (include_det(i)) then
-             diff = diff - diff_det(i) * ei2(i)
-          endif
-       enddo
-
-       x = -diff / ei2s
-
-       change = .false.
-       do i = 1, nel
-          if (upper(i)) then
-             if (include_obs(i)) then
-                diff = diff_obs(i) + x
-                if (diff < 0.0d0) then
-                   include_obs(i) = .false.
-                   change = .true.
-                endif
-             endif
-          else
-             if (.not.include_det(i)) then
-                diff = diff_det(i) + x
-                if (diff < 0.0d0) then
-                   include_det(i) = .true.
-                   change = .true.
-                endif
-             endif
-          endif
-       enddo
-    enddo
-
-    c = exp(x * ln10)
-
-  end subroutine analyticsolve
-
-
-  subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
-
-    use star_data, only: &
-         set_star_data, abu_covariance
-
-    use type_def, only: &
-         real64, int64
-
-    implicit none
-
-    integer(kind=int64), parameter :: &
-         isolve = 2
-
-    integer(kind=int64), intent(in) :: &
-         nstar, nel, nsol, ncov
-
-    real(kind=real64), dimension(nel), intent(in) :: &
-         obs, err, det
-    real(kind=real64), dimension(nel, ncov), intent(in) :: &
-         cov
-    real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
-         abu
-    integer(kind=int64), intent(in) :: &
-         ls
-    integer(kind=int64), intent(in) :: &
-         icdf
-
-    real(kind=real64) :: &
-         scale
-    real(kind=real64), dimension(nel) :: &
-         y
-
-    integer(kind=int64) :: &
-         i, j, k
-
-    !f2py real(kind=real64), intent(out), dimension(nsol) :: f
-    real(kind=real64), dimension(nsol), intent(out) :: &
-         f
-    !f2py real(kind=real64), intent(in,out), dimension(nsol, nstar) :: c
-    real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
-         c
-
-    ! If localsearch is enabled, modify the offsets first
-    ! otherwise keep relative weights fixed
-
-    call set_star_data(obs, err, det, cov, nel, ncov, icdf)
-
-    if (ls == 1) then
-       do i = 1, nsol
-          if (nstar == 1) then
-             if (icdf == 0) then
-                call analyticsolve(c(i,1), abu(i,1,:), nel)
-             else
-                call singlesolve(c(i,1), abu(i,1,:), nel)
-             endif
-          else
-
-             ! This is what it should be when chi2_prime has been tested
-             ! if (icdf == 0) then
-             !    call psolve(c(i,:), abu(i,:,:), nel, nstar)
-             ! else
-             !    call newton(c(i,:), abu(i,:,:), nel, nstar)
-             ! endif
-
-             if (isolve == 1) then
-                ! Dodgy NR solver
-                ! should work for cdf == 1 but may fail for cdf==0
-
-                call newton(c(i,:), abu(i,:,:), nel, nstar)
-             else
-                ! Slower UOBYQA solver that does not depend on C(2)
-                ! function for chi2
-
-                call psolve(c(i,:), abu(i,:,:), nel, nstar)
-             endif
-          endif
-          scale = sum(c(i,:))
-          if (scale > 1.d0) then
-             c(i,:) = c(i,:) * (1.d0 / scale)
-          endif
-       end do
-    else if (ls == 0) then
-       do i = 1, nsol
-          scale = 1.d0
-          y(:) = 0.d0
-          do j = 1, nstar
-             do k = 1, nel
-                y(k) = y(k) + c(i,j) * abu(i,j,k)
-             enddo
-          enddo
-          if (icdf == 0) then
-             call analyticsolve(scale, y, nel)
-          else
-             call singlesolve(scale, y, nel)
-          endif
-          c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
-       enddo
-    else if (ls /= 2) then
-       error stop 'invalid local search option'
-    else
-    endif
-
-    ! get final fit value for possibly adjusted scales
-
-    do i = 1, nsol
-       call chi2(f(i), c(i,:), abu(i,:,:), nel, nstar)
-    enddo
-
-  end subroutine fitness
 
 end module fitting
 

@@ -7,6 +7,9 @@ module star_data
 
   save
 
+  real(kind=real64), parameter :: &
+       det_lim = -80.d0
+
   integer(kind=int64) :: &
        nel, ncov
   real(kind=real64), dimension(:), allocatable :: &
@@ -17,19 +20,19 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor, measu, tresh
+       upper, covar, uncor, measu, detec, nocov, erinv
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor, nmeasu, ntresh
+       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor, imeasu, itresh
+       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv
 
   real(kind=real64), dimension(:, :), allocatable :: &
-       m
+       mm
   real(kind=real64), dimension(:), allocatable :: &
-       zp, z1, z
+       zvp, zv1, zv, &
+       erri, erri2
   real(kind=real64) :: &
-       mp, zz, mm
-
+       mp, z, m
 
 contains
 
@@ -85,6 +88,7 @@ contains
     cov = cov_
 
     call init_domains()
+    call init_erri()
     call init_covariance_matrix()
 
   end subroutine set_star_data
@@ -100,8 +104,8 @@ contains
          i
 
     if (allocated(upper)) then
-       deallocate(upper, covar, uncor, measu, tresh)
-       deallocate(iupper, icovar, iuncor, imeasu, itresh)
+       deallocate(upper, covar, uncor, measu, detec, nocov, erinv)
+       deallocate(iupper, icovar, iuncor, imeasu, idetec,inocov, ierinv)
     endif
 
     ! find masks for correlated, uncorreclated, and limit errors
@@ -110,13 +114,17 @@ contains
     covar = any(cov /= 0, 2)
     uncor = .not.(upper.or.covar)
     measu = .not.upper
-    tresh = measu(:) .and. (det(:) > -80.d0)
+    detec = measu(:) .and. (det(:) > det_lim)
+    nocov = .not.covar
+    erinv = upper.or.detec.or.uncor
 
     nupper = count(upper)
     ncovar = count(covar)
     nuncor = count(uncor)
     nmeasu = nel - nupper
-    ntresh = count(tresh)
+    ndetec = count(detec)
+    nnocov = nel - ncov
+    nerinv = count(erinv)
 
     allocate(ii(nel))
     do i=1, nel
@@ -126,9 +134,12 @@ contains
     icovar = pack(ii, covar)
     iuncor = pack(ii, uncor)
     imeasu = pack(ii, measu)
-    itresh = pack(ii, tresh)
+    idetec = pack(ii, detec)
+    inocov = pack(ii, nocov)
+    ierinv = pack(ii, erinv)
 
   end subroutine init_domains
+
 
   subroutine init_covariance_matrix
 
@@ -140,30 +151,31 @@ contains
     integer(kind=int64) :: &
          i, j, k, ie, je
 
-    if (allocated(m)) then
-       deallocate(m)
+    if (allocated(mm)) then
+       deallocate(mm)
     endif
 
-    allocate(m(ncovar, ncovar))
+    allocate(mm(ncovar, ncovar))
 
     do i=1, ncovar
        ie = icovar(i)
-       m(i,i) = err(ie)**2
+       mm(i,i) = err(ie)**2
        do j=1,i
           if (j < i) then
-             m(i,j) = 0.0d0
+             mm(i,j) = 0.0d0
           endif
           je = icovar(j)
           do k = 1, ncov
-             m(i,j) = m(i,j) + cov(ie,k) * cov(je,k)
+             mm(i,j) = mm(i,j) + cov(ie,k) * cov(je,k)
           enddo
           if (j < i) then
-             m(j,i) = m(i,j)
+             mm(j,i) = mm(i,j)
           endif
        enddo
     enddo
 
   end subroutine init_covariance_matrix
+
 
   subroutine init_covaricance_const
 
@@ -172,17 +184,47 @@ contains
 
     implicit none
 
-    if (allocated(zp)) then
-       deallocate(zp, z1)
+    if (allocated(zvp)) then
+       deallocate(zvp, zv1)
     endif
 
-    allocate(zp(ncovar), z1(ncovar))
+    allocate(zvp(ncovar), zv1(ncovar))
 
-    z1(:) = 1.d0
-    zp(:) = leqs(m, z1, ncovar)
-    mp = sum(zp(:) * z1(:))
+    zv1(:) = 1.d0
+    zvp(:) = leqs(mm, zv1, ncovar)
+    mp = sum(zvp(:) * zv1(:))
 
   end subroutine init_covaricance_const
+
+  subroutine init_nocov_erri2
+
+    implicit none
+
+    if (allocated(erri2)) then
+       deallocate(erri2)
+    endif
+
+    allocate(erri2(nel))
+
+    erri2(inocov) = 1.d0 / err(inocov)**2
+
+  end subroutine init_nocov_erri2
+
+
+  subroutine init_erri
+
+    implicit none
+
+    if (allocated(erri)) then
+       deallocate(erri)
+    endif
+
+    allocate(erri(nel))
+
+    erri(ierinv) = 1.d0 / err(ierinv)
+
+  end subroutine init_erri
+
 
   subroutine init_abu_covariance(abu)
 
@@ -195,26 +237,46 @@ contains
          abu
 
     real(kind=real64), dimension(:), allocatable :: &
-         v
+         vv
     if (size(abu, 1) /= nel) then
        error stop '[init_abu_covariance] abu dimension mismatch'
     endif
 
-    if (allocated(z)) then
-       deallocate(z)
+    if (allocated(zv)) then
+       deallocate(zv)
     endif
 
-    allocate(z(ncovar), v(ncovar))
+    allocate(zv(ncovar), vv(ncovar))
 
-    v(:) = obs(icovar) - abu(icovar)
+    vv(:) = abu(icovar) - obs(icovar)
 
-    z(:) = leqs(m, v, ncovar)
-    mm = sum(v(:) * z(:))
-    zz = sum(z(:))
+    zv(:) = leqs(mm, vv, ncovar)
+    mm = sum(vv(:) * zv(:))
+    z = sum(zv(:))
 
-    deallocate(v)
+    deallocate(vv)
 
   end subroutine init_abu_covariance
+
+
+  subroutine init_abu_z(abu)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         abu
+
+    if (size(abu, 1) /= nel) then
+       error stop '[init_abu_covariance] abu dimension mismatch'
+    endif
+
+    z = sum(zvp(:) * abu(icovar))
+
+  end subroutine init_abu_z
+
 
   function abu_covariance(abu) result(xcov)
 
@@ -240,6 +302,7 @@ contains
 
   end function abu_covariance
 
+
   function diff_covariance(diff) result(xcov)
 
     use mleqs, only: &
@@ -261,11 +324,33 @@ contains
     endif
 
     part1 = diff(icovar)
-    part2 = leqs(m, part1, ncovar)
+    part2 = leqs(mm, part1, ncovar)
     xcov = sum(part1(:) * part2(:))
 
     deallocate(part1, part2)
 
   end function diff_covariance
+
+
+  function diff_z(diff) result(xz)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64) :: &
+         xz
+
+    if (size(diff, 1) /= nel) then
+       error stop '[diff_covariance] diff dimension mismatch'
+    endif
+
+    xz = sum(zvp(:) * diff(icovar))
+
+  end function diff_z
 
 end module star_data

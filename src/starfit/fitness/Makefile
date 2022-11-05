@@ -1,5 +1,19 @@
 SOURCE ?= .
 
+FFLAGS ?= -c -Ofast -fno-finite-math-only -fPIC -Wall
+
+F90 ?= gfortran
+
+LINK ?= gfortran
+
+LFLAGS ?=
+
+AR ?= ar
+
+AFLAGS ?= crv
+
+LIBRARY = solver.a
+
 LIBRARY_OBJECTS = \
 	type_def.o \
 	mleqs.o \
@@ -8,16 +22,16 @@ LIBRARY_OBJECTS = \
 	abu_data.o \
 	star_data.o \
 	fitting.o \
-	solver.o \
+	solver.o
+
+EXECUTABLE_OBJECTS = \
 	test.o
 
+EXECUTABLE = \
+	test
 
-FFLAGS = -c -Ofast -fno-finite-math-only -fPIC -Wall
-
-F90 = gfortran
-
-test: ${LIBRARY_OBJECTS}
-	gfortran ${LIBRARY_OBJECTS} -o test
+${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY}
+	${LINK} ${LFLASG} ${LIBRARY} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}
 
 type_def.o type_def.mod &: ${SOURCE}/type_def.f90
 	@rm -f type_def.mod
@@ -63,8 +77,13 @@ test.o &: ${SOURCE}/test.f90 \
 	type_def.mod fitting.mod
 	$(F90) $(FFLAGS) $<
 
-.PHONY:	clean
+.PHONY:	clean, ar
 
 clean:
 	-rm -f *.o *.a *.mod *.smod *~ \#*\# .*~ .\#* _*.f _*.c fortranobject.c fortranobject.h _*.f90
-	-rm -f test
+	-rm -f ${EXECUTABLE} ${LIBRARY}
+
+${LIBRARY}: ${LIBRARY_OBJECTS}
+	${AR} ${AFLAGS} ${LIBRARY} ${LIBRARY_OBJECTS}
+
+ar: ${LIBRARY}
