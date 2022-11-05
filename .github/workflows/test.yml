@@ -21,7 +21,7 @@ jobs:
         sudo apt-get update
         gcc --version
         sudo apt install -y gcc-11
-        sudo apt install -y gcc-fortran-11
+        sudo apt install -y gcc-11-gfortran
         gcc --version
         gcc-11 --version
         gfortran --version
