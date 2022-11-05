@@ -19,7 +19,7 @@ jobs:
     - name: Install gcc 12
       run: |
         sudo apt-get update
-	gcc --version
+        gcc --version
         sudo apt install -y gcc-12
 
     - name: install starfit
