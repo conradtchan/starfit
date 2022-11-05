@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     compiler: gcc
-    gcc: 11
+    gcc: latest
 
     steps:
     - uses: actions/checkout@v2
