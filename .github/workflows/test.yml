@@ -21,11 +21,14 @@ jobs:
         sudo apt-get update
         gcc --version
         sudo apt install -y gcc-11
-        sudo apt install -y gcc-11-gfortran
+        sudo apt install -y gfortran-11
         gcc --version
         gcc-11 --version
         gfortran --version
         gfortran-11 --version
+	which gfortran-11
+	sudo update-alternatives --config gfortran
+	gfortran --version
 
     - name: install starfit
       run: |
