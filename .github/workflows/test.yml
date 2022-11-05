@@ -20,7 +20,8 @@ jobs:
       run: |
         sudo apt-get update
         gcc --version
-        sudo apt install -y gcc-12
+        sudo apt install -y gcc-11
+        gcc --version
 
     - name: install starfit
       run: |
