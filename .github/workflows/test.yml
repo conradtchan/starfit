@@ -26,9 +26,9 @@ jobs:
         gcc-11 --version
         gfortran --version
         gfortran-11 --version
-	which gfortran-11
-	sudo update-alternatives --config gfortran
-	gfortran --version
+        which gfortran-11
+        sudo update-alternatives --config gfortran
+        gfortran --version
 
     - name: install starfit
       run: |
