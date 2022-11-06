@@ -81,7 +81,7 @@ contains
              enddo
           else
              do k = 1, nsol
-                call singles_olve(c(k,1), abu(k,1,:), nel)
+                call single_solve(c(k,1), abu(k,1,:), nel)
              enddo
           endif
        else
