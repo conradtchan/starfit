@@ -28,7 +28,7 @@ contains
 
     use star_data, only: &
          set_star_data, abu_covariance, &
-         init_nocov_erri2, &
+         init_erri2, &
          init_covaricance_const
 
     use type_def, only: &
@@ -37,7 +37,11 @@ contains
     implicit none
 
     integer(kind=int64), parameter :: &
-         isolve = 2
+         isolve = 0 ! set to 1 to force psolve; 0 allows newton for icdf = 1
+    integer(kind=int64), parameter :: &
+         lsolve = 1 ! set to 1 to limit weight of all solutions to 1
+    integer(kind=int64), parameter :: &
+         ls_one_multi = 0 ! set to 1 to force use of multi-D ls
 
     integer(kind=int64), intent(in) :: &
          nstar, nel, nsol, ncov
@@ -78,20 +82,20 @@ contains
        goto 1000
     endif
 
-    if (nstar == 1) then
-    ! if ((ls == 0).and.(nstar == 1)) then ! for testing
-       call init_nocov_erri2()
+    ! if (nstar == 1) then
+    if (((ls == 0).or.(ls_one_multi == 0)).and.(nstar == 1)) then
+       call init_erri2()
        call init_covaricance_const()
        if (icdf == 0) then
 
-          print*,'[fitness] analytic'
+          !print*,'[fittness] analytic'
 
           do k = 1, nsol
              call analytic_solve(c(k,1), abu(k,1,:))
           enddo
        else
 
-          print*,'[fitness] single'
+          !print*,'[fittness] single'
 
           do k = 1, nsol
              call single_solve(c(k,1), abu(k,1,:))
@@ -104,46 +108,56 @@ contains
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
           call init_covaricance_const()
-          call init_nocov_erri2()
+          call init_erri2()
           if (icdf == 0) then
+
+             !print*,'[fittness] analytic - fixed'
+
              call analytic_solve(scale, y)
           else
+
+             !print*,'[fittness] sigle - fixed'
+
              call single_solve(scale, y)
           endif
           c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
        enddo
+    else if (ls == 1) then
+
+       ! This is what it should be when chi2_prime has been tested
+
+       if ((isolve == 1).or.(icdf == 0)) then
+
+          ! Slower UOBYQA solver that does not depend on C(2)
+          ! function for chi2
+
+          !print*,'[fittness] psolve'
+
+          do k = 1, nsol
+             call psolve(c(k,:), abu(k,:,:), nstar)
+          enddo
+       else
+
+          ! faster NR solver
+
+          call init_erri2()
+          call init_covaricance_const()
+
+          !print*,'[fittness] newton'
+
+          do k = 1, nsol
+             call newton(c(k,:), abu(k,:,:), nstar)
+          enddo
+       endif
+    endif
+
+    if (lsolve == 1) then
        do k = 1, nsol
           scale = sum(c(k,:))
           if (scale > 1.d0) then
              c(k,:) = c(k,:) * (1.d0 / scale)
           endif
        end do
-    else if (ls == 1) then
-
-       ! This is what it should be when chi2_prime has been tested
-       ! if (icdf == 0) then
-       !    call psolve(c(i,:), abu(i,:,:), nstar)
-       ! else
-       !    call newton(c(i,:), abu(i,:,:), nstar)
-       ! endif
-
-       if (isolve == 1) then
-
-          ! should work for cdf == 1 but may fail for cdf==0
-
-          call init_nocor_erri2()
-          call init_covaricance_const()
-          do k = 1, nsol
-             call newton(c(k,:), abu(k,:,:), nstar)
-          enddo
-       else
-          ! Slower UOBYQA solver that does not depend on C(2)
-          ! function for chi2
-
-          do k = 1, nsol
-             call psolve(c(k,:), abu(k,:,:), nstar)
-          enddo
-       endif
     endif
 
     ! get final fit value for possibly adjusted scales
@@ -255,7 +269,8 @@ contains
          nuncor, iuncor, &
          ndetec, idetec, &
          nupper, iupper, &
-         diff_zv
+         diff_zv, &
+         reduced_diff_zv
 
     use abu_data, only: &
          abu, nstar
@@ -284,7 +299,7 @@ contains
     integer(kind=int64) :: &
          i, i1, j, k
 
-    error stop '[chi2_prime] not implemented'
+    ! error stop '[chi2_prime] not implemented'
 
     do i = 1, nel
        y(i) = sum(c(:) * abu(:,i))
@@ -314,14 +329,18 @@ contains
        yic(:) = yi(icovar)
        yp(:) = yc(:) * yic(:)
        f1(j) = f1(j) + sum(zv(:) * yp(:))
-       zvp(:) = diff_zv(yp)
+       zvp(:) = reduced_diff_zv(yp)
        do k = 1, j
           yc2(:) = abu(k, icovar)
           yp2(:) = yc2(:) * yic(:)
           ypp(:) = yp(:) * yic(:) * yc2(:)
-          f2(j,k) = f2(j,k) - sum(zv(:) * ypp(:)) + sum(zvp(:) * yp2(:))
+          f2(j,k) = f2(j,k) - sum(zv(:) * ypp(:)) + sum(zvp(:) * yp2(:)) * ln10i
        enddo
     enddo
+
+    !print*, '[cp] var c', c
+    !print*, '[cp] var f1', f1
+    !print*, '[cp] var f2', f2
 
     ! uncorrelated errors
 
@@ -359,6 +378,9 @@ contains
 
        ! detection thresholds
 
+       !print*, 'erri2', erri2
+       !print*, 'ndetec, idetec', ndetec, idetec
+
        do i1 = 1, ndetec
           i = idetec(i1)
           if (diff_det(i) >= 0.d0) &
@@ -366,10 +388,10 @@ contains
           fi1 = diff_det_erri2(i) * yi(i)
           fi2 = (erri2(i) * ln10i - diff_det_erri2(i)) * yi2(i)
           do j = 1, nstar
-             f1(j) = f1(j) + fi1 * abu(j,i)
+             f1(j) = f1(j) - fi1 * abu(j,i)
              fa = fi2 * abu(j,i)
              do k=1,j
-                f2(j,k) = f2(j,k) + fa * abu(k,i)
+                f2(j,k) = f2(j,k) - fa * abu(k,i)
              enddo
           enddo
        enddo
@@ -421,8 +443,13 @@ contains
        enddo
     enddo
 
+    ! these identical factors make no difference in solver
+    ! Just for correctness while debugging
+
     f1(:) = f1(:) * ln10i2
     f2(:,:) = f2(:,:) * ln10i2
+
+    ! print*,'[cp] X', f1, f2
 
   end subroutine chi2_prime
 
@@ -470,13 +497,17 @@ contains
     do i = 1, max_steps
        call chi2_prime(f1, f2, c)
        dc(:) = leqs(f2, f1, nstar)
-       dcr = maxval(abs(dc) / dc)
+
+       ! print*,'[newton] f1, f2, dc', f1, f2, dc
+
+       dcr = maxval(abs(dc) / c)
        if (dcr > 0.5) then
           dc(:) = dc(:) * (0.5d0 / dcr)
        endif
        if (dcr < 1.0d-6) then
           exit
        endif
+       c(:) = c(:) - dc(:)
     enddo
 
     if (i >= max_steps) then
@@ -531,6 +562,10 @@ contains
     f1 = diff_z(diff_obs)
     f2 = mp
 
+    ! print*, '[sp] x', x
+    ! print*, '[sp] var f1', f1
+    ! print*, '[sp] var f2', f2
+
     ! Uncorrelated errors
 
     f1 = f1 + sum(diff_obs(iuncor) * erri2(iuncor))
@@ -582,6 +617,15 @@ contains
           f2 = f2 + df * (df + de)
        enddo
     endif
+
+    ! these identical factors make no difference in solver
+    ! Just for correctness while debugging
+
+    f1 = f1 * 2.d0
+    f2 = f2 * 2.d0
+
+    ! print*,'[sp] X', f1, f2
+
   end subroutine single_prime
 
 
@@ -663,7 +707,7 @@ contains
          c
 
     real(kind=real64) :: &
-         x, diff, ei2s, diff_cov
+         x, diff, ei2s, z
     real(kind=real64), dimension(nel)  :: &
          diff_obs, diff_det, logabu
 
@@ -680,7 +724,9 @@ contains
     diff_obs(:) = logabu(:) - obs(:)
     diff_det(:) = logabu(:) - det(:)
 
-    diff_cov = diff_z(diff_obs)
+    z = diff_z(diff_obs)
+
+    !print*, '[analytic] mp, z', mp, z
 
     ! First, include all upper limits as if they were detections, and
     ! exclude all detection thresholds as it you were above
@@ -690,12 +736,14 @@ contains
     include_obs(:) = .true.
     include_det(:) = .false.
 
+    !print*,'nnocov, inocov', nnocov, inocov
+
     do while (change)
 
        ! (re)calculate with ignored elements and included thresholds
 
        ei2s = mp
-       diff = diff_cov
+       diff = z
        do i1 = 1, nnocov
           i = inocov(i1)
           if (include_obs(i)) then
@@ -710,6 +758,12 @@ contains
              diff = diff - diff_det(i) * erri2(i)
           endif
        enddo
+
+       !print*,'[analytic] x', x
+
+       if (ei2s == 0.d0) then
+          error stop '[analytic] all values below threshold'
+       endif
 
        x = -diff / ei2s
 

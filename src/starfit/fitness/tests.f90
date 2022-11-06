@@ -10,7 +10,7 @@ module tests
 
 contains
 
-  subroutine test1(ls, icdf, idet, icovr)
+  subroutine test1(ls, icdf, idet, icov)
 
     implicit none
 
@@ -45,17 +45,26 @@ contains
     enddo
 
     if (icov > 0) then
-       do i = nel-5, nel-2
+       do i = nel-4, nel-2
           do j = 1, ncov
-             cov(i,j) = err(i) * dble(i * j) / dble(ncov * nel) * dble(1 - 2 * mod(1 + 2, 2))
+             cov(i,j) = err(i) * dble(i * j) / dble(ncov * nel) * dble(1 - 2 * mod(i + j, 2))
           enddo
-          err(i) = sqrt(err(i)**2 - sum(cov(j, :)**2))
+          !print*,'[err]', i, err(i)
+          err(i) = sqrt(err(i)**2 - sum(cov(i, :)**2))
+          !print*,'[err]', i, err(i)
        enddo
+
+       !do i = 1, nel
+       !   print*,i, err(i), cov(i,:)
+       !enddo
+
+
     endif
 
     if (idet > 0) then
-       det(nel-1) = obs(nel-1) + 1.d0
        det(nel) = obs(nel) - 1.d0
+       det(nel-2) = obs(nel-2) - 1.d0
+       det(nel-1) = obs(nel-1) + 1.d0
     endif
 
     print*
@@ -97,13 +106,14 @@ contains
        end do
     end do
 
-    ! do ils = 2, nls
+    ! do ils = 3, 3
+    ! !do ils = 2, nls
     !    ! do iicdf = nicdf, nicdf
     !    do iicdf = 1, 1
-    !       do icov=ncov, ncov
-    !       ! do icov=1, 1
+    !       ! do icov=ncov, ncov
+    !       do icov=1, 2
     !          ! do idet=ndet, ndet
-    !          do idet=1, 1
+    !          do idet=2, 2
     !             call test1(xls(ils), xicdf(iicdf), xdet(idet), xcov(icov))
     !          end do
     !       end do

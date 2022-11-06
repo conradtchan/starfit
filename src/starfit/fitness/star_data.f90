@@ -141,7 +141,7 @@ contains
     nuncor = count(uncor)
     nmeasu = nel - nupper
     ndetec = count(detec)
-    nnocov = nel - ncov
+    nnocov = nel - ncovar
     nerinv = count(erinv)
     nernoi = nel - nerinv
 
@@ -225,7 +225,7 @@ contains
 
   end subroutine init_covaricance_const
 
-  subroutine init_nocov_erri2
+  subroutine init_erri2
 
     implicit none
 
@@ -235,10 +235,10 @@ contains
 
     allocate(erri2(nel))
 
-    erri2(icovar) = signan()
-    erri2(inocov) = 1.d0 / err(inocov)**2
+    erri2(iernoi) = signan()
+    erri2(ierinv) = 1.d0 / err(ierinv)**2
 
-  end subroutine init_nocov_erri2
+  end subroutine init_erri2
 
 
   subroutine init_erri
@@ -279,6 +279,8 @@ contains
        return
     endif
 
+    allocate(diff(ncovar))
+
     diff = obs(icovar) - abu(icovar)
     xcov = diff_covariance(diff)
 
@@ -304,6 +306,8 @@ contains
          part1, part2
 
     if (size(diff, 1) /= nel) then
+       print*, '[diff_covariance] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
        error stop '[diff_covariance] diff dimension mismatch'
     endif
 
@@ -311,6 +315,8 @@ contains
        xcov = 0.d0
        return
     endif
+
+    allocate(part1(ncovar), part2(ncovar))
 
     part1 = diff(icovar)
     part2 = leqs(mm, part1, ncovar)
@@ -337,12 +343,15 @@ contains
     endif
 
     if (size(diff, 1) /= nel) then
+       print*, '[diff_z] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
        error stop '[diff_z] diff dimension mismatch'
     endif
 
     xz = sum(zvp(:) * diff(icovar))
 
   end function diff_z
+
 
   function diff_zv(diff) result(xzv)
 
@@ -365,6 +374,8 @@ contains
     endif
 
     if (size(diff, 1) /= nel) then
+       print*, '[diff_zv] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
        error stop '[diff_zv] diff dimension mismatch'
     endif
 
@@ -372,5 +383,33 @@ contains
     xzv(:) = leqs(mm, part, ncovar)
 
   end function diff_zv
+
+
+  function reduced_diff_zv(diff) result(xzv)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64), dimension(ncovar) :: &
+         xzv
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    if (size(diff, 1) /= ncovar) then
+       print*, '[reduced_diff_zv] size(diff, 1) = ', size(diff, 1), &
+            'expected ncovar = ', ncovar
+       error stop '[reduced_diff_zv] diff dimension mismatch'
+    endif
+
+    xzv(:) = leqs(mm, diff, ncovar)
+
+  end function reduced_diff_zv
 
 end module star_data
