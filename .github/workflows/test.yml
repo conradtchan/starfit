@@ -19,14 +19,9 @@ jobs:
     - name: Install gcc 11
       run: |
         sudo apt-get update
-        gcc --version
+        gfortran --version
         sudo apt install -y gcc-11
         sudo apt install -y gfortran-11
-        gcc --version
-        gcc-11 --version
-        gfortran --version
-        gfortran-11 --version
-        which gfortran-11
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-11
         sudo update-alternatives --set gcc /usr/bin/gcc-11
         gfortran --version
