@@ -81,7 +81,7 @@ contains
              enddo
           else
              do k = 1, nsol
-                call single_solve(c(k,1), abu(k,1,:), nel)
+                call single_solve(c(k,1), abu(k,1,:))
              enddo
           endif
        else
@@ -317,15 +317,15 @@ contains
                 fi3 = yi2(i) * (erri2(i) - erri(i) * ddif(i))
              endif
              do j=1, nel
-                fa = fi1 * abu(j, i)
-                f1(j) = f1(j) + diffe(i) * fa
                 if (ddif(i) < 0.d0) then
+                   fa = fi1 * abu(j, i)
+                   f1(j) = f1(j) + diffe(i) * fa
                    f1(j) = f1(j) - ddife(i) * fa
                 endif
                 do k=1, nel
-                   fb = abu(j,i) * abu(k,i)
-                   f2(j,k) = f2(j,k) + fb * fi2
                    if (ddif(i) > 0.d0) then
+                      fb = abu(j,i) * abu(k,i)
+                      f2(j,k) = f2(j,k) + fb * fi2
                       f2(j,k) = f2(j,k) - fb * fi3
                    endif
                 enddo
