@@ -28,8 +28,11 @@ jobs:
 
     - name: install starfit
       run: |
-        ./download-data.sh
         pip install .[testing]
+
+    - name: download starfit data
+      run: |
+        ./download-data.sh
 
     - name: run pytest
       run: pytest
