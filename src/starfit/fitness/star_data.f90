@@ -32,7 +32,7 @@ module star_data
        zvp, zv1, zv, &
        erri, erri2
   real(kind=real64) :: &
-       mp, z, m
+       mp
 
 contains
 
@@ -226,56 +226,56 @@ contains
   end subroutine init_erri
 
 
-  subroutine init_abu_covariance(abu)
+  ! subroutine init_abu_covariance(abu)
 
-    use mleqs, only: &
-         leqs
+  !   use mleqs, only: &
+  !        leqs
 
-    implicit none
+  !   implicit none
 
-    real(kind=real64), dimension(:), intent(in) :: &
-         abu
+  !   real(kind=real64), dimension(:), intent(in) :: &
+  !        abu
 
-    real(kind=real64), dimension(:), allocatable :: &
-         vv
-    if (size(abu, 1) /= nel) then
-       error stop '[init_abu_covariance] abu dimension mismatch'
-    endif
+  !   real(kind=real64), dimension(:), allocatable :: &
+  !        vv
+  !   if (size(abu, 1) /= nel) then
+  !      error stop '[init_abu_covariance] abu dimension mismatch'
+  !   endif
 
-    if (allocated(zv)) then
-       deallocate(zv)
-    endif
+  !   if (allocated(zv)) then
+  !      deallocate(zv)
+  !   endif
 
-    allocate(zv(ncovar), vv(ncovar))
+  !   allocate(zv(ncovar), vv(ncovar))
 
-    vv(:) = abu(icovar) - obs(icovar)
+  !   vv(:) = abu(icovar) - obs(icovar)
 
-    zv(:) = leqs(mm, vv, ncovar)
-    mm = sum(vv(:) * zv(:))
-    z = sum(zv(:))
+  !   zv(:) = leqs(mm, vv, ncovar)
+  !   m = sum(vv(:) * zv(:))
+  !   z = sum(zv(:))
 
-    deallocate(vv)
+  !   deallocate(vv)
 
-  end subroutine init_abu_covariance
+  ! end subroutine init_abu_covariance
 
 
-  subroutine init_abu_z(abu)
+  ! subroutine init_abu_z(abu)
 
-    use mleqs, only: &
-         leqs
+  !   use mleqs, only: &
+  !        leqs
 
-    implicit none
+  !   implicit none
 
-    real(kind=real64), dimension(:), intent(in) :: &
-         abu
+  !   real(kind=real64), dimension(:), intent(in) :: &
+  !        abu
 
-    if (size(abu, 1) /= nel) then
-       error stop '[init_abu_covariance] abu dimension mismatch'
-    endif
+  !   if (size(abu, 1) /= nel) then
+  !      error stop '[init_abu_covariance] abu dimension mismatch'
+  !   endif
 
-    z = sum(zvp(:) * abu(icovar))
+  !   z = sum(zvp(:) * abu(icovar))
 
-  end subroutine init_abu_z
+  ! end subroutine init_abu_z
 
 
   function abu_covariance(abu) result(xcov)
@@ -316,26 +316,21 @@ contains
     real(kind=real64) :: &
          xcov
 
-    real(kind=real64), dimension(:), allocatable :: &
+    real(kind=real64), dimension(ncovar)  :: &
          part1, part2
 
     if (size(diff, 1) /= nel) then
        error stop '[diff_covariance] diff dimension mismatch'
     endif
 
-    part1 = diff(icovar)
-    part2 = leqs(mm, part1, ncovar)
+    part1(:) = diff(icovar)
+    part2(:) = leqs(mm, part1, ncovar)
     xcov = sum(part1(:) * part2(:))
-
-    deallocate(part1, part2)
 
   end function diff_covariance
 
 
   function diff_z(diff) result(xz)
-
-    use mleqs, only: &
-         leqs
 
     implicit none
 
@@ -346,11 +341,36 @@ contains
          xz
 
     if (size(diff, 1) /= nel) then
-       error stop '[diff_covariance] diff dimension mismatch'
+       error stop '[diff_z] diff dimension mismatch'
     endif
 
     xz = sum(zvp(:) * diff(icovar))
 
   end function diff_z
+
+  function diff_zv(diff) result(xzv)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64), dimension(ncovar) :: &
+         xzv
+
+    real(kind=real64), dimension(ncovar)  :: &
+         part
+
+    if (size(diff, 1) /= nel) then
+       error stop '[diff_zv] diff dimension mismatch'
+    endif
+
+    part(:) = diff(icovar)
+    xzv = leqs(mm, part, ncovar)
+
+  end function diff_zv
 
 end module star_data

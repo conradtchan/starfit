@@ -88,9 +88,9 @@ contains
 
           ! This is what it should be when chi2_prime has been tested
           ! if (icdf == 0) then
-          !    call psolve(c(i,:), abu(i,:,:), nel, nstar)
+          !    call psolve(c(i,:), abu(i,:,:), nstar)
           ! else
-          !    call newton(c(i,:), abu(i,:,:), nel, nstar)
+          !    call newton(c(i,:), abu(i,:,:), nstar)
           ! endif
 
           if (isolve == 1) then
@@ -100,14 +100,14 @@ contains
              call init_nocor_erri2()
              call init_covaricance_const()
              do k = 1, nsol
-                call newton(c(k,:), abu(k,:,:), nel, nstar)
+                call newton(c(k,:), abu(k,:,:), nstar)
              enddo
           else
              ! Slower UOBYQA solver that does not depend on C(2)
              ! function for chi2
 
              do k = 1, nsol
-                call psolve(c(k,:), abu(k,:,:), nel, nstar)
+                call psolve(c(k,:), abu(k,:,:), nstar)
              enddo
           endif
        endif
@@ -173,9 +173,7 @@ contains
          f
 
     real(kind=real64), dimension(nel) :: &
-         logy, diff, diffe, &
-         ! diffe2, ddife2, &
-         ddif, ddife
+         logy, diff_obs, diff_det
     integer(kind=int64) :: &
          i, i1
 
@@ -183,98 +181,66 @@ contains
        logy(i) = log(sum(c(:) * abu(i,:))) * ln10i
     enddo
 
-    diff(:) = logy(:) - obs(:)
+    diff_obs(:) = logy(:) - obs(:)
+    diff_det(ierinv) = logy(ierinv) - det(ierinv)
 
-    f = diff_covariance(diff)
-
-    diffe(ierinv)  = diff(ierinv) * erri(ierinv)
-
-    ddif(ierinv) = logy(ierinv) - det(ierinv)
-    ddife(ierinv)  = ddif(ierinv) * erri(ierinv)
-
-    ! diffe2(ierinv) = diffe(ierinv)**2
-    ! ddife2(ierinv) = ddife(ierinv)**2
-    ! if (icdf == 0) then
-    !    do i = 1, nel
-    !       if (uncor(i)) then
-    !          f = f + diffe2(i)
-    !       end if
-    !       if (detec(i).and.(ddif(i) < 0.d0)) then
-    !          f = f - ddife2(i)
-    !       endif
-    !       if (upper(i).and.(diff(i) > 0.d0)) then
-    !          f = f + diffe2(i)
-    !       endif
-    !    enddo
-    ! else
-    !    do i = 1, nel
-    !       if (upper(i)) then
-    !          f = f - 2.d0*logcdf(diffe(i))
-    !          cycle
-    !       endif
-    !       if (uncor(i)) then
-    !          f = f + diffe2(i)
-    !       end if
-    !       if (detec(i)) then
-    !          f = f + 2.d0*logcdf(ddife(i))
-    !       endif
-    !    enddo
-    ! endif
-
-    ! A potntiall faster version (to be timed)
-
-    f = diff_covariance(diff)
-    f = f + sum((diff(iuncor) * erri(iuncor))**2)
+    f = diff_covariance(diff_obs)
+    f = f + sum((diff_obs(iuncor) * erri(iuncor))**2)
     if (icdf == 0) then
        do i1=1, nupper
           i = iupper(i1)
-          if (diff(i) > 0.d0) then
-             f = f + (diff(i) * erri(i))**2
+          if (diff_obs(i) > 0.d0) then
+             f = f + (diff_obs(i) * erri(i))**2
           endif
        enddo
        ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
        do i1=1, ndetec
           i = idetec(i1)
-          if (ddif(i) < 0.d0) then
-             f = f - (ddif(i) * erri(i))**2
+          if (diff_det(i) < 0.d0) then
+             f = f - (diff_det(i) * erri(i))**2
           endif
        enddo
        ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
     else
-       f = f - 2.d0* sum(logcdf(diff(iupper) * erri(iupper)))
+       f = f - 2.d0* sum(logcdf(diff_obs(iupper) * erri(iupper)))
        ! do i1=1, nupper
        !    i = iupper(i1)
-       !    f = f - 2.d0*logcdf(diff(j) * erri(j))
+       !    f = f - 2.d0*logcdf(diff_obs(j) * erri(j))
        ! enddo
-       f = f + 2.d0* sum(logcdf(ddif(idetec) * erri(idetec)))
+       f = f + 2.d0* sum(logcdf(diff_det(idetec) * erri(idetec)))
        ! do i1=1, ndetec
        !    i = idetec(i1)
-       !    f = f + 2.d0*logcdf(ddif(i) * erri(i))
+       !    f = f + 2.d0*logcdf(dif_det(i) * erri(i))
        ! enddo
     endif
 
   end subroutine chi2
 
 
-  subroutine chi2_prime(f1, f2, c, abu, nel, nstar)
+  subroutine chi2_prime(f1, f2, c)
 
     ! return first and second derivative of chi2
 
     use star_data, only: &
-         icdf, obs, det, measu, &
-         erri, erri2
+         nel, &
+         icdf, obs, det, &
+         erri, erri2, &
+         icovar, ncovar, &
+         nuncor, iuncor, &
+         ndetec, idetec, &
+         nupper, iupper, &
+         diff_zv
+
+    use abu_data, only: &
+         abu, nstar
 
     use norm, only: &
          logcdf, logcdfp
 
     implicit none
 
-    integer(kind=int64), intent(in) :: &
-         nel, nstar
     real(kind=real64), intent(in), dimension(nstar)  :: &
          c
-    real(kind=real64), intent(in), dimension(nstar, nel) :: &
-         abu
 
     real(kind=real64), intent(out), dimension(nstar) :: &
          f1
@@ -282,99 +248,152 @@ contains
          f2
 
     real(kind=real64), dimension(nel) :: &
-         y, logy, yi, yi2, diff, diffe, &
-         ddif, ddife
+         y, logy, yi, yi2, &
+         diff_obs, diff_obs_erri, diff_obs_erri2, &
+         diff_det, diff_det_erri, diff_det_erri2
+    real(kind=real64), dimension(ncovar) :: &
+         zv, yp, yc, ypp, yic, yc2, yp2, zvp
     real(kind=real64) :: &
-         fa, fb, fc, fi1, fi2, fi3
+         fi1, fi2, fa, fc
     integer(kind=int64) :: &
-         i, j, k
+         i, i1, j, k
+
+    error stop '[chi2_prime] not implemented'
 
     do i = 1, nel
        y(i) = sum(c(:) * abu(:,i))
     enddo
     logy(:) = log(y(:)) * ln10i
 
-    diff(:) = logy(:) - obs(:)
-    diffe(:)  = diff(:) * erri(:)
-
-    ddif(:) = logy(:) - det(:)
-    ddife(:)  = ddif(:) * erri(:)
-
-    yi(:) = 1.d0 / yi(i)
+    yi(:) = 1.d0 / y(:)
     yi2(:) = yi(:)**2
+
+    diff_obs(:) = logy(:) - obs(:)
+    diff_obs_erri2(:)  = diff_obs(:) * erri2(:)
+
+    diff_det(:) = logy(:) - det(:)
+    diff_det_erri2(:)  = diff_det(:) * erri2(:)
 
     f1(:)   = 0.d0
     f2(:,:) = 0.d0
 
-    ! This needs to be checked
+    ! only compute lower triangle of the Jacobian matrix as it is symmetric
+
+    ! covariant errors
+
+    zv(:) = diff_zv(diff_obs)
+
+    do j = 1, nstar
+       yc(:) = abu(j, icovar)
+       yic(:) = yi(icovar)
+       yp(:) = yc(:) * yic(:)
+       f1(j) = f1(j) + sum(zv(:) * yp(:))
+       zvp(:) = diff_zv(yp)
+       do k = 1, j
+          yc2(:) = abu(k, icovar)
+          yp2(:) = yc2(:) * yic(:)
+          ypp(:) = yp(:) * yic(:) * yc2(:)
+          f2(j,k) = f2(j,k) - sum(zv(:) * ypp(:)) + sum(zvp(:) * yp2(:))
+       enddo
+    enddo
+
+    ! uncorrelated errors
+
+    do i1 = 1, nuncor
+       i = iuncor(i1)
+       fi1 = diff_obs_erri2(i) * yi(i)
+       fi2 = (erri2(i) * ln10i - diff_obs_erri2(i)) * yi2(i)
+       do j = 1, nstar
+          f1(j) = f1(j) + fi1 * abu(j,i)
+          fa = fi2 * abu(j,i)
+          do k=1,j
+             f2(j,k) = f2(j,k) + fa * abu(k,i)
+          enddo
+       enddo
+    enddo
 
     if (icdf == 0) then
-       do i = 1, nel
-          if (measu(i)) then
-             fi1 = erri(i) * yi(i)
-             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
-             if (ddif(i) > 0.d0) then
-                fi3 = yi2(i) * (erri2(i) - erri(i) * ddif(i))
-             endif
-             do j=1, nel
-                if (ddif(i) < 0.d0) then
-                   fa = fi1 * abu(j, i)
-                   f1(j) = f1(j) + diffe(i) * fa
-                   f1(j) = f1(j) - ddife(i) * fa
-                endif
-                do k=1, nel
-                   if (ddif(i) > 0.d0) then
-                      fb = abu(j,i) * abu(k,i)
-                      f2(j,k) = f2(j,k) + fb * fi2
-                      f2(j,k) = f2(j,k) - fb * fi3
-                   endif
-                enddo
+
+       ! upper limits
+
+       do i1 = 1, nupper
+          i = iupper(i1)
+          if (diff_obs(i) <= 0.d0) &
+               cycle
+          fi1 = diff_obs_erri2(i) * yi(i)
+          fi2 = (erri2(i) * ln10i - diff_obs_erri2(i)) * yi2(i)
+          do j = 1, nstar
+             f1(j) = f1(j) + fi1 * abu(j,i)
+             fa = fi2 * abu(j,i)
+             do k=1,j
+                f2(j,k) = f2(j,k) + fa * abu(k,i)
              enddo
-          else if (diff(i) > 0.d0) then
-             fi1 = erri(i) * yi(i)
-             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
-             do j=1, nel
-                fa = fi1 * abu(j, i)
-                f1(j) = f1(j) - diffe(i) * fa
-                do k=1, nel
-                   fb = abu(j,i) * abu(k,i)
-                   f2(j,k) = f2(j,k) + fb * fi2
-                enddo
-             enddo
-          endif
+          enddo
        enddo
+
+       ! detection thresholds
+
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          if (diff_det(i) >= 0.d0) &
+               cycle
+          fi1 = diff_det_erri2(i) * yi(i)
+          fi2 = (erri2(i) * ln10i - diff_det_erri2(i)) * yi2(i)
+          do j = 1, nstar
+             f1(j) = f1(j) + fi1 * abu(j,i)
+             fa = fi2 * abu(j,i)
+             do k=1,j
+                f2(j,k) = f2(j,k) + fa * abu(k,i)
+             enddo
+          enddo
+       enddo
+
     else
-       do i = 1, nel
-          fi1 = erri(i) * yi(i)
-          fc = logcdfp(ddife(i))
-          if (measu(i)) then
-             fi2 = yi2(i) * (erri2(i) - erri(i) * diff(i))
-             do j=1, nel
-                fa = fi1 * abu(j, i)
-                f1(j) = f1(j) + diffe(i) * fa
-                f1(j) = f1(j) + fc * abu(j,i) * yi(i)
-                do k=1, nel
-                   fb = abu(j,i) * abu(k,i)
-                   f2(j,k) = f2(j,k) + fb * fi2
-                   f2(j,k) = f2(j,k) - fc * fb * yi(i) * &
-                        (1 + (ddife(i) + fc) * yi(i))
-                enddo
+
+       diff_obs_erri(:)  = diff_obs(:) * erri(:)
+       diff_det_erri(:)  = diff_det(:) * erri(:)
+
+       ! upper limits
+
+       do i1 = 1, nupper
+          i = iupper(i1)
+          fc = logcdfp(diff_obs(i) * erri(i))
+          fi1 = erri(i) * yi(i) * fc
+          fi2 = yi(i) * (1.d0 + ln10i * erri(i) * (fc + diff_obs(i) * erri(i)))
+          do j=1, nstar
+             fa = fi1 * abu(j, i)
+             f1(j) = f1(j) - fa
+             do k=1, j
+                f2(j,k) = f2(j,k) + fi2 * fa * abu(k,i)
              enddo
-          else
-             fi1 = erri(i) * yi(i)
-             fc = logcdfp(diffe(i))
-             do j=1, nel
-                fa = fi1 * abu(j, i)
-                f1(j) = f1(j) + fc * abu(j,i) * yi(i)
-                do k=1, nel
-                   fb = abu(j,i) * abu(k,i)
-                   f2(j,k) = f2(j,k) + fc * fb * yi(i) * &
-                        (1 + (diffe(i) + fc) * yi(i))
-                enddo
+          enddo
+       enddo
+
+       ! detection thresholds
+
+       do i1 = 1, ndetec
+          i = idetec(i1)
+          fc = logcdfp(diff_det(i) * erri(i))
+          fi1 = erri(i) * yi(i) * fc
+          fi2 = yi(i) * (1.d0 + ln10i * erri(i) * (fc + diff_det(i) * erri(i)))
+          do j=1, nstar
+             fa = fi1 * abu(j, i)
+             f1(j) = f1(j) + fa
+             do k=1, j
+                f2(j,k) = f2(j,k) - fi2 * fa * abu(k,i)
              enddo
-          endif
-        enddo
+          enddo
+       enddo
+
     endif
+
+    ! fill in symmetric rest of jacobian
+
+    do j = 1, nstar-1
+       do k = j+1, nstar
+          f2(j,k) = f2(k,j)
+       enddo
+    enddo
 
     f1(:) = f1(:) * ln10i2
     f2(:,:) = f2(:,:) * ln10i2
@@ -382,10 +401,13 @@ contains
   end subroutine chi2_prime
 
 
-  subroutine newton(c, abu, nel, nstar)
+  subroutine newton(c, abu, nstar)
 
     use mleqs, only: &
          leqs
+
+    use star_data, only: &
+         nel
 
     implicit none
 
@@ -393,7 +415,7 @@ contains
          max_steps = 100
 
     integer(kind=int64), intent(in) :: &
-         nel, nstar
+         nstar
     real(kind=real64), dimension(nstar, nel), intent(in) :: &
          abu
 
@@ -414,8 +436,10 @@ contains
 
     c(:) = max(min(c(:), 1.d0), 1e-8)
 
+    call set_abu_data(abu, nel, nstar)
+
     do i = 1, max_steps
-       call chi2_prime(f1, f2, c, abu, nel, nstar)
+       call chi2_prime(f1, f2, c)
        dc(:) = leqs(f2, f1, nstar)
        dcr = maxval(abs(dc) / dc)
        if (dcr > 0.5) then
@@ -687,7 +711,10 @@ contains
   end subroutine analytic_solve
 
 
-  subroutine psolve(c, abu, nel, nstar)
+  subroutine psolve(c, abu, nstar)
+
+    use star_data, only: &
+         nel
 
     use abu_data, only: &
          set_abu_data
@@ -698,7 +725,7 @@ contains
     implicit none
 
     integer(kind=int64), intent(in) :: &
-         nel, nstar
+         nstar
     real(kind=real64), intent(in), dimension(nstar, nel) :: &
          abu
 
