@@ -37,7 +37,7 @@ contains
     implicit none
 
     integer(kind=int64), parameter :: &
-         isolve = 0 ! set to 1 to force psolve; 0 allows newton for icdf = 1
+         isolve = 1 ! set to 1 to force psolve; 0 allows newton for icdf = 1
     integer(kind=int64), parameter :: &
          lsolve = 1 ! set to 1 to limit weight of all solutions to 1
     integer(kind=int64), parameter :: &
