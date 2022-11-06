@@ -40,7 +40,7 @@ def fitness(
     elif ls is False:
         ils = 0
     elif ls is None:
-        ils = 2
+        ils = -1
     else:
         raise Exception(f"Unknown search option {ls=}")
 

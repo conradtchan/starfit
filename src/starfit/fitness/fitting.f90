@@ -71,52 +71,32 @@ contains
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
-    if (ls == 1) then
-       if (nstar == 1) then
-          call init_nocov_erri2()
-          call init_covaricance_const()
-          if (icdf == 0) then
-             do k = 1, nsol
-                call analytic_solve(c(k,1), abu(k,1,:))
-             enddo
-          else
-             do k = 1, nsol
-                call single_solve(c(k,1), abu(k,1,:))
-             enddo
-          endif
+    if ((ls > 1).or.(ls < -1)) then
+       error stop 'invalid local search option'
+    endif
+    if (ls == -1) then
+       goto 1000
+    endif
+
+    if (nstar == 1) then
+    ! if ((ls == 0).and.(nstar == 1)) then ! for testing
+       call init_nocov_erri2()
+       call init_covaricance_const()
+       if (icdf == 0) then
+
+          print*,'[fitness] analytic'
+
+          do k = 1, nsol
+             call analytic_solve(c(k,1), abu(k,1,:))
+          enddo
        else
 
-          ! This is what it should be when chi2_prime has been tested
-          ! if (icdf == 0) then
-          !    call psolve(c(i,:), abu(i,:,:), nstar)
-          ! else
-          !    call newton(c(i,:), abu(i,:,:), nstar)
-          ! endif
+          print*,'[fitness] single'
 
-          if (isolve == 1) then
-
-             ! should work for cdf == 1 but may fail for cdf==0
-
-             call init_nocor_erri2()
-             call init_covaricance_const()
-             do k = 1, nsol
-                call newton(c(k,:), abu(k,:,:), nstar)
-             enddo
-          else
-             ! Slower UOBYQA solver that does not depend on C(2)
-             ! function for chi2
-
-             do k = 1, nsol
-                call psolve(c(k,:), abu(k,:,:), nstar)
-             enddo
-          endif
+          do k = 1, nsol
+             call single_solve(c(k,1), abu(k,1,:))
+          enddo
        endif
-       do k = 1, nsol
-          scale = sum(c(k,:))
-          if (scale > 1.d0) then
-             c(k,:) = c(k,:) * (1.d0 / scale)
-          endif
-       end do
     else if (ls == 0) then
        do k = 1, nsol
           scale = 0.1d0
@@ -132,23 +112,55 @@ contains
           endif
           c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
        enddo
-    else if (ls /= 2) then
-       error stop 'invalid local search option'
-    else
+       do k = 1, nsol
+          scale = sum(c(k,:))
+          if (scale > 1.d0) then
+             c(k,:) = c(k,:) * (1.d0 / scale)
+          endif
+       end do
+    else if (ls == 1) then
+
+       ! This is what it should be when chi2_prime has been tested
+       ! if (icdf == 0) then
+       !    call psolve(c(i,:), abu(i,:,:), nstar)
+       ! else
+       !    call newton(c(i,:), abu(i,:,:), nstar)
+       ! endif
+
+       if (isolve == 1) then
+
+          ! should work for cdf == 1 but may fail for cdf==0
+
+          call init_nocor_erri2()
+          call init_covaricance_const()
+          do k = 1, nsol
+             call newton(c(k,:), abu(k,:,:), nstar)
+          enddo
+       else
+          ! Slower UOBYQA solver that does not depend on C(2)
+          ! function for chi2
+
+          do k = 1, nsol
+             call psolve(c(k,:), abu(k,:,:), nstar)
+          enddo
+       endif
     endif
 
     ! get final fit value for possibly adjusted scales
 
+1000 continue
+
     do i = 1, nsol
-       call chi2(f(i), c(i,:), abu(i,:,:), nel, nstar)
+       call chi2(f(i), c(i,:), abu(i,:,:), nstar)
     enddo
 
   end subroutine fitness
 
 
-  subroutine chi2(f, c, abu, nel, nstar)
+  subroutine chi2(f, c, abu, nstar)
 
     use star_data, only: &
+         nel, &
          icdf, obs, det, &
          erri
 
@@ -163,7 +175,7 @@ contains
     implicit none
 
     integer(kind=int64), intent(in) :: &
-         nel, nstar
+         nstar
     real(kind=real64), intent(in), dimension(nstar)  :: &
          c
     real(kind=real64), intent(in), dimension(nstar, nel) :: &
@@ -185,8 +197,17 @@ contains
     diff_det(ierinv) = logy(ierinv) - det(ierinv)
 
     f = diff_covariance(diff_obs)
+
+    !print*,'[chi2] A', f, nupper, ndetec
+
     f = f + sum((diff_obs(iuncor) * erri(iuncor))**2)
+
+    !print*,'[chi2] B', f, iuncor
+    !print*,'[chi2] B1 ', 'diff', diff_obs(iuncor)
+    !print*,'[chi2] B2 ', 'erri', erri(iuncor)
+
     if (icdf == 0) then
+       !print*,'[chi2] C', f, nupper, iupper
        do i1=1, nupper
           i = iupper(i1)
           if (diff_obs(i) > 0.d0) then
@@ -194,6 +215,7 @@ contains
           endif
        enddo
        ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
+       !print*,'[chi2] D', f, ndetec, idetec
        do i1=1, ndetec
           i = idetec(i1)
           if (diff_det(i) < 0.d0) then
@@ -202,17 +224,21 @@ contains
        enddo
        ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
     else
+       !print*,'[chi2] E', f, nupper, iupper
        f = f - 2.d0* sum(logcdf(diff_obs(iupper) * erri(iupper)))
        ! do i1=1, nupper
        !    i = iupper(i1)
        !    f = f - 2.d0*logcdf(diff_obs(j) * erri(j))
        ! enddo
+       !print*,'[chi2] F', f, ndetec, idetec
        f = f + 2.d0* sum(logcdf(diff_det(idetec) * erri(idetec)))
        ! do i1=1, ndetec
        !    i = idetec(i1)
        !    f = f + 2.d0*logcdf(dif_det(i) * erri(i))
        ! enddo
     endif
+
+    !print*,'[chi2] G', f
 
   end subroutine chi2
 
@@ -408,6 +434,9 @@ contains
 
     use star_data, only: &
          nel
+
+    use abu_data, only: &
+         set_abu_data
 
     implicit none
 
@@ -663,7 +692,7 @@ contains
 
     do while (change)
 
-       ! (re)calculate with ignored elements
+       ! (re)calculate with ignored elements and included thresholds
 
        ei2s = mp
        diff = diff_cov
@@ -677,6 +706,7 @@ contains
        do i1 = 1, ndetec
           i = idetec(i1)
           if (include_det(i)) then
+             ei2s = ei2s - erri2(i)
              diff = diff - diff_det(i) * erri2(i)
           endif
        enddo
@@ -775,7 +805,7 @@ subroutine calfun(nstar, x, f)
        int64, real64
 
   use abu_data, only: &
-       abu, nel
+       abu
 
   use fitting, only: &
        chi2
@@ -802,7 +832,7 @@ subroutine calfun(nstar, x, f)
 
   ! Calculate the chi2
 
-  call chi2(f, tanhx(1:nstar), abu(1:nstar,1:nel), nel, nstar)
+  call chi2(f, tanhx(:), abu(:,:), nstar)
 
   ! Build a wall at zero
 

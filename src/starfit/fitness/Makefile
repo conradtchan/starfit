@@ -1,6 +1,8 @@
 SOURCE ?= .
 
-FFLAGS ?= -c -Ofast -fno-finite-math-only -fPIC -Wall
+# FFLAGS ?= -c -Ofast -fno-finite-math-only -fPIC -Wall
+
+FFLAGS ?= -c -g -Wall
 
 F90 ?= gfortran
 
@@ -21,17 +23,20 @@ LIBRARY_OBJECTS = \
 	powell.o \
 	abu_data.o \
 	star_data.o \
-	fitting.o \
-	solver.o
+	fitting.o
 
 EXECUTABLE_OBJECTS = \
-	test.o
+	test.o \
+	tests.o
 
 EXECUTABLE = \
 	test
 
-${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY}
-	${LINK} ${LFLASG} ${LIBRARY} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}
+# ${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY}
+# 	${LINK} ${LFLASG} ${LIBRARY} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}
+
+${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY_OBJECTS}
+	${LINK} ${LFLASG} ${LIBRARY_OBJECTS} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}
 
 type_def.o type_def.mod &: ${SOURCE}/type_def.f90
 	@rm -f type_def.mod
@@ -68,13 +73,18 @@ fitting.o fitting.mod &: ${SOURCE}/fitting.f90 \
 	@rm -f fitting.mod
 	$(F90) $(FFLAGS) $<
 
-solver.o solver.mod &: ${SOURCE}/solver.f90 \
+# solver.o solver.mod &: ${SOURCE}/solver.f90 \
+# 	type_def.mod fitting.mod
+# 	@rm -f solver.mod
+# 	$(F90) $(FFLAGS) $<
+
+tests.o tests.mod &: ${SOURCE}/tests.f90 \
 	type_def.mod fitting.mod
-	@rm -f solver.mod
+	@rm -f tests.mod
 	$(F90) $(FFLAGS) $<
 
 test.o &: ${SOURCE}/test.f90 \
-	type_def.mod fitting.mod
+	type_def.mod tests.mod
 	$(F90) $(FFLAGS) $<
 
 .PHONY:	clean, ar

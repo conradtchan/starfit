@@ -20,11 +20,11 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor, measu, detec, nocov, erinv
+       upper, covar, uncor, measu, detec, nocov, erinv, ernoi
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv
+       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv, nernoi
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv
+       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi
 
   real(kind=real64), dimension(:, :), allocatable :: &
        mm
@@ -35,6 +35,23 @@ module star_data
        mp
 
 contains
+
+  function signan() result(nan)
+
+    use, intrinsic :: &
+         ieee_arithmetic, only: &
+         ieee_value, &
+         ieee_signaling_nan
+
+    implicit none
+
+    real(kind=real64) :: &
+         nan
+
+    nan = ieee_value(0.d0,ieee_signaling_nan)
+
+  end function signan
+
 
   subroutine set_star_data(obs_, err_, det_, cov_, nel_, ncov_, icdf_)
 
@@ -104,8 +121,8 @@ contains
          i
 
     if (allocated(upper)) then
-       deallocate(upper, covar, uncor, measu, detec, nocov, erinv)
-       deallocate(iupper, icovar, iuncor, imeasu, idetec,inocov, ierinv)
+       deallocate(upper, covar, uncor, measu, detec, nocov, erinv, ernoi)
+       deallocate(iupper, icovar, iuncor, imeasu, idetec,inocov, ierinv, iernoi)
     endif
 
     ! find masks for correlated, uncorreclated, and limit errors
@@ -117,6 +134,7 @@ contains
     detec = measu(:) .and. (det(:) > det_lim)
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
+    ernoi = .not.erinv
 
     nupper = count(upper)
     ncovar = count(covar)
@@ -125,6 +143,7 @@ contains
     ndetec = count(detec)
     nnocov = nel - ncov
     nerinv = count(erinv)
+    nernoi = nel - nerinv
 
     allocate(ii(nel))
     do i=1, nel
@@ -137,6 +156,7 @@ contains
     idetec = pack(ii, detec)
     inocov = pack(ii, nocov)
     ierinv = pack(ii, erinv)
+    iernoi = pack(ii, ernoi)
 
   end subroutine init_domains
 
@@ -150,6 +170,10 @@ contains
 
     integer(kind=int64) :: &
          i, j, k, ie, je
+
+    if (ncovar == 0) then
+       return
+    endif
 
     if (allocated(mm)) then
        deallocate(mm)
@@ -184,6 +208,11 @@ contains
 
     implicit none
 
+    if (ncovar == 0) then
+       mp = 0.d0
+       return
+    endif
+
     if (allocated(zvp)) then
        deallocate(zvp, zv1)
     endif
@@ -206,6 +235,7 @@ contains
 
     allocate(erri2(nel))
 
+    erri2(icovar) = signan()
     erri2(inocov) = 1.d0 / err(inocov)**2
 
   end subroutine init_nocov_erri2
@@ -221,61 +251,10 @@ contains
 
     allocate(erri(nel))
 
+    erri(iernoi) = signan()
     erri(ierinv) = 1.d0 / err(ierinv)
 
   end subroutine init_erri
-
-
-  ! subroutine init_abu_covariance(abu)
-
-  !   use mleqs, only: &
-  !        leqs
-
-  !   implicit none
-
-  !   real(kind=real64), dimension(:), intent(in) :: &
-  !        abu
-
-  !   real(kind=real64), dimension(:), allocatable :: &
-  !        vv
-  !   if (size(abu, 1) /= nel) then
-  !      error stop '[init_abu_covariance] abu dimension mismatch'
-  !   endif
-
-  !   if (allocated(zv)) then
-  !      deallocate(zv)
-  !   endif
-
-  !   allocate(zv(ncovar), vv(ncovar))
-
-  !   vv(:) = abu(icovar) - obs(icovar)
-
-  !   zv(:) = leqs(mm, vv, ncovar)
-  !   m = sum(vv(:) * zv(:))
-  !   z = sum(zv(:))
-
-  !   deallocate(vv)
-
-  ! end subroutine init_abu_covariance
-
-
-  ! subroutine init_abu_z(abu)
-
-  !   use mleqs, only: &
-  !        leqs
-
-  !   implicit none
-
-  !   real(kind=real64), dimension(:), intent(in) :: &
-  !        abu
-
-  !   if (size(abu, 1) /= nel) then
-  !      error stop '[init_abu_covariance] abu dimension mismatch'
-  !   endif
-
-  !   z = sum(zvp(:) * abu(icovar))
-
-  ! end subroutine init_abu_z
 
 
   function abu_covariance(abu) result(xcov)
@@ -293,6 +272,11 @@ contains
 
     if (size(abu, 1) /= nel) then
        error stop '[abu_covariance] abu dimension mismatch'
+    endif
+
+    if (ncovar == 0) then
+       xcov = 0.d0
+       return
     endif
 
     diff = obs(icovar) - abu(icovar)
@@ -316,16 +300,23 @@ contains
     real(kind=real64) :: &
          xcov
 
-    real(kind=real64), dimension(ncovar)  :: &
+    real(kind=real64), dimension(:), allocatable  :: &
          part1, part2
 
     if (size(diff, 1) /= nel) then
        error stop '[diff_covariance] diff dimension mismatch'
     endif
 
-    part1(:) = diff(icovar)
-    part2(:) = leqs(mm, part1, ncovar)
+    if (ncovar == 0) then
+       xcov = 0.d0
+       return
+    endif
+
+    part1 = diff(icovar)
+    part2 = leqs(mm, part1, ncovar)
     xcov = sum(part1(:) * part2(:))
+
+    deallocate(part1, part2)
 
   end function diff_covariance
 
@@ -339,6 +330,11 @@ contains
 
     real(kind=real64) :: &
          xz
+
+    if (ncovar == 0) then
+       xz = 0.d0
+       return
+    endif
 
     if (size(diff, 1) /= nel) then
        error stop '[diff_z] diff dimension mismatch'
@@ -364,12 +360,16 @@ contains
     real(kind=real64), dimension(ncovar)  :: &
          part
 
+    if (ncovar == 0) then
+       return
+    endif
+
     if (size(diff, 1) /= nel) then
        error stop '[diff_zv] diff dimension mismatch'
     endif
 
     part(:) = diff(icovar)
-    xzv = leqs(mm, part, ncovar)
+    xzv(:) = leqs(mm, part, ncovar)
 
   end function diff_zv
 
