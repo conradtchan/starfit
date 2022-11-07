@@ -16,11 +16,12 @@ LS_ON = 1
 LS_PSOLVE = 2
 
 LS_MODES = {
-    None : LS_CHI_ONLY,
-    False : LS_OFF,
-    True : LS_ON,
-    Ellipsis : LS_PSOLVE,
-    }
+    None: LS_CHI_ONLY,
+    False: LS_OFF,
+    True: LS_ON,
+    Ellipsis: LS_PSOLVE,
+}
+
 
 def fitness(
     observed,

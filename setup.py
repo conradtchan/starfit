@@ -2,7 +2,15 @@ import os
 
 from numpy.distutils.core import Extension, setup
 
-flags = ["-fPIC", "-Ofast", "-fno-finite-math-only", "-g", "-funroll-loops", "-fno-second-underscore", "-w"]
+flags = [
+    "-fPIC",
+    "-Ofast",
+    "-fno-finite-math-only",
+    "-g",
+    "-funroll-loops",
+    "-fno-second-underscore",
+    "-w",
+]
 
 cwd = os.getcwd()
 starfit_src = os.path.join(cwd, "src/starfit")
