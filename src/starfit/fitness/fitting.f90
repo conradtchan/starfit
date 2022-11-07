@@ -21,8 +21,8 @@ contains
   ! Due to poor f2py / numpy.distutils code we need to carry nel
   ! rather than taking it from star_data
 
-  ! TODO - as we no longer wrap these routines, refactor to take
-  ! diminsions from module.
+  ! TODO - potentiall use pointer, e.g., for star object, rather than
+  ! soreing data in a module
 
   subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
 
@@ -37,11 +37,7 @@ contains
     implicit none
 
     integer(kind=int64), parameter :: &
-         isolve = 1 ! set to 1 to force psolve; 0 allows newton for icdf = 1
-    integer(kind=int64), parameter :: &
          lsolve = 1 ! set to 1 to limit weight of all solutions to 1
-    integer(kind=int64), parameter :: &
-         ls_one_multi = 0 ! set to 1 to force use of multi-D ls
 
     integer(kind=int64), intent(in) :: &
          nstar, nel, nsol, ncov
@@ -75,7 +71,7 @@ contains
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
-    if ((ls > 1).or.(ls < -1)) then
+    if ((ls > 2).or.(ls < -1)) then
        error stop 'invalid local search option'
     endif
     if (ls == -1) then
@@ -83,72 +79,94 @@ contains
     endif
 
     ! if (nstar == 1) then
-    if (((ls == 0).or.(ls_one_multi == 0)).and.(nstar == 1)) then
+    if ((ls == 0).and.(nstar == 1)) then
        call init_erri2()
        call init_covaricance_const()
        if (icdf == 0) then
 
-          !print*,'[fittness] analytic'
+          !print*,'[fitness] analytic'
 
           do k = 1, nsol
              call analytic_solve(c(k,1), abu(k,1,:))
           enddo
        else
 
-          !print*,'[fittness] single'
+          !print*,'[fitness] single'
 
           do k = 1, nsol
              call single_solve(c(k,1), abu(k,1,:))
           enddo
        endif
-    else if (ls == 0) then
+    else if ((ls == 0).and.(nstar > 1)) then
        do k = 1, nsol
           scale = 0.1d0
           do i = 1, nel
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
-          call init_covaricance_const()
           call init_erri2()
+          call init_covaricance_const()
           if (icdf == 0) then
 
-             !print*,'[fittness] analytic - fixed'
+             !print*,'[fitness] analytic - fixed'
 
              call analytic_solve(scale, y)
           else
 
-             !print*,'[fittness] sigle - fixed'
+             !print*,'[fitness] single - fixed'
 
              call single_solve(scale, y)
           endif
-          c(i,:) = c(i,:) * min(scale, 1.d0 / sum(c(i,:)))
+
+          !print*,'[fitness] scale', scale
+
+          c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
-    else if (ls == 1) then
+    else if ((ls == 2).and.(icdf == 1)) then
+
+       ! faster NR solver
 
        ! This is what it should be when chi2_prime has been tested
 
-       if ((isolve == 1).or.(icdf == 0)) then
+       call init_erri2()
+       call init_covaricance_const()
 
-          ! Slower UOBYQA solver that does not depend on C(2)
-          ! function for chi2
+       !print*,'[fittness] newton'
+       !print*,'[fittness] nstar',nstar
+       !print*,'[fittness] c',c
 
-          !print*,'[fittness] psolve'
+       do k = 1, nsol
+          call newton(c(k,:), abu(k,:,:), nstar)
+       enddo
 
-          do k = 1, nsol
-             call psolve(c(k,:), abu(k,:,:), nstar)
-          enddo
-       else
+    else
 
-          ! faster NR solver
+       ! Slower UOBYQA solver that does not depend on C(2)
+       ! function for chi2
 
-          call init_erri2()
-          call init_covaricance_const()
+       !print*,'[fittness] psolve'
 
-          !print*,'[fittness] newton'
+       !print*,'[fittness] nstar',nstar
+       !print*,'[fittness] c',c
 
-          do k = 1, nsol
-             call newton(c(k,:), abu(k,:,:), nstar)
-          enddo
-       endif
+       do k = 1, nsol
+          call psolve(c(k,:), abu(k,:,:), nstar)
+       enddo
+
+       !do k = 1, nsol
+       !call chi2(f(k), c(k,:), abu(k,:,:), nstar)
+       !print*, 'f=', f(k), 'c=', c(k,:)
+       !enddo
+       !call init_erri2()
+       !call init_covaricance_const()
+
+       !print*,'[fittness] newton'
+       !print*,'[fittness] nstar',nstar
+       !print*,'[fittness] c',c
+
+       !do k = 1, nsol
+       !  call newton(c(k,:), abu(k,:,:), nstar)
+       !enddo
+
     endif
 
     if (lsolve == 1) then
@@ -164,8 +182,8 @@ contains
 
 1000 continue
 
-    do i = 1, nsol
-       call chi2(f(i), c(i,:), abu(i,:,:), nstar)
+    do k = 1, nsol
+       call chi2(f(k), c(k,:), abu(k,:,:), nstar)
     enddo
 
   end subroutine fitness
@@ -204,7 +222,7 @@ contains
          i, i1
 
     do i = 1, nel
-       logy(i) = log(sum(c(:) * abu(i,:))) * ln10i
+       logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
     enddo
 
     diff_obs(:) = logy(:) - obs(:)
@@ -280,6 +298,10 @@ contains
 
     implicit none
 
+    real(kind=real64), parameter :: &
+         WALL_LOC = 1.d-15, &
+         WALL_POWER = 1.0d0
+
     real(kind=real64), intent(in), dimension(nstar)  :: &
          c
 
@@ -310,10 +332,10 @@ contains
     yi2(:) = yi(:)**2
 
     diff_obs(:) = logy(:) - obs(:)
-    diff_obs_erri2(:)  = diff_obs(:) * erri2(:)
+    diff_obs_erri2(:) = diff_obs(:) * erri2(:)
 
     diff_det(:) = logy(:) - det(:)
-    diff_det_erri2(:)  = diff_det(:) * erri2(:)
+    diff_det_erri2(:) = diff_det(:) * erri2(:)
 
     f1(:)   = 0.d0
     f2(:,:) = 0.d0
@@ -339,10 +361,15 @@ contains
     enddo
 
     !print*, '[cp] var c', c
-    !print*, '[cp] var f1', f1
-    !print*, '[cp] var f2', f2
+    !print*, '[cp] covar'
+    !print*, '[cp] f1(:)', f1
+    !do j=1, nstar
+    !print*, '[cp] f2(j,:)', f2(j,:)
+    !enddo
 
     ! uncorrelated errors
+
+    !print*, '[cp] nuncor, iuncor', nuncor, iuncor
 
     do i1 = 1, nuncor
        i = iuncor(i1)
@@ -356,6 +383,12 @@ contains
           enddo
        enddo
     enddo
+
+    !print*, '[cp] uncor'
+    !print*, '[cp] var f1(:)', f1
+    !do j=1, nstar
+    !print*, '[cp] var f2(j,:)', f2(j,:)
+    !enddo
 
     if (icdf == 0) then
 
@@ -435,6 +468,22 @@ contains
 
     endif
 
+    !print*, '[cp] final'
+    !print*, '[cp] var f1(:)', f1
+    !do j=1, nstar
+    !print*, '[cp] var f2(j,:)', f2(j,:)
+    !enddo
+
+    ! these identical factors make no difference in solver
+    ! Just for correctness while debugging
+
+    do j=1, nstar
+       f1(j) = f1(j) * ln10i2
+       do k=1, j
+          f2(j,k) = f2(j,k) * ln10i2
+       enddo
+    enddo
+
     ! fill in symmetric rest of jacobian
 
     do j = 1, nstar-1
@@ -443,13 +492,24 @@ contains
        enddo
     enddo
 
-    ! these identical factors make no difference in solver
-    ! Just for correctness while debugging
+    ! penalty for low c
 
-    f1(:) = f1(:) * ln10i2
-    f2(:,:) = f2(:,:) * ln10i2
+    do j = 1, nstar
+       fa =  1.d0 / c(j)
 
-    ! print*,'[cp] X', f1, f2
+       ! + C / c
+       fc = (WALL_LOC * fa) ** WALL_POWER
+       fi1 = -fc * fa * WALL_POWER
+       fi2 = -fi1 * fa * (WALL_POWER + 1.d0)
+
+       ! ! + exp(C/c) - 1
+       ! fi1 = - WALL_LOC * fa**2 * exp(WALL_LOC * fa)
+       ! fi2 = exp(WALL_LOC * fa) * (WALL_LOC**2 * fa**4 + WALL_LOC * fa**3)
+
+       !print*,'[nr]', j, c(j), fi1, fi2
+       f1(j) = f1(j) + fi1
+       f2(j,j) = f2(j,j) + fi2
+    enddo
 
   end subroutine chi2_prime
 
@@ -460,15 +520,19 @@ contains
          leqs
 
     use star_data, only: &
-         nel
+         nel, &
+         signan
 
     use abu_data, only: &
          set_abu_data
 
     implicit none
 
+    real(kind=real64), parameter :: &
+         FMIN = 0.5d0
+
     integer(kind=int64), parameter :: &
-         max_steps = 100
+         max_steps = 1000
 
     integer(kind=int64), intent(in) :: &
          nstar
@@ -487,10 +551,12 @@ contains
 
     integer(kind=int64) :: &
          i
+    !integer(kind=int64) :: &
+    !     j
 
-    !Initial N-R values
+    ! Initial N-R values
 
-    c(:) = max(min(c(:), 1.d0), 1e-8)
+    c(:) = max(min(c(:), 1.d0), 1e-12)
 
     call set_abu_data(abu, nel, nstar)
 
@@ -498,21 +564,31 @@ contains
        call chi2_prime(f1, f2, c)
        dc(:) = leqs(f2, f1, nstar)
 
-       ! print*,'[newton] f1, f2, dc', f1, f2, dc
+       !print*,''
+       !print*,'[newton] i', i
+       !print*,'[newton] c', c
+       !print*,'[newton] f1', f1
+       !do j=1, nstar
+       !print*,'[newton] f2', f2(j, :)
+       !enddo
+       !print*,'[newton] dc',dc
 
        dcr = maxval(abs(dc) / c)
-       if (dcr > 0.5) then
-          dc(:) = dc(:) * (0.5d0 / dcr)
+       if (dcr > FMIN) then
+          dc(:) = dc(:) * (FMIN / dcr)
        endif
-       if (dcr < 1.0d-6) then
-          exit
-       endif
+
+       !print*,'[newton] dcr',dcr
+       !print*,'[newton] dc',dc
+
        c(:) = c(:) - dc(:)
+       if (dcr < 1.0d-6) return
     enddo
 
-    if (i >= max_steps) then
-       error stop '[newton] did not converge.'
-    endif
+    !print*, '[newton] did not converge after ',i-1,'iterations.'
+    c(:) = signan()
+    return
+    error stop '[newton] did not converge.'
 
   end subroutine newton
 
@@ -562,9 +638,9 @@ contains
     f1 = diff_z(diff_obs)
     f2 = mp
 
-    ! print*, '[sp] x', x
-    ! print*, '[sp] var f1', f1
-    ! print*, '[sp] var f2', f2
+    !print*, '[sp] x', x
+    !print*, '[sp] var f1', f1
+    !print*, '[sp] var f2', f2
 
     ! Uncorrelated errors
 
@@ -624,7 +700,7 @@ contains
     f1 = f1 * 2.d0
     f2 = f2 * 2.d0
 
-    ! print*,'[sp] X', f1, f2
+    !print*,'[sp] X', f1, f2
 
   end subroutine single_prime
 
@@ -636,7 +712,8 @@ contains
     ! should not be used for icdf == 0
 
     use star_data, only: &
-         nel
+         nel, &
+         signan
 
     use abu_data, only: &
          set_abu_data, &
@@ -650,13 +727,13 @@ contains
     integer(kind=int64), parameter :: &
          max_steps = 20
 
-    ! real(kind=real64), intent(in), dimension(1, nel) :: &
-    !      abu
-
-    real(kind=real64), intent(in), dimension(nel), target :: &
+    real(kind=real64), intent(in), dimension(1, nel) :: &
          abu
-    real(kind=real64), dimension(:,:), pointer :: &
-         abu_
+
+    ! real(kind=real64), intent(in), dimension(nel), target :: &
+    !      abu
+    ! real(kind=real64), dimension(:,:), pointer :: &
+    !      abu_
 
     real(kind=real64), intent(inout) :: &
          c
@@ -667,8 +744,9 @@ contains
     integer(kind=int64) :: &
          i
 
-    abu_(1:1,1:nel) => abu
-    call set_abu_data(abu_, nel, one)
+    ! abu_(1:1,1:nel) => abu
+    ! call set_abu_data(abu_, nel, one)
+    call set_abu_data(abu, nel, one)
     call init_logabu()
 
     x = log(c) * ln10i
@@ -677,15 +755,15 @@ contains
        if (f2 == 0.d0) exit
        delta = f1 / f2
        x = x - delta
-       if (abs(delta) < 1.0d-6) then
-          c = exp(x * ln10)
-          exit
-       endif
+       if (abs(delta) < 1.0d-6) goto 1000
     enddo
 
-    if (i >= max_steps) then
-       error stop '[singlesolve] did not converge.'
-    endif
+    c = signan()
+    return
+    error stop '[singlesolve] did not converge.'
+
+1000 continue
+    c = exp(x * ln10)
 
   end subroutine single_solve
 
@@ -866,6 +944,9 @@ subroutine calfun(nstar, x, f)
 
   implicit none
 
+  real(kind=real64), parameter :: &
+       WALL_LOC = 12.d0
+
   integer(kind=int64), intent(in) :: &
        nstar
   real(kind=real64), intent(in), dimension(nstar) :: &
@@ -891,8 +972,9 @@ subroutine calfun(nstar, x, f)
   ! Build a wall at zero
 
   do i = 1, nstar
-     if (abs(x(i)) > 12.d0) then
-        f = f * exp((abs(x(i)) - 12.d0)**2)
+     if (abs(x(i)) > WALL_LOC) then
+        ! f = f * exp((abs(x(i)) - WALL_LOC)**2)
+        f = f + (exp((abs(x(i)) - WALL_LOC)**2) - 1.d0)
      endif
   enddo
 

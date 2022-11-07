@@ -1,5 +1,9 @@
 module star_data
 
+  ! TODO - we may want to use a matrix inversion instead of using many
+  ! LE inversions, after all, since we re-use it many times.  Ar least
+  ! have the option...
+
   use type_def, only: &
        real64, int64
 

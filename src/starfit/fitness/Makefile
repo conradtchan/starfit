@@ -1,6 +1,7 @@
 SOURCE ?= .
 
-# FFLAGS ?= -c -Ofast -fno-finite-math-only -fPIC -Wall
+#FFLAGS ?= -c -Ofast -fno-finite-math-only -fPIC -Wall
+#FFLAGS ?= -c -Ofast -fno-finite-math-only -fno-second-underscore -fPIC -Wall
 
 FFLAGS ?= -c -g -Wall
 
@@ -32,8 +33,8 @@ EXECUTABLE_OBJECTS = \
 EXECUTABLE = \
 	test
 
-# ${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY}
-# 	${LINK} ${LFLASG} ${LIBRARY} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}
+#${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY}
+#	${LINK} ${LFLASG} -o ${EXECUTABLE} ${EXECUTABLE_OBJECTS} ${LIBRARY}
 
 ${EXECUTABLE}: ${EXECUTABLE_OBJECTS} ${LIBRARY_OBJECTS}
 	${LINK} ${LFLASG} ${LIBRARY_OBJECTS} ${EXECUTABLE_OBJECTS} -o ${EXECUTABLE}

@@ -4,11 +4,11 @@ program test
        real64, int64
 
   use tests, only: &
-       suite1
+       suite1, suite0
 
   implicit none
 
-  call suite1()
+  call suite0()
 
 
 end program test
