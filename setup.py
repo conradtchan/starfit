@@ -2,17 +2,27 @@ import os
 
 from numpy.distutils.core import Extension, setup
 
-flags = ["-fPIC", "-Ofast", "-g", "-funroll-loops", "-fno-second-underscore", "-w"]
+flags = [
+    "-fPIC",
+    "-Ofast",
+    "-fno-finite-math-only",
+    "-g",
+    "-funroll-loops",
+    "-fno-second-underscore",
+    "-w",
+]
 
 cwd = os.getcwd()
 starfit_src = os.path.join(cwd, "src/starfit")
 
+# TODO - compile modules and ar into a library using Makefile
 
 fit_sources = [
     os.path.join(starfit_src, "fitness", x)
     for x in [
         "solver.pyf",
         "type_def.f90",
+        "utils.f90",
         "powell.f90",
         "norm.f90",
         "mleqs.f90",

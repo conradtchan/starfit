@@ -22,12 +22,10 @@ def get_fitness(
     If abundance is directly given in the case of smart GA, use that.
     """
 
-    # TODO: for multiple calls, such as GA, stardb (and star) data
-    # should be passed only once.
-
     if fixed_offsets:
         offset = ejecta[sol["index"]]
-        ls = False
+        if ls is True:
+            ls = False
     else:
         offset = sol["offset"]
 

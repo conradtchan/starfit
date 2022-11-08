@@ -325,7 +325,7 @@ class StarFit(Logged):
                 eval_data.error[i0] = np.log10(np.sqrt(np.sum(ae) / np.sum(abu)) + 1)
 
                 # Do the same for detection thresholds
-                det = eval_data.covariance[ii]
+                det = eval_data.detection[ii]
                 ad = abu[:, np.newaxis] * (10**det - 1)
                 eval_data.detection[i0] = np.log10(np.sum(ad) / np.sum(abu) + 1)
 
@@ -451,6 +451,7 @@ class StarFit(Logged):
         stars,
         offsets=None,
         fixed_offsets=False,
+        optimize=True,
     ):
         """Solve for the specified stars"""
         stars = np.array(stars)
@@ -458,11 +459,15 @@ class StarFit(Logged):
         for i in range(stars.shape[0]):
             sol[i, :]["index"] = stars[i, :]
             if offsets is None:
+                assert optimize is True
                 sol[i, :]["offset"] = 1.0e-3 / stars.shape[1]
                 ls = True
             else:
                 sol[i, :]["offset"] = offsets[i]
-                ls = False
+                if optimize is True:
+                    ls = False
+                else:
+                    ls = None
 
         fitness = get_fitness(
             self.trimmed_db,
