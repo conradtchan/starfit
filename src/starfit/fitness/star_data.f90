@@ -11,7 +11,9 @@ module star_data
   ! to many models.
 
   logical, parameter :: &
-       use_inverse = .true.
+       use_inverse = .true., &
+       warn_subthreshold_detection = .false., &
+       stop_subthreshold_detection = .false.
 
   real(kind=real64), parameter :: &
        det_lim = -80.d0
@@ -114,8 +116,35 @@ contains
     call init_erri()
     call init_covariance_matrix()
     call init_inverse()
+    call init_check_thresholds()
 
   end subroutine set_star_data
+
+
+  subroutine init_check_thresholds()
+
+    implicit none
+
+    integer(kind=int64) :: &
+         i, i1
+
+    if (any(det(idetec) > obs(idetec))) then
+       if (warn_subthreshold_detection) then
+          do i1 = 1, ndetec
+             i = idetec(i1)
+             if (det(i) > obs(i)) then
+                print*,'[set_star_data] WARNING i=',i,'det=',det(i), 'obs=', obs(i)
+             endif
+          end do
+       endif
+
+       if (stop_subthreshold_detection) then
+          error stop '[set_star_data] observation below detection limit'
+       endif
+    end if
+
+  end subroutine init_check_thresholds
+
 
   subroutine init_domains
 
@@ -123,7 +152,6 @@ contains
 
     integer(kind=int64), dimension(:), allocatable :: &
          ii
-
     integer(kind=int64) :: &
          i
 

@@ -8,7 +8,7 @@ program test
 
   implicit none
 
-  call suite0()
+  call suite1()
 
 
 end program test

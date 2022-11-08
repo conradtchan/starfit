@@ -13,6 +13,9 @@ module fitting
        ln10i2 = 2.d0 / ln10, &
        ln10i2m = -ln10i2
 
+  logical :: &
+       wall_chi2_prime = .false.
+
   public :: &
        fitness, chi2
 
@@ -125,12 +128,10 @@ contains
 
        ! faster NR solver
 
-       ! This is what it should be when chi2_prime has been tested
-
        call init_erri2()
        call init_covaricance_const()
 
-       !print*,'[fittness] newton'
+       !print*,'[fittness] newton_classic'
        !print*,'[fittness] nstar',nstar
        !print*,'[fittness] c',c
 
@@ -138,11 +139,9 @@ contains
           call newton_classic(c(k,:), abu(k,:,:), nstar)
        enddo
 
-    else if ((ls == 3).and.(icdf == 1)) then
+    else if ((ls == 2).and.(icdf == 1)) then
 
        ! faster NR solver
-
-       ! This is what it should be when chi2_prime has been tested
 
        call init_erri2()
        call init_covaricance_const()
@@ -181,7 +180,7 @@ contains
        !print*,'[fittness] c',c
 
        !do k = 1, nsol
-       !  call newton(c(k,:), abu(k,:,:), nstar)
+       !call newton(c(k,:), abu(k,:,:), nstar)
        !enddo
 
     endif
@@ -511,17 +510,20 @@ contains
 
     ! penalty for low c - for newton_classic
 
-    do j = 1, nstar
-       fa =  1.d0 / c(j)
-       fc = (WALL_LOC * fa) ** WALL_POWER
-       fi1 = -fc * fa * WALL_POWER
-       fi2 = -fi1 * fa * (WALL_POWER + 1.d0)
+    if (wall_chi2_prime) then
 
-       !print*,'[nr]', j, c(j), fi1, fi2
+       do j = 1, nstar
+          fa =  1.d0 / c(j)
+          fc = (WALL_LOC * fa) ** WALL_POWER
+          fi1 = -fc * fa * WALL_POWER
+          fi2 = -fi1 * fa * (WALL_POWER + 1.d0)
 
-       f1(j) = f1(j) + fi1
-       f2(j,j) = f2(j,j) + fi2
-    enddo
+          !print*,'[nr]', j, c(j), fi1, fi2
+
+          f1(j) = f1(j) + fi1
+          f2(j,j) = f2(j,j) + fi2
+       enddo
+    end if
 
   end subroutine chi2_prime
 
@@ -567,6 +569,8 @@ contains
     !     j
 
     ! Initial N-R values
+
+    wall_chi2_prime = .true.
 
     c(:) = max(min(c(:), 1.d0), 1e-12)
 
@@ -638,6 +642,8 @@ contains
          p, e
     integer(kind=int64) :: &
          j, k
+    logical :: &
+         wall
 
     ! Transform from -inf/inf to 0/1
     ! x is used for the solver, tanhx is physically meaningful
@@ -652,12 +658,12 @@ contains
     yp(:) = 0.5d0 * (1.d0 - t(:)**2)
     ypp(:) = -2.d0 * t(:) * yp(:)
 
-    f1(:) = g1(:) * yp(:)
     do j = 1, nstar
        do k = 1, nstar
           f2(j,k) = g2(j,k) * yp(j) * yp(k)
        enddo
-       f2(j,j) = f2(j,j) + f1(j) * ypp(j)
+       f1(j) = g1(j) * yp(j)
+       f2(j,j) = f2(j,j) + g1(j) * ypp(j)
     enddo
 
     ! Build a wall at zero
@@ -665,12 +671,19 @@ contains
     do j = 1, nstar
        if (x(j) < -WALL_LOC) then
           p = x(j) + WALL_LOC
+          wall = .true.
        else if (x(j) > WALL_LOC) then
           p = x(j) - WALL_LOC
+          wall = .true.
+       else
+          wall=.false.
        endif
-       e = exp(p**2)
-       f1(j) = f1(j) + 2.d0 * p * e
-       f2(j,j) = f2(j,j) + (4.d0 * p**2 + 2.d0) * e
+       if (wall) then
+          !print*,'[newton_prime] p=', p
+          e = exp(p**2)
+          f1(j) = f1(j) + 2.d0 * p * e
+          f2(j,j) = f2(j,j) + (4.d0 * p**2 + 2.d0) * e
+       endif
     enddo
 
   end subroutine newton_prime
@@ -696,7 +709,7 @@ contains
          FMIN = 0.5d0
 
     integer(kind=int64), parameter :: &
-         max_steps = 1000
+         max_steps = 100
 
     integer(kind=int64), intent(in) :: &
          nstar
@@ -716,9 +729,11 @@ contains
     integer(kind=int64) :: &
          i
     !integer(kind=int64) :: &
-    !     j
+    !j
 
     ! Initial N-R values
+
+    wall_chi2_prime = .false.
 
     if (any(c >= 1.d0)) then
        print*, '[newton] DEBUG IN: c = ', c
@@ -745,13 +760,12 @@ contains
        !enddo
        !print*,'[newton] dx',dx
 
-       dxr = maxval(abs(dx) / x)
+       dxr = maxval(abs(dx))
        if (dxr > FMIN) then
           dx(:) = dx(:) * (FMIN / dxr)
+          !print*,'[newton] dxr',dxr
+          !print*,'[newton] dx',dx
        endif
-
-       !print*,'[newton] dxr',dxr
-       !print*,'[newton] dx',dx
 
        x(:) = x(:) - dx(:)
        if (dxr < 1.0d-6) goto 1000
