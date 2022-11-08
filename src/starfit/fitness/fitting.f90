@@ -124,6 +124,21 @@ contains
 
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
+    else if ((ls == 1).and.(icdf == 1)) then
+
+       ! faster NR solver
+
+       call init_erri2()
+       call init_covaricance_const()
+
+       !print*,'[fittness] newton'
+       !print*,'[fittness] nstar',nstar
+       !print*,'[fittness] c',c
+
+       do k = 1, nsol
+          call newton(c(k,:), abu(k,:,:), nstar)
+       enddo
+
     else if ((ls == 3).and.(icdf == 1)) then
 
        ! faster NR solver
@@ -137,21 +152,6 @@ contains
 
        do k = 1, nsol
           call newton_classic(c(k,:), abu(k,:,:), nstar)
-       enddo
-
-    else if ((ls == 2).and.(icdf == 1)) then
-
-       ! faster NR solver
-
-       call init_erri2()
-       call init_covaricance_const()
-
-       !print*,'[fittness] newton'
-       !print*,'[fittness] nstar',nstar
-       !print*,'[fittness] c',c
-
-       do k = 1, nsol
-          call newton(c(k,:), abu(k,:,:), nstar)
        enddo
 
     else

@@ -31,7 +31,7 @@ class Single(StarFit):
             z_exclude_index=self.exclude_index,
             sol=stars,
             cdf=self.cdf,
-            ls=True,
+            ls=False,
         )
         self.logger.info("Calculation time:")
         self.logger.info(f" {time2human(time.perf_counter() - t_start)}")
