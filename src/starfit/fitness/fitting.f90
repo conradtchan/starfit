@@ -5,6 +5,10 @@ module fitting
 
   implicit none
 
+  logical :: &
+       stop_on_nonconvergence = .false., &
+       stop_on_large_offset = .false.
+
   private
 
   real(kind=real64), parameter :: &
@@ -20,9 +24,6 @@ module fitting
        fitness, chi2
 
 contains
-
-  ! Due to poor f2py / numpy.distutils code we need to carry nel
-  ! rather than taking it from star_data
 
   ! TODO - potentiall use pointer, e.g., for star object, rather than
   ! soreing data in a module
@@ -69,33 +70,30 @@ contains
     real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
          c
 
-    ! If localsearch is enabled, modify the offsets first
+    ! If localsearch is enabled, adjust all offsets first
     ! otherwise keep relative weights fixed
+    ! If ls < 0, only return chi2, no optimisation
+    ! If ls == 2, force use of psolve
+    ! if ls == 3, use classic NR solver (not recommended)
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
     if ((ls > 3).or.(ls < -1)) then
-       error stop 'invalid local search option'
+       print*, '[fitness] ls=', ls
+       error stop '[fitness] invalid local search option'
     endif
     if (ls == -1) then
        goto 1000
     endif
 
-    ! if (nstar == 1) then
     if ((ls == 0).and.(nstar == 1)) then
        call init_erri2()
        call init_covaricance_const()
        if (icdf == 0) then
-
-          !print*,'[fitness] analytic'
-
           do k = 1, nsol
              call analytic_solve(c(k,1), abu(k,1,:))
           enddo
        else
-
-          !print*,'[fitness] single'
-
           do k = 1, nsol
              call single_solve(c(k,1), abu(k,1,:))
           enddo
@@ -109,80 +107,38 @@ contains
           call init_erri2()
           call init_covaricance_const()
           if (icdf == 0) then
-
-             !print*,'[fitness] analytic - fixed'
-
              call analytic_solve(scale, y)
           else
-
-             !print*,'[fitness] single - fixed'
-
              call single_solve(scale, y)
           endif
-
-          !print*,'[fitness] scale', scale
-
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
     else if ((ls == 1).and.(icdf == 1)) then
 
-       ! faster NR solver
+       ! NR solver with modified x-axis
 
        call init_erri2()
        call init_covaricance_const()
-
-       !print*,'[fittness] newton'
-       !print*,'[fittness] nstar',nstar
-       !print*,'[fittness] c',c
-
        do k = 1, nsol
           call newton(c(k,:), abu(k,:,:), nstar)
        enddo
-
     else if ((ls == 3).and.(icdf == 1)) then
 
-       ! faster NR solver
+       ! classical NR solver that converges poorly
 
        call init_erri2()
        call init_covaricance_const()
-
-       !print*,'[fittness] newton_classic'
-       !print*,'[fittness] nstar',nstar
-       !print*,'[fittness] c',c
-
        do k = 1, nsol
           call newton_classic(c(k,:), abu(k,:,:), nstar)
        enddo
-
     else
 
        ! Slower UOBYQA solver that does not depend on C(2)
        ! function for chi2
 
-       !print*,'[fittness] psolve'
-
-       !print*,'[fittness] nstar',nstar
-       !print*,'[fittness] c',c
-
        do k = 1, nsol
           call psolve(c(k,:), abu(k,:,:), nstar)
        enddo
-
-       !do k = 1, nsol
-       !call chi2(f(k), c(k,:), abu(k,:,:), nstar)
-       !print*, 'f=', f(k), 'c=', c(k,:)
-       !enddo
-       !call init_erri2()
-       !call init_covaricance_const()
-
-       !print*,'[fittness] newton'
-       !print*,'[fittness] nstar',nstar
-       !print*,'[fittness] c',c
-
-       !do k = 1, nsol
-       !call newton(c(k,:), abu(k,:,:), nstar)
-       !enddo
-
     endif
 
     if (lsolve == 1) then
@@ -245,48 +201,24 @@ contains
     diff_det(ierinv) = logy(ierinv) - det(ierinv)
 
     f = diff_covariance(diff_obs)
-
-    !print*,'[chi2] A', f, nupper, ndetec
-
     f = f + sum((diff_obs(iuncor) * erri(iuncor))**2)
-
-    !print*,'[chi2] B', f, iuncor
-    !print*,'[chi2] B1 ', 'diff', diff_obs(iuncor)
-    !print*,'[chi2] B2 ', 'erri', erri(iuncor)
-
     if (icdf == 0) then
-       !print*,'[chi2] C', f, nupper, iupper
        do i1=1, nupper
           i = iupper(i1)
           if (diff_obs(i) > 0.d0) then
              f = f + (diff_obs(i) * erri(i))**2
           endif
        enddo
-       ! f = f + sum((min(diff(iupper), 0.d0) * erri(iupper))**2)
-       !print*,'[chi2] D', f, ndetec, idetec
        do i1=1, ndetec
           i = idetec(i1)
           if (diff_det(i) < 0.d0) then
              f = f - (diff_det(i) * erri(i))**2
           endif
        enddo
-       ! f = f - sum((max(ddff(imeasu), 0.d0) * erri(imeasu))**2)
     else
-       !print*,'[chi2] E', f, nupper, iupper
        f = f - 2.d0* sum(logcdf(diff_obs(iupper) * erri(iupper)))
-       ! do i1=1, nupper
-       !    i = iupper(i1)
-       !    f = f - 2.d0*logcdf(diff_obs(j) * erri(j))
-       ! enddo
-       !print*,'[chi2] F', f, ndetec, idetec
        f = f + 2.d0* sum(logcdf(diff_det(idetec) * erri(idetec)))
-       ! do i1=1, ndetec
-       !    i = idetec(i1)
-       !    f = f + 2.d0*logcdf(dif_det(i) * erri(i))
-       ! enddo
     endif
-
-    !print*,'[chi2] G', f
 
   end subroutine chi2
 
@@ -337,8 +269,6 @@ contains
     integer(kind=int64) :: &
          i, i1, j, k
 
-    ! error stop '[chi2_prime] not implemented'
-
     do i = 1, nel
        y(i) = sum(c(:) * abu(:,i))
     enddo
@@ -376,16 +306,7 @@ contains
        enddo
     enddo
 
-    !print*, '[cp] var c', c
-    !print*, '[cp] covar'
-    !print*, '[cp] f1(:)', f1
-    !do j=1, nstar
-    !print*, '[cp] f2(j,:)', f2(j,:)
-    !enddo
-
     ! uncorrelated errors
-
-    !print*, '[cp] nuncor, iuncor', nuncor, iuncor
 
     do i1 = 1, nuncor
        i = iuncor(i1)
@@ -399,12 +320,6 @@ contains
           enddo
        enddo
     enddo
-
-    !print*, '[cp] uncor'
-    !print*, '[cp] var f1(:)', f1
-    !do j=1, nstar
-    !print*, '[cp] var f2(j,:)', f2(j,:)
-    !enddo
 
     if (icdf == 0) then
 
@@ -426,9 +341,6 @@ contains
        enddo
 
        ! detection thresholds
-
-       !print*, 'erri2', erri2
-       !print*, 'ndetec, idetec', ndetec, idetec
 
        do i1 = 1, ndetec
           i = idetec(i1)
@@ -484,12 +396,6 @@ contains
 
     endif
 
-    !print*, '[cp] final'
-    !print*, '[cp] var f1(:)', f1
-    !do j=1, nstar
-    !print*, '[cp] var f2(j,:)', f2(j,:)
-    !enddo
-
     ! these identical factors make no difference in solver
     ! Just for correctness while debugging
 
@@ -517,9 +423,6 @@ contains
           fc = (WALL_LOC * fa) ** WALL_POWER
           fi1 = -fc * fa * WALL_POWER
           fi2 = -fi1 * fa * (WALL_POWER + 1.d0)
-
-          !print*,'[nr]', j, c(j), fi1, fi2
-
           f1(j) = f1(j) + fi1
           f2(j,j) = f2(j,j) + fi2
        enddo
@@ -530,12 +433,14 @@ contains
 
   subroutine newton_classic(c, abu, nstar)
 
+    use utils, only: &
+         signan
+
     use mleqs, only: &
          leqs
 
     use star_data, only: &
-         nel, &
-         signan
+         nel
 
     use abu_data, only: &
          set_abu_data
@@ -565,8 +470,6 @@ contains
 
     integer(kind=int64) :: &
          i
-    !integer(kind=int64) :: &
-    !     j
 
     ! Initial N-R values
 
@@ -579,32 +482,22 @@ contains
     do i = 1, max_steps
        call chi2_prime(f1, f2, c)
        dc(:) = leqs(f2, f1, nstar)
-
-       !print*,''
-       !print*,'[newton] i', i
-       !print*,'[newton] c', c
-       !print*,'[newton] f1', f1
-       !do j=1, nstar
-       !print*,'[newton] f2', f2(j, :)
-       !enddo
-       !print*,'[newton] dc',dc
-
        dcr = maxval(abs(dc) / c)
        if (dcr > FMIN) then
           dc(:) = dc(:) * (FMIN / dcr)
        endif
-
-       !print*,'[newton] dcr',dcr
-       !print*,'[newton] dc',dc
-
        c(:) = c(:) - dc(:)
-       if (dcr < 1.0d-6) return
+       if (dcr < 1.0d-6) goto 1000
     enddo
 
-    !print*, '[newton] did not converge after ',i-1,'iterations.'
+    if (stop_on_nonconvergence) then
+       error stop '[newton_classic] did not converge.'
+    endif
     c(:) = signan()
     return
-    error stop '[newton] did not converge.'
+
+1000 continue
+    return
 
   end subroutine newton_classic
 
@@ -634,7 +527,6 @@ contains
          g1
     real(kind=real64), dimension(nstar, nstar) :: &
          g2
-
 
     real(kind=real64), dimension(nstar) :: &
          t, y, yp, ypp
@@ -679,7 +571,6 @@ contains
           wall=.false.
        endif
        if (wall) then
-          !print*,'[newton_prime] p=', p
           e = exp(p**2)
           f1(j) = f1(j) + 2.d0 * p * e
           f2(j,j) = f2(j,j) + (4.d0 * p**2 + 2.d0) * e
@@ -693,12 +584,14 @@ contains
 
     ! based on apprach used for psolve
 
+    use utils, only: &
+         signan
+
     use mleqs, only: &
          leqs
 
     use star_data, only: &
-         nel, &
-         signan
+         nel
 
     use abu_data, only: &
          set_abu_data
@@ -728,53 +621,45 @@ contains
 
     integer(kind=int64) :: &
          i
-    !integer(kind=int64) :: &
-    !j
 
     ! Initial N-R values
 
     wall_chi2_prime = .false.
 
     if (any(c >= 1.d0)) then
-       print*, '[newton] DEBUG IN: c = ', c
-       error stop 'c >= 1'
+       if (stop_on_large_offset) then
+          print*, '[newton] DEBUG IN: c = ', c
+          error stop '[newton] c >= 1'
+       endif
+       c = signan()
+       return
     endif
 
     c(:) = max(min(c(:), 1.d0), 1e-12)
 
     call set_abu_data(abu, nel, nstar)
 
-    !Convert offsets to solver space
+    ! Convert offsets to solver space
+
     x = atanh(c * 2.d0 - 1.d0)
 
     do i = 1, max_steps
        call newton_prime(f1, f2, x)
        dx(:) = leqs(f2, f1, nstar)
-
-       !print*,''
-       !print*,'[newton] i', i
-       !print*,'[newton] x', x
-       !print*,'[newton] f1', f1
-       !do j=1, nstar
-       !print*,'[newton] f2', f2(j, :)
-       !enddo
-       !print*,'[newton] dx',dx
-
        dxr = maxval(abs(dx))
        if (dxr > FMIN) then
           dx(:) = dx(:) * (FMIN / dxr)
-          !print*,'[newton] dxr',dxr
-          !print*,'[newton] dx',dx
        endif
 
        x(:) = x(:) - dx(:)
        if (dxr < 1.0d-6) goto 1000
     enddo
 
-    !print*, '[newton] did not converge after ',i-1,'iterations.'
     c(:) = signan()
+    if (stop_on_nonconvergence) then
+       error stop '[newton] did not converge.'
+    end if
     return
-    error stop '[newton] did not converge.'
 
 1000 continue
 
@@ -829,10 +714,6 @@ contains
 
     f1 = diff_z(diff_obs)
     f2 = mp
-
-    !print*, '[sp] x', x
-    !print*, '[sp] var f1', f1
-    !print*, '[sp] var f2', f2
 
     ! Uncorrelated errors
 
@@ -892,8 +773,6 @@ contains
     f1 = f1 * 2.d0
     f2 = f2 * 2.d0
 
-    !print*,'[sp] X', f1, f2
-
   end subroutine single_prime
 
 
@@ -903,9 +782,11 @@ contains
 
     ! should not be used for icdf == 0
 
-    use star_data, only: &
-         nel, &
+    use utils, only: &
          signan
+
+    use star_data, only: &
+         nel
 
     use abu_data, only: &
          set_abu_data, &
@@ -922,11 +803,6 @@ contains
     real(kind=real64), intent(in), dimension(1, nel) :: &
          abu
 
-    ! real(kind=real64), intent(in), dimension(nel), target :: &
-    !      abu
-    ! real(kind=real64), dimension(:,:), pointer :: &
-    !      abu_
-
     real(kind=real64), intent(inout) :: &
          c
 
@@ -936,8 +812,6 @@ contains
     integer(kind=int64) :: &
          i
 
-    ! abu_(1:1,1:nel) => abu
-    ! call set_abu_data(abu_, nel, one)
     call set_abu_data(abu, nel, one)
     call init_logabu()
 
@@ -950,9 +824,11 @@ contains
        if (abs(delta) < 1.0d-6) goto 1000
     enddo
 
+    if (stop_on_nonconvergence) then
+       error stop '[single_solve] did not converge.'
+    end if
     c = signan()
     return
-    error stop '[singlesolve] did not converge.'
 
 1000 continue
     c = exp(x * ln10)
@@ -961,6 +837,9 @@ contains
 
 
   subroutine analytic_solve(c, abu)
+
+    use utils, only: &
+         signan
 
     use star_data, only: &
          nel, &
@@ -996,8 +875,6 @@ contains
 
     z = diff_z(diff_obs)
 
-    !print*, '[analytic] mp, z', mp, z
-
     ! First, include all upper limits as if they were detections, and
     ! exclude all detection thresholds as it you were above
 
@@ -1005,8 +882,6 @@ contains
 
     include_obs(:) = .true.
     include_det(:) = .false.
-
-    !print*,'nnocov, inocov', nnocov, inocov
 
     do while (change)
 
@@ -1029,10 +904,12 @@ contains
           endif
        enddo
 
-       !print*,'[analytic] x', x
-
        if (ei2s == 0.d0) then
-          error stop '[analytic] all values below threshold'
+          if (stop_on_nonconvergence) then
+             error stop '[analytic] all values below threshold'
+          endif
+          c = signan()
+          return
        endif
 
        x = -diff / ei2s
@@ -1066,6 +943,9 @@ contains
 
 
   subroutine psolve(c, abu, nstar)
+
+    use utils, only: &
+         signan
 
     use star_data, only: &
          nel
@@ -1105,8 +985,12 @@ contains
     calls = 50 * nstar
 
     if (any(c >= 1.d0)) then
-       print*, '[psolve] DEBUG IN: c = ', c
-       error stop 'c >= 1'
+       if (stop_on_large_offset) then
+          print*, '[psolve] DEBUG IN: c = ', c
+          error stop '[psolve] c >= 1'
+       endif
+       c = signan()
+       return
     endif
 
     ! Convert offsets to solver space
@@ -1114,6 +998,7 @@ contains
     x = atanh(c * 2.d0 - 1.d0)
 
     ! Call solver
+
     call uobyqa(nstar, x, rhobeg, rhoend, iprint, calls)
 
     ! Convert solver space to offsets

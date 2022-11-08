@@ -19,6 +19,7 @@ LIBRARY = solver.a
 
 LIBRARY_OBJECTS = \
 	type_def.o \
+	utils.o \
 	mleqs.o \
 	norm.o \
 	powell.o \
@@ -43,6 +44,11 @@ type_def.o type_def.mod &: ${SOURCE}/type_def.f90
 	@rm -f type_def.mod
 	$(F90) $(FFLAGS) $<
 
+utils.o utils.mod &: ${SOURCE}/utils.f90 \
+	type_def.mod
+	@rm -f utils.mod
+	$(F90) $(FFLAGS) $<
+
 norm.o norm.mod &: ${SOURCE}/norm.f90 \
 	type_def.mod
 	@rm -f morm.mod
@@ -64,13 +70,13 @@ abu_data.o abu_data.mod &: ${SOURCE}/abu_data.f90 \
 	$(F90) $(FFLAGS) $<
 
 star_data.o star_data.mod &: ${SOURCE}/star_data.f90 \
-	type_def.mod mleqs.mod
+	type_def.mod mleqs.mod utils.mod
 	@rm -f star_data.mod
 	$(F90) $(FFLAGS) $<
 
 fitting.o fitting.mod &: ${SOURCE}/fitting.f90 \
 	type_def.mod powell.mod mleqs.mod norm.mod \
-	star_data.mod abu_data.mod
+	star_data.mod abu_data.mod utils.mod
 	@rm -f fitting.mod
 	$(F90) $(FFLAGS) $<
 

@@ -22,6 +22,7 @@ fit_sources = [
     for x in [
         "solver.pyf",
         "type_def.f90",
+        "utils.f90",
         "powell.f90",
         "norm.f90",
         "mleqs.f90",

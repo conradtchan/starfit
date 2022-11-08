@@ -44,23 +44,6 @@ module star_data
 
 contains
 
-  function signan() result(nan)
-
-    use, intrinsic :: &
-         ieee_arithmetic, only: &
-         ieee_value, &
-         ieee_signaling_nan
-
-    implicit none
-
-    real(kind=real64) :: &
-         nan
-
-    nan = ieee_value(0.d0,ieee_signaling_nan)
-
-  end function signan
-
-
   subroutine set_star_data(obs_, err_, det_, cov_, nel_, ncov_, icdf_)
 
     implicit none
@@ -298,6 +281,9 @@ contains
 
   subroutine init_erri2
 
+    use utils, only: &
+         signan
+
     implicit none
 
     if (allocated(erri2)) then
@@ -313,6 +299,9 @@ contains
 
 
   subroutine init_erri
+
+    use utils, only: &
+         signan
 
     implicit none
 
