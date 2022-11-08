@@ -973,7 +973,6 @@ subroutine calfun(nstar, x, f)
 
   do i = 1, nstar
      if (abs(x(i)) > WALL_LOC) then
-        ! f = f * exp((abs(x(i)) - WALL_LOC)**2)
         f = f + (exp((abs(x(i)) - WALL_LOC)**2) - 1.d0)
      endif
   enddo
