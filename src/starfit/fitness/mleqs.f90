@@ -31,6 +31,11 @@ module mleqs
     real(kind=real64) :: &
          ajji,r
 
+    if (n == 1) then
+       x(1) = b_(1) / a_(1,1)
+       return
+    endif
+
     a(:,:) = a_(:,:)
     x(:) = b_(:)
 
@@ -66,7 +71,7 @@ module mleqs
   end function leqs
 
 
-  function invert(a_, n) result(x)
+  function inverse(a_, n) result(x)
 
     implicit none
 
@@ -89,6 +94,11 @@ module mleqs
          k,i,j,l,n1
     real(kind=real64) :: &
          ajji,r
+
+    if (n == 1) then
+       x(1,1) = 1.d0 / a_(1,1)
+       return
+    endif
 
     a(:,:) = a_(:,:)
     x(:,:) = 0.d0
@@ -131,7 +141,7 @@ module mleqs
        end do
     end do
 
-  end function invert
+  end function inverse
 
 end module mleqs
 

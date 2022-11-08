@@ -1,15 +1,17 @@
 module star_data
 
-  ! TODO - we may want to use a matrix inversion instead of using many
-  ! LE inversions, after all, since we re-use it many times.  Ar least
-  ! have the option...
-
   use type_def, only: &
        real64, int64
 
   implicit none
 
   save
+
+  ! use of inverse may be less accurate but a lot faster if comparing
+  ! to many models.
+
+  logical, parameter :: &
+       use_inverse = .true.
 
   real(kind=real64), parameter :: &
        det_lim = -80.d0
@@ -31,9 +33,9 @@ module star_data
        iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi
 
   real(kind=real64), dimension(:, :), allocatable :: &
-       mm
+       mm, mm1
   real(kind=real64), dimension(:), allocatable :: &
-       zvp, zv1, zv, &
+       zvp, zv, &
        erri, erri2
   real(kind=real64) :: &
        mp
@@ -111,6 +113,7 @@ contains
     call init_domains()
     call init_erri()
     call init_covariance_matrix()
+    call init_inverse()
 
   end subroutine set_star_data
 
@@ -205,6 +208,35 @@ contains
   end subroutine init_covariance_matrix
 
 
+  subroutine init_inverse
+
+    use mleqs, only: &
+         inverse
+
+    implicit none
+
+    if (.not.use_inverse) then
+       return
+    endif
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    if (.not.allocated(mm)) then
+       error stop '[init_inverse] matrix mm not present'
+       return
+    endif
+
+    if (allocated(mm1)) then
+       deallocate(mm1)
+    endif
+
+    mm1 = inverse(mm, ncovar)
+
+  end subroutine init_inverse
+
+
   subroutine init_covaricance_const
 
     use mleqs, only: &
@@ -212,20 +244,27 @@ contains
 
     implicit none
 
+    real(kind=real64), dimension(:), allocatable :: &
+         zv1
+
     if (ncovar == 0) then
        mp = 0.d0
        return
     endif
 
     if (allocated(zvp)) then
-       deallocate(zvp, zv1)
+       deallocate(zvp)
     endif
 
-    allocate(zvp(ncovar), zv1(ncovar))
-
-    zv1(:) = 1.d0
-    zvp(:) = leqs(mm, zv1, ncovar)
-    mp = sum(zvp(:) * zv1(:))
+    allocate(zvp(ncovar))
+    if (use_inverse) then
+       zvp(:) = sum(mm1(:,:), 2)
+    else
+       allocate(zv1(ncovar))
+       zv1(:) = 1.d0
+       zvp(:) = leqs(mm, zv1, ncovar)
+    endif
+    mp = sum(zvp(:))
 
   end subroutine init_covaricance_const
 
@@ -321,9 +360,12 @@ contains
     endif
 
     allocate(part1(ncovar), part2(ncovar))
-
     part1 = diff(icovar)
-    part2 = leqs(mm, part1, ncovar)
+    if (use_inverse) then
+       part2 = matmul(mm1, part1)
+    else
+       part2 = leqs(mm, part1, ncovar)
+    endif
     xcov = sum(part1(:) * part2(:))
 
     deallocate(part1, part2)
@@ -384,7 +426,11 @@ contains
     endif
 
     part(:) = diff(icovar)
-    xzv(:) = leqs(mm, part, ncovar)
+    if (use_inverse) then
+       xzv(:) = matmul(mm1, part)
+    else
+       xzv(:) = leqs(mm, part, ncovar)
+    endif
 
   end function diff_zv
 
@@ -412,7 +458,11 @@ contains
        error stop '[reduced_diff_zv] diff dimension mismatch'
     endif
 
-    xzv(:) = leqs(mm, diff, ncovar)
+    if (use_inverse) then
+       xzv(:) = matmul(mm1, diff)
+    else
+       xzv(:) = leqs(mm, diff, ncovar)
+    endif
 
   end function reduced_diff_zv
 
