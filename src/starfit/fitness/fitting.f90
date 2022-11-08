@@ -509,7 +509,7 @@ contains
        enddo
     enddo
 
-    penalty for low c - for newton_classic
+    ! penalty for low c - for newton_classic
 
     do j = 1, nstar
        fa =  1.d0 / c(j)
