@@ -942,6 +942,52 @@ contains
   end subroutine analytic_solve
 
 
+  subroutine psolve_chi2(nstar, x, f)
+
+    use type_def, only: &
+         int64, real64
+
+    use abu_data, only: &
+         abu
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         WALL_LOC = 12.d0
+
+    integer(kind=int64), intent(in) :: &
+         nstar
+    real(kind=real64), intent(in), dimension(nstar) :: &
+         x
+
+    real(kind=real64), intent(out) :: &
+         f
+
+    real(kind=real64), dimension(nstar) :: &
+         tanhx
+    integer(kind=int64) :: &
+         i
+
+    ! Transform from -inf/inf to 0/1
+    ! x is used for the solver, tanhx is physically meaningful
+
+    tanhx(:) = 0.5d0 * (1.0d0 + tanh(x(:)))
+
+    ! Calculate the chi2
+
+    call chi2(f, tanhx(:), abu(:,:), nstar)
+
+    ! Build a wall at zero
+
+    do i = 1, nstar
+       if (abs(x(i)) > WALL_LOC) then
+          f = f + (exp((abs(x(i)) - WALL_LOC)**2) - 1.d0)
+       endif
+    enddo
+
+  end subroutine psolve_chi2
+
+
   subroutine psolve(c, abu, nstar)
 
     use utils, only: &
@@ -999,7 +1045,7 @@ contains
 
     ! Call solver
 
-    call uobyqa(nstar, x, rhobeg, rhoend, iprint, calls)
+    call uobyqa(psolve_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
 
     ! Convert solver space to offsets
 
@@ -1008,53 +1054,3 @@ contains
   end subroutine psolve
 
 end module fitting
-
-! =======================================================================
-
-subroutine calfun(nstar, x, f)
-
-  use type_def, only: &
-       int64, real64
-
-  use abu_data, only: &
-       abu
-
-  use fitting, only: &
-       chi2
-
-  implicit none
-
-  real(kind=real64), parameter :: &
-       WALL_LOC = 12.d0
-
-  integer(kind=int64), intent(in) :: &
-       nstar
-  real(kind=real64), intent(in), dimension(nstar) :: &
-       x
-
-  real(kind=real64), intent(out) :: &
-       f
-
-  real(kind=real64), dimension(nstar) :: &
-       tanhx
-  integer(kind=int64) :: &
-       i
-
-  ! Transform from -inf/inf to 0/1
-  ! x is used for the solver, tanhx is physically meaningful
-
-  tanhx(:) = 0.5d0 * (1.0d0 + tanh(x(:)))
-
-  ! Calculate the chi2
-
-  call chi2(f, tanhx(:), abu(:,:), nstar)
-
-  ! Build a wall at zero
-
-  do i = 1, nstar
-     if (abs(x(i)) > WALL_LOC) then
-        f = f + (exp((abs(x(i)) - WALL_LOC)**2) - 1.d0)
-     endif
-  enddo
-
-end subroutine calfun
