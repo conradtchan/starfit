@@ -1,10 +1,12 @@
 ! 20140212 changed function interface to be explicit vector length
 ! 20151107 Moved DP declaration to individual subroutines
+! 20221000 covert to module
+! 20221109 provide funtion via template rather than linkage by name
 
 module powell
 
-! Code converted using TO_F90 by Alan Miller
-! Date: 2002-11-09  Time: 16:58:08
+  ! Code converted using TO_F90 by Alan Miller
+  ! Date: 2002-11-09  Time: 16:58:08
 
   use type_def, only: &
        int64, real64
@@ -16,30 +18,29 @@ module powell
   public  :: &
        uobyqa, uobyqb, trstep, lagmax
 
-  ! abstract interface
-  !    subroutine template(n, x, f)
-  !      import real64, int64
-  !      implicit none
-  !      integer(kind=int64), intent(in) :: &
-  !           n
-  !      real(kind=real64), intent(in), dimension(n)  :: &
-  !           x
-  !      real(kind=real64), intent(out) :: &
-  !           f
-  !    end subroutine template
-  ! end interface
+  abstract interface
+     subroutine template(n, x, f)
+       import real64, int64
+       implicit none
+       integer(kind=int64), intent(in) :: &
+            n
+       real(kind=real64), intent(in), dimension(n)  :: &
+            x
+       real(kind=real64), intent(out) :: &
+            f
+     end subroutine template
+  end interface
 
 contains
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% uobyqa.f %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  ! subroutine uobyqa(f, n, x, rhobeg, rhoend, iprint, maxfun)
-  subroutine uobyqa(n, x, rhobeg, rhoend, iprint, maxfun)
+  subroutine uobyqa(f, n, x, rhobeg, rhoend, iprint, maxfun)
 
     implicit none
 
-    ! procedure(template), external :: &
-    !      f
+    procedure(template) :: &
+         f
     integer(kind=int64), intent(in) :: &
          n
     real(kind=real64), intent(in out), dimension(:) :: &
@@ -84,15 +85,13 @@ contains
 
     npt = (n * (n + 3)) / 2 + 1
 
-    ! CALL uobyqb(f, n, x, rhobeg, rhoend, iprint, maxfun, npt)
-    CALL uobyqb(n, x, rhobeg, rhoend, iprint, maxfun, npt)
+    CALL uobyqb(f, n, x, rhobeg, rhoend, iprint, maxfun, npt)
 
   end subroutine uobyqa
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% uobyqb.f %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  ! subroutine uobyqb(calfun, n, x, rhobeg, rhoend, iprint, maxfun, npt)
-  subroutine uobyqb(n, x, rhobeg, rhoend, iprint, maxfun, npt)
+  subroutine uobyqb(calfun, n, x, rhobeg, rhoend, iprint, maxfun, npt)
 
     implicit none
 
@@ -105,8 +104,8 @@ contains
          two = 2.d0, &
          zero = 0.d0
 
-    ! procedure(template), external :: &
-    !      calfun
+    procedure(template)  :: &
+         calfun
     integer(kind=int64), intent(in) :: &
          n
     real(kind=real64), intent(in out), dimension(:) :: &
@@ -115,25 +114,6 @@ contains
          rhobeg,  rhoend
     integer(kind=int64), intent(IN) :: &
          iprint, maxfun, npt
-
-    interface
-
-       subroutine calfun(n, x, f)
-
-         use type_def, only: &
-              int64, real64
-
-         implicit none
-
-         integer(kind=int64), intent(in) :: &
-              n
-         real(kind=real64), intent(in), dimension(n)  :: &
-              x
-         real(kind=real64), intent(out) :: &
-              f
-       end subroutine calfun
-
-    end interface
 
     ! The following arrays were previously passed as arguments:
 
