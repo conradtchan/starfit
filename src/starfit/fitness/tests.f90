@@ -10,12 +10,12 @@ module tests
 
 contains
 
-  subroutine test1(ls, icdf, idet, icov, nstar)
+  subroutine test1(ls, icdf, idet, icov, nstar, flags)
 
     implicit none
 
     integer(kind=int64), intent(in) :: &
-         icdf, ls, idet, icov, nstar
+         icdf, ls, idet, icov, nstar, flags
 
     integer(kind=int64), parameter :: &
          nel = 8, &
@@ -80,8 +80,8 @@ contains
     endif
 
     print*
-    print*,'[test1] ls = ', ls, 'icdf =', icdf, 'idet=', idet, 'icov=', icov, 'nstar=', nstar
-    call fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+    print*,'[test1] ls = ', ls, 'icdf =', icdf, 'idet=', idet, 'icov=', icov, 'flags=', flags, 'nstar=', nstar
+    call fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
     print*, 'f=', f, ', c=', c
 
   end subroutine test1
@@ -96,7 +96,8 @@ contains
          nls = 3, &
          ncov = 2, &
          ndet = 2, &
-         nstar = 3
+         nstar = 3, &
+         nflags = 4
     integer(kind=int64), dimension(nls), parameter :: &
          xls = [-1, 0, 1]
     integer(kind=int64), dimension(nicdf), parameter :: &
@@ -107,21 +108,25 @@ contains
          xdet = [0, 1]
     integer(kind=int64), dimension(nstar), parameter :: &
          xstar = [1,2,3]
+    integer(kind=int64), dimension(nflags), parameter :: &
+         xflags = [0,1,2,3]
 
     integer(kind=int64) :: &
-         iicdf, ils, icov, idet, istar
+         iicdf, ils, icov, idet, istar, iflags
 
     do istar = 1, nstar
-       do ils = 1, nls
-          do iicdf = 1, nicdf
-             do icov=1, ncov
-                do idet=1, ndet
-                   call test1(xls(ils), xicdf(iicdf), xdet(idet), xcov(icov), xstar(istar))
+       do iflags=1, nflags
+          do ils = 1, nls
+             do iicdf = 1, nicdf
+                do icov=1, ncov
+                   do idet=1, ndet
+                      call test1(xls(ils), xicdf(iicdf), xdet(idet), xcov(icov), xstar(istar), xflags(iflags))
+                   end do
                 end do
              end do
           end do
        end do
-    enddo
+    end do
 
   end subroutine suite1
 
@@ -131,32 +136,22 @@ contains
     implicit none
 
     integer(kind=int64) :: &
-         iicdf, ils, icov, idet, istar
+         iicdf, ils, icov, idet, istar, iflags
 
     do istar = 3,3
-       do ils = 1, 2
-          do iicdf = 1, 1
-             do icov = 1, 1
-                do idet=1, 1
-                   call test1(ils, iicdf, idet, icov, istar)
+       do iflags=1,1
+          do ils = 1, 2
+             do iicdf = 1, 1
+                do icov = 1, 1
+                   do idet=1, 1
+                      call test1(ils, iicdf, idet, icov, istar, iflags)
+                   end do
                 end do
              end do
           end do
        end do
-    enddo
+    end do
 
   end subroutine suite0
 
 end module tests
-! f=   14.604249359153073      , c=   7.0420336228949054E-011   2.2653238429537481E-005   3.2096320643436704E-002
-! f=   14.604249309232987      , c=   6.7158066014241258E-017   2.2653544306922120E-005   3.2096320469292339E-002
-! f=   14.604133232385269      , c=   3.4405657758547667E-008   3.8946170688527796E-007   3.2101178367944717E-002
-
-! f=   12.165745463860274      c=   4.6247117246878133E-011   7.2620212621110625E-008  0.11024695364678094
-! f=   12.165735642608530      , c=   1.1541906478024271E-009   2.6135607039924539E-009  0.11025437963729502
-! f=   12.165735784207287      , c=   1.3863142962285896E-009   2.3905531076758381E-009  0.11025437975892589
-! f=   12.165734427445921      , c=   3.7751357595539048E-011   3.7751357595539048E-011  0.11025438112159469
-
-! f=   3.1795739026386856      c=   1.1584081693882808E-008   1.3881175542351798E-008  0.11062983728596676
-! f=   3.1795679850030267      , c=   3.7751357595539048E-011   3.7751357595539048E-011  0.11062966038664263
-! f=   3.1795679850030218      , c=   3.7751357595539048E-011   3.7751357595539048E-011  0.11062966038664268

@@ -182,7 +182,8 @@ class Ga(StarFit):
         self.elapsed = elapsed
         t_start = time.time()
 
-        while i < gen:
+        finish = False
+        while True:
             self._step()
             self.history["best"] += [self.f[0]]
             self.history["average"] += [np.mean(self.f)]
@@ -195,7 +196,16 @@ class Ga(StarFit):
             i += 1
 
             elapsed = time.perf_counter() - time_start
-            if elapsed - self.elapsed > 1 or i == 1:
+            if time_limit is not None:
+                if elapsed >= time_limit:
+                    finish = True
+            if not self.silent and interactive:
+                if len(getch()) > 0:
+                    sys.stdout.write("\x1b[A")
+                    finish = True
+            if i == gen:
+                finish = True
+            if elapsed - self.elapsed > 1 or i == 1 or finish:
                 self.n_solved = i
                 if time_limit is None:
                     time_frac_done = 0
@@ -218,13 +228,8 @@ class Ga(StarFit):
 
                 if not self.silent:
                     self.print_update()
-
-            if time_limit is not None:
-                if elapsed >= time_limit:
-                    break
-            if not self.silent and interactive:
-                if len(getch()) > 0:
-                    break
+            if finish:
+                break
 
         self.sorted_stars = self.s
         self.sorted_fitness = self.f

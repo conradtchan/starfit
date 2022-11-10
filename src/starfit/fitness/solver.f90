@@ -2,7 +2,7 @@
 
 ! include and wrap only what is actually needed
 
-subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
 
   use fitting, only: &
        fitness
@@ -24,7 +24,7 @@ subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, i
   integer(kind=int64), intent(in) :: &
        ls
   integer(kind=int64), intent(in) :: &
-       icdf
+       icdf, flags
 
   !f2py real(kind=real64), intent(out), dimension(nsol) :: f
   real(kind=real64), dimension(nsol), intent(out) :: &
@@ -33,6 +33,6 @@ subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, i
   real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
        c
 
-  call fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+  call fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
 
 end subroutine fitness_

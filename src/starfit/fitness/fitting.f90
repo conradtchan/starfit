@@ -7,28 +7,48 @@ module fitting
 
   logical :: &
        stop_on_nonconvergence = .false., &
-       stop_on_large_offset = .false.
+       stop_on_large_offset = .false., &
+       stop_on_zero_offset = .false.
+
+  integer(kind=int64), parameter :: &
+       FLAGS_LIMIT_SOLUTION_BIT = 0, &
+       FLAGS_LIMITED_SOLVER_BIT = 1
 
   private
 
   real(kind=real64), parameter :: &
        ln10 = log(10.0d0), &
        ln10i = 1.d0 / ln10, &
-       ln10i2 = 2.d0 / ln10, &
-       ln10i2m = -ln10i2
+       ln10i2 = 2.d0 * ln10i, &
+       ln10i2p2 = ln10i2**2, &
+       ln10ip22 = 2.d0 * ln10i**2, &
+       ln10i2m = -ln10i2, &
+       ALMOST_ONE = 1.d0 - 1.d-14
 
   logical :: &
        wall_chi2_prime = .false.
 
   public :: &
-       fitness, chi2
+       fitness
 
 contains
 
-  ! TODO - potentiall use pointer, e.g., for star object, rather than
-  ! soreing data in a module
+  subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
 
-  subroutine fitness(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf)
+    ! If localsearch is enabled, adjust all offsets first
+    ! otherwise keep relative weights fixed
+    ! If ls < 0, only return chi2, no optimisation
+    ! If ls == 2, force use of psolve
+    ! if ls == 3, use classic NR solver (not recommended)
+    !
+    ! flags:
+    !    bit 0, "lsolve":
+    !       set to limit sum of weight of all solutions to 1
+    !    bit 1:
+    !       use tanh solver that limits each solution to 1
+
+    use utils, only: &
+         signan
 
     use star_data, only: &
          set_star_data, abu_covariance, &
@@ -40,11 +60,8 @@ contains
 
     implicit none
 
-    integer(kind=int64), parameter :: &
-         lsolve = 1 ! set to 1 to limit weight of all solutions to 1
-
     integer(kind=int64), intent(in) :: &
-         nstar, nel, nsol, ncov
+         nstar, nel, nsol, ncov, flags
 
     real(kind=real64), dimension(nel), intent(in) :: &
          obs, err, det
@@ -57,24 +74,18 @@ contains
     integer(kind=int64), intent(in) :: &
          icdf
 
+    real(kind=real64), dimension(nsol), intent(out) :: &
+         f
+    real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
+         c
+
     real(kind=real64) :: &
          scale
     real(kind=real64), dimension(nel) :: &
          y
 
     integer(kind=int64) :: &
-         i, k
-
-    real(kind=real64), dimension(nsol), intent(out) :: &
-         f
-    real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
-         c
-
-    ! If localsearch is enabled, adjust all offsets first
-    ! otherwise keep relative weights fixed
-    ! If ls < 0, only return chi2, no optimisation
-    ! If ls == 2, force use of psolve
-    ! if ls == 3, use classic NR solver (not recommended)
+         i, k, ierr
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
@@ -119,33 +130,58 @@ contains
 
        call init_erri2()
        call init_covaricance_const()
-       do k = 1, nsol
-          call newton(c(k,:), abu(k,:,:), nstar)
-       enddo
+       if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
+          do k = 1, nsol
+             call newton(c(k,:), abu(k,:,:), nstar, ierr)
+             if (ierr == 1) then
+                call psolve(c(k,:), abu(k,:,:), nstar)
+                call newton(c(k,:), abu(k,:,:), nstar, ierr)
+             endif
+          enddo
+       else
+          do k = 1, nsol
+             call newton2(c(k,:), abu(k,:,:), nstar, ierr)
+             if (ierr == 1) then
+                call psolve2(c(k,:), abu(k,:,:), nstar)
+                call newton2(c(k,:), abu(k,:,:), nstar, ierr)
+             endif
+          enddo
+       end if
     else if ((ls == 3).and.(icdf == 1)) then
 
-       ! classical NR solver that converges poorly
+       ! classical NR solver that converges poorly due to stiffness of log/exp
 
        call init_erri2()
        call init_covaricance_const()
        do k = 1, nsol
-          call newton_classic(c(k,:), abu(k,:,:), nstar)
+          call newton_classic(c(k,:), abu(k,:,:), nstar, ierr)
+          if (ierr == 1) then
+             call psolve(c(k,:), abu(k,:,:), nstar)
+             call newton_classic(c(k,:), abu(k,:,:), nstar, ierr)
+          endif
        enddo
     else
 
        ! Slower UOBYQA solver that does not depend on C(2)
        ! function for chi2
 
-       do k = 1, nsol
-          call psolve(c(k,:), abu(k,:,:), nstar)
-       enddo
+       if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
+          do k = 1, nsol
+             call psolve(c(k,:), abu(k,:,:), nstar)
+          enddo
+       else
+          do k = 1, nsol
+             call psolve2(c(k,:), abu(k,:,:), nstar)
+          enddo
+       endif
     endif
 
-    if (lsolve == 1) then
+    if (btest(flags, FLAGS_LIMIT_SOLUTION_BIT)) then
        do k = 1, nsol
           scale = sum(c(k,:))
-          if (scale > 1.d0) then
-             c(k,:) = c(k,:) * (1.d0 / scale)
+          if (scale > ALMOST_ONE) then
+             scale = ALMOST_ONE / scale
+             c(k,:) = c(k,:) * scale
           endif
        end do
     endif
@@ -431,10 +467,7 @@ contains
   end subroutine chi2_prime
 
 
-  subroutine newton_classic(c, abu, nstar)
-
-    use utils, only: &
-         signan
+  subroutine newton_classic(c, abu, nstar, ierr)
 
     use mleqs, only: &
          leqs
@@ -457,12 +490,14 @@ contains
          nstar
     real(kind=real64), dimension(nstar, nel), intent(in) :: &
          abu
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64), intent(inout), dimension(nstar) :: &
          c
 
     real(kind=real64), dimension(nstar) :: &
-         dc, f1
+         cx, dc, f1
     real(kind=real64), dimension(nstar, nstar) :: &
          f2
     real(kind=real64) :: &
@@ -475,28 +510,31 @@ contains
 
     wall_chi2_prime = .true.
 
-    c(:) = max(min(c(:), 1.d0), 1e-12)
+    cx(:) = max(min(c(:), 1.d0), 1e-12)
 
     call set_abu_data(abu, nel, nstar)
 
     do i = 1, max_steps
-       call chi2_prime(f1, f2, c)
+       call chi2_prime(f1, f2, cx)
        dc(:) = leqs(f2, f1, nstar)
        dcr = maxval(abs(dc) / c)
        if (dcr > FMIN) then
           dc(:) = dc(:) * (FMIN / dcr)
        endif
-       c(:) = c(:) - dc(:)
+       cx(:) = cx(:) - dc(:)
        if (dcr < 1.0d-6) goto 1000
     enddo
 
     if (stop_on_nonconvergence) then
        error stop '[newton_classic] did not converge.'
     endif
-    c(:) = signan()
+    ierr = 1
     return
 
 1000 continue
+
+    ierr = 0
+    c(:) = cx(:)
     return
 
   end subroutine newton_classic
@@ -529,7 +567,7 @@ contains
          g2
 
     real(kind=real64), dimension(nstar) :: &
-         t, y, yp, ypp
+         t, c, cp, cpp
     real(kind=real64) :: &
          p, e
     integer(kind=int64) :: &
@@ -541,21 +579,21 @@ contains
     ! x is used for the solver, tanhx is physically meaningful
 
     t(:) = tanh(x)
-    y(:) = 0.5d0 * (1.0d0 + t(:))
+    c(:) = 0.5d0 * (1.0d0 + t(:))
 
     ! Calculate the chi2
 
-    call chi2_prime(g1, g2, y)
+    call chi2_prime(g1, g2, c)
 
-    yp(:) = 0.5d0 * (1.d0 - t(:)**2)
-    ypp(:) = -2.d0 * t(:) * yp(:)
+    cp(:) = 0.5d0 * (1.d0 - t(:)**2)
+    cpp(:) = -2.d0 * t(:) * cp(:)
 
     do j = 1, nstar
        do k = 1, nstar
-          f2(j,k) = g2(j,k) * yp(j) * yp(k)
+          f2(j,k) = g2(j,k) * cp(j) * cp(k)
        enddo
-       f1(j) = g1(j) * yp(j)
-       f2(j,j) = f2(j,j) + g1(j) * ypp(j)
+       f1(j) = g1(j) * cp(j)
+       f2(j,j) = f2(j,j) + g1(j) * cpp(j)
     enddo
 
     ! Build a wall at zero
@@ -580,7 +618,162 @@ contains
   end subroutine newton_prime
 
 
-  subroutine newton(c, abu, nstar)
+  subroutine newton(c, abu, nstar, ierr)
+
+    ! based on apprach used for psolve
+
+    use utils, only: &
+         signan
+
+    use mleqs, only: &
+         leqs
+
+    use star_data, only: &
+         nel
+
+    use abu_data, only: &
+         set_abu_data
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         FMIN = 0.5d0
+
+    integer(kind=int64), parameter :: &
+         max_steps = 100
+
+    integer(kind=int64), intent(in) :: &
+         nstar
+    real(kind=real64), dimension(nstar, nel), intent(in) :: &
+         abu
+    integer(kind=int64), intent(out) :: &
+         ierr
+
+    real(kind=real64), intent(inout), dimension(nstar) :: &
+         c
+
+    real(kind=real64), dimension(nstar) :: &
+         x, dx, f1
+    real(kind=real64), dimension(nstar, nstar) :: &
+         f2
+    real(kind=real64) :: &
+         dxr
+
+    integer(kind=int64) :: &
+         iter
+
+    ! Initial N-R values
+
+    wall_chi2_prime = .false.
+
+    if (any(c >= 1.d0)) then
+       if (stop_on_large_offset) then
+          print*, '[newton] DEBUG IN: c = ', c
+          error stop '[newton] c >= 1'
+       endif
+       c = signan()
+       return
+    endif
+
+    call set_abu_data(abu, nel, nstar)
+
+    ! Convert offsets to solver space
+
+    x = atanh(max(min(c(:), ALMOST_ONE), 1e-12) * 2.d0 - 1.d0)
+
+    do iter = 1, max_steps
+       call newton_prime(f1, f2, x)
+       dx(:) = leqs(f2, f1, nstar)
+       dxr = maxval(abs(dx))
+       if (dxr > FMIN) then
+          dx(:) = dx(:) * (FMIN / dxr)
+       endif
+
+       x(:) = x(:) - dx(:)
+       if (dxr < 1.0d-6) goto 1000
+    enddo
+
+    if (stop_on_nonconvergence) then
+       error stop '[newton] did not converge.'
+    end if
+    ierr = 1
+    return
+
+1000 continue
+
+    ! Convert solver space to offsets
+
+    ierr = 0
+    c(:) = 0.5d0 * (1.d0 + tanh(x(:)))
+
+  end subroutine newton
+
+
+  subroutine newton2_prime(f1, f2, x)
+
+    use type_def, only: &
+         int64, real64
+
+    use abu_data, only: &
+         nstar
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         WALL_LOC = -12.d0 * ln10
+
+    real(kind=real64), intent(in), dimension(nstar) :: &
+         x
+
+    real(kind=real64), intent(out), dimension(nstar) :: &
+         f1
+    real(kind=real64), intent(out), dimension(nstar, nstar) :: &
+         f2
+
+    real(kind=real64), dimension(nstar) :: &
+         g1
+    real(kind=real64), dimension(nstar, nstar) :: &
+         g2
+
+    real(kind=real64), dimension(nstar) :: &
+         c
+    real(kind=real64) :: &
+         p, e
+    integer(kind=int64) :: &
+         j, k
+
+    ! Transform from -inf/inf to 0/1
+    ! x is used for the solver, tanhx is physically meaningful
+
+    c(:) = exp(x(:))
+
+    ! Calculate the chi2
+
+    call chi2_prime(g1, g2, c)
+
+    do j = 1, nstar
+       do k = 1, nstar
+          f2(j,k) = g2(j,k) * c(j) * c(k)
+       enddo
+       f1(j) = g1(j) * c(j)
+       f2(j,j) = f2(j,j) + f1(j)
+    enddo
+
+    ! Build a wall at zero
+
+    do j = 1, nstar
+       if (x(j) < WALL_LOC) then
+          p = (x(j) - WALL_LOC) * ln10i
+          e = exp(p**2)
+          f1(j) = f1(j) + ln10i2 * p * e
+          f2(j,j) = f2(j,j) + (ln10i2p2 * p**2 + ln10ip22) * e
+       endif
+    enddo
+
+  end subroutine newton2_prime
+
+
+  subroutine newton2(c, abu, nstar, ierr)
 
     ! based on apprach used for psolve
 
@@ -611,40 +804,40 @@ contains
 
     real(kind=real64), intent(inout), dimension(nstar) :: &
          c
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64), dimension(nstar) :: &
          x, dx, f1
     real(kind=real64), dimension(nstar, nstar) :: &
          f2
     real(kind=real64) :: &
-         dxr
+         dxr, c1, c2
 
     integer(kind=int64) :: &
-         i
+         iter
 
     ! Initial N-R values
 
     wall_chi2_prime = .false.
 
-    if (any(c >= 1.d0)) then
-       if (stop_on_large_offset) then
-          print*, '[newton] DEBUG IN: c = ', c
-          error stop '[newton] c >= 1'
+    if (any(c <= 0.d0)) then
+       if (stop_on_zero_offset) then
+          print*, '[newton2] DEBUG IN: c = ', c
+          error stop '[newton2] c < 0'
        endif
        c = signan()
        return
     endif
 
-    c(:) = max(min(c(:), 1.d0), 1e-12)
-
     call set_abu_data(abu, nel, nstar)
 
     ! Convert offsets to solver space
 
-    x = atanh(c * 2.d0 - 1.d0)
+    x = log(max(c(:), 1e-12))
 
-    do i = 1, max_steps
-       call newton_prime(f1, f2, x)
+    do iter = 1, max_steps
+       call newton2_prime(f1, f2, x)
        dx(:) = leqs(f2, f1, nstar)
        dxr = maxval(abs(dx))
        if (dxr > FMIN) then
@@ -652,22 +845,30 @@ contains
        endif
 
        x(:) = x(:) - dx(:)
-       if (dxr < 1.0d-6) goto 1000
+       if (dxr < 1.0d-12) goto 1000
     enddo
 
-    c(:) = signan()
+    iter = 1
+    call chi2(c1, exp(x(:)), abu, iter)
+    call chi2(c2, exp(x(:) + dx(:)), abu, iter)
+    if (abs(c1 - c2) / (abs(c1 + c2) + 1.d-99) < 1e-8) then
+       goto 1000
+    endif
+
     if (stop_on_nonconvergence) then
-       error stop '[newton] did not converge.'
+       error stop '[newton2] did not converge.'
     end if
+    ierr = 1
     return
 
 1000 continue
 
     ! Convert solver space to offsets
 
-    c = 0.5d0 * (1.d0 + tanh(x))
+    ierr = 0
+    c = exp(x)
 
-  end subroutine newton
+  end subroutine newton2
 
 
   subroutine single_prime(x, f1, f2)
@@ -810,13 +1011,13 @@ contains
          x, f1, f2, delta
 
     integer(kind=int64) :: &
-         i
+         iter
 
     call set_abu_data(abu, nel, one)
     call init_logabu()
 
     x = log(c) * ln10i
-    do i = 1, max_steps
+    do iter = 1, max_steps
        call single_prime(x, f1, f2)
        if (f2 == 0.d0) exit
        delta = f1 / f2
@@ -964,24 +1165,24 @@ contains
          f
 
     real(kind=real64), dimension(nstar) :: &
-         tanhx
+         c
     integer(kind=int64) :: &
-         i
+         j
 
     ! Transform from -inf/inf to 0/1
     ! x is used for the solver, tanhx is physically meaningful
 
-    tanhx(:) = 0.5d0 * (1.0d0 + tanh(x(:)))
+    c(:) = 0.5d0 * (1.0d0 + tanh(x(:)))
 
     ! Calculate the chi2
 
-    call chi2(f, tanhx(:), abu(:,:), nstar)
+    call chi2(f, c(:), abu(:,:), nstar)
 
     ! Build a wall at zero
 
-    do i = 1, nstar
-       if (abs(x(i)) > WALL_LOC) then
-          f = f + (exp((abs(x(i)) - WALL_LOC)**2) - 1.d0)
+    do j = 1, nstar
+       if (abs(x(j)) > WALL_LOC) then
+          f = f + (exp((abs(x(j)) - WALL_LOC)**2) - 1.d0)
        endif
     enddo
 
@@ -1052,5 +1253,117 @@ contains
     c = 0.5d0 * (1.d0 + tanh(x))
 
   end subroutine psolve
+
+
+  subroutine psolve2_chi2(nstar, x, f)
+
+    use type_def, only: &
+         int64, real64
+
+    use abu_data, only: &
+         abu
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         WALL_LOC = -12.d0 * ln10
+
+    integer(kind=int64), intent(in) :: &
+         nstar
+    real(kind=real64), intent(in), dimension(nstar) :: &
+         x
+
+    real(kind=real64), intent(out) :: &
+         f
+
+    real(kind=real64), dimension(nstar) :: &
+         c
+    integer(kind=int64) :: &
+         j
+
+    ! Transform log to linear
+    ! x is used for the solver, log(x) is physically meaningful
+
+    c = exp(x)
+
+    ! Calculate the chi2
+
+    call chi2(f, c(:), abu(:,:), nstar)
+
+    ! Build a wall at zero
+
+    do j = 1, nstar
+       if (x(j) < WALL_LOC) then
+          f = f + (exp((x(j) * ln10i - WALL_LOC)**2) - 1.d0)
+       endif
+    enddo
+
+  end subroutine psolve2_chi2
+
+
+  subroutine psolve2(c, abu, nstar)
+
+    use utils, only: &
+         signan
+
+    use star_data, only: &
+         nel
+
+    use abu_data, only: &
+         set_abu_data
+
+    use powell, only: &
+         uobyqa
+
+    implicit none
+
+    integer(kind=int64), intent(in) :: &
+         nstar
+    real(kind=real64), intent(in), dimension(nstar, nel) :: &
+         abu
+
+    real(kind=real64), intent(inout), dimension(nstar) :: &
+         c
+
+    real(kind=real64), dimension(nstar) :: &
+         x
+    real(kind=real64) :: rhobeg, rhoend
+    integer(kind=int64) :: calls, iprint
+
+    ! save module data for calfun
+
+    ! an pointer to an allocated data structure should be used instead.
+
+    call set_abu_data(abu, nel, nstar)
+
+    ! Options for the uobyqa solver
+
+    rhobeg = 1.d0
+    rhoend = 1.d-5
+    iprint = 0
+    calls = 50 * nstar
+
+    if (any(c <= 0.d0)) then
+       if (stop_on_zero_offset) then
+          print*, '[psolve2] DEBUG IN: c = ', c
+          error stop '[psolve2] c <= 0'
+       endif
+       c = signan()
+       return
+    endif
+
+    ! Convert offsets to solver space
+
+    x = log(c)
+
+    ! Call solver
+
+    call uobyqa(psolve2_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
+
+    ! Convert solver space to offsets
+
+    c = exp(x)
+
+  end subroutine psolve2
 
 end module fitting

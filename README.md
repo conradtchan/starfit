@@ -268,8 +268,12 @@ make -C ./src/starfit/fitness clean
 pip3 install -e .[testing]
 ```
 
-If there are issues with the `fitness` submodule, there is a `Makefile` in its source directory that can be used to compile a test program outside of the python package build process.
+To make this step more convenient we povide a `Makefile` in the root directory that does all three steps:
+```shell
+make
+```
 
+If there are issues with the `fitness` submodule, there is a `Makefile` in its source directory that can be used to compile a test program outside of the python package build process.
 
 Two automated checks (on Github Actions) must be passed (Items 2 and 3):
 
