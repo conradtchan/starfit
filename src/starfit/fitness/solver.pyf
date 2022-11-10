@@ -4,7 +4,7 @@
 python module _solver ! in
     interface  ! in :_solver
         subroutine fitness_(f,c,obs,err,det,cov,abu,nel,ncov,nstar,nsol,ls,icdf,flags) ! in :_solver:solver.f90
-            use fitting, only: fitness
+            use mfitness, only: fitness
             use typedef, only: real64,int64
             real(kind=real64) dimension(nsol),intent(out),depend(nsol) :: f
             real(kind=real64) dimension(nsol,nstar),intent(in,out) :: c

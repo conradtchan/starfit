@@ -1,6 +1,6 @@
 module tests
 
-  use fitting, only: &
+  use mfitness, only: &
        fitness
 
   use typedef, only: &

@@ -1,4 +1,4 @@
-module fitting
+module mfitness
 
   use typedef, only: &
        real64, int64
@@ -1351,4 +1351,4 @@ contains
 
   end subroutine psolve2
 
-end module fitting
+end module mfitness

@@ -4,7 +4,7 @@
 
 subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
 
-  use fitting, only: &
+  use mfitness, only: &
        fitness
 
   use typedef, only: &
