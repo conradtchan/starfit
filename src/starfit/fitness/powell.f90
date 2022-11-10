@@ -8,7 +8,7 @@ module powell
   ! Code converted using TO_F90 by Alan Miller
   ! Date: 2002-11-09  Time: 16:58:08
 
-  use type_def, only: &
+  use typedef, only: &
        int64, real64
 
   implicit none

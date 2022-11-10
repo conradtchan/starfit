@@ -5,7 +5,7 @@ python module _solver ! in
     interface  ! in :_solver
         subroutine fitness_(f,c,obs,err,det,cov,abu,nel,ncov,nstar,nsol,ls,icdf,flags) ! in :_solver:solver.f90
             use fitting, only: fitness
-            use type_def, only: real64,int64
+            use typedef, only: real64,int64
             real(kind=real64) dimension(nsol),intent(out),depend(nsol) :: f
             real(kind=real64) dimension(nsol,nstar),intent(in,out) :: c
             real(kind=real64) dimension(nel),intent(in) :: obs
@@ -24,6 +24,6 @@ python module _solver ! in
     end interface
 end python module _solver
 
-! This file was auto-generated with f2py (version:1.23.4).
+! This file was auto-generated with f2py (version:1.23.4) and odified by hand.
 ! See:
 ! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e

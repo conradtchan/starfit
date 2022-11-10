@@ -21,7 +21,7 @@ fit_sources = [
     os.path.join(starfit_src, "fitness", x)
     for x in [
         "solver.pyf",
-        "type_def.f90",
+        "typedef.f90",
         "utils.f90",
         "powell.f90",
         "norm.f90",

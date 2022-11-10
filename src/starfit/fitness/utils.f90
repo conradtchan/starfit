@@ -1,6 +1,6 @@
 module utils
 
-  use type_def, only: &
+  use typedef, only: &
        real64
 
   implicit none
