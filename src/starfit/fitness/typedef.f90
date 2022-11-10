@@ -1,4 +1,4 @@
-module type_def
+module typedef
 
   implicit none
 
@@ -8,4 +8,4 @@ module type_def
   INTEGER, PARAMETER :: real64 = SELECTED_REAL_KIND(15)
   INTEGER, PARAMETER :: real32 = SELECTED_REAL_KIND(6)
 
-end module type_def
+end module typedef

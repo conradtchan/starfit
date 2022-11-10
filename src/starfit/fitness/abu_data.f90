@@ -1,6 +1,6 @@
 module abu_data
 
-  use type_def, only: &
+  use typedef, only: &
        real64, int64
 
   implicit none

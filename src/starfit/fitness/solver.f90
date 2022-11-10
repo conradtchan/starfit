@@ -7,7 +7,7 @@ subroutine fitness_(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, i
   use fitting, only: &
        fitness
 
-  use type_def, only: &
+  use typedef, only: &
        real64, int64
 
   implicit none

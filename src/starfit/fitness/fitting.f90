@@ -1,6 +1,6 @@
 module fitting
 
-  use type_def, only: &
+  use typedef, only: &
        real64, int64
 
   implicit none
@@ -54,9 +54,6 @@ contains
          set_star_data, abu_covariance, &
          init_erri2, &
          init_covaricance_const
-
-    use type_def, only: &
-         real64, int64
 
     implicit none
 
@@ -542,9 +539,6 @@ contains
 
   subroutine newton_prime(f1, f2, x)
 
-    use type_def, only: &
-         int64, real64
-
     use abu_data, only: &
          nstar
 
@@ -710,9 +704,6 @@ contains
 
 
   subroutine newton2_prime(f1, f2, x)
-
-    use type_def, only: &
-         int64, real64
 
     use abu_data, only: &
          nstar
@@ -1145,9 +1136,6 @@ contains
 
   subroutine psolve_chi2(nstar, x, f)
 
-    use type_def, only: &
-         int64, real64
-
     use abu_data, only: &
          abu
 
@@ -1256,9 +1244,6 @@ contains
 
 
   subroutine psolve2_chi2(nstar, x, f)
-
-    use type_def, only: &
-         int64, real64
 
     use abu_data, only: &
          abu

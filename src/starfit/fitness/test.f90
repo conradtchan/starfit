@@ -1,6 +1,6 @@
 program test
 
-  use type_def, only: &
+  use typedef, only: &
        real64, int64
 
   use tests, only: &

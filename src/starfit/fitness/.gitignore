@@ -5,3 +5,4 @@ _solver-f2pywrappers2.f90
 _solver-f2pywrappers.f
 solver.a
 test
+test_leqs

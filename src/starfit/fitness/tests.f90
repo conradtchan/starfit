@@ -3,7 +3,7 @@ module tests
   use fitting, only: &
        fitness
 
-  use type_def, only: &
+  use typedef, only: &
        real64, int64
 
   implicit none
