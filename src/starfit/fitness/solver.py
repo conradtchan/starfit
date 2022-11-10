@@ -10,6 +10,19 @@ def check_offsets(offsets):
         raise AttributeError(f"invalid offset > 1 at index {i}: {offsets[i]}")
 
 
+LS_CHI_ONLY = -1
+LS_OFF = 0
+LS_ON = 1
+LS_PSOLVE = 2
+
+LS_MODES = {
+    None: LS_CHI_ONLY,
+    False: LS_OFF,
+    True: LS_ON,
+    Ellipsis: LS_PSOLVE,
+}
+
+
 def fitness(
     observed,
     error,
@@ -35,13 +48,8 @@ def fitness(
 
     check_offsets(offsets)
 
-    if ls is True:
-        ils = 1
-    elif ls is False:
-        ils = 0
-    elif ls is None:
-        ils = 2
-    else:
+    ils = LS_MODES.get(ls, None)
+    if ils is None:
         raise Exception(f"Unknown search option {ls=}")
 
     fitness, offset = fitness_(

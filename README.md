@@ -12,7 +12,7 @@ StarFit can match combined abundances of multiple models. For single stars and c
 An online interface (with a subset of functionality) is available at [starfit.org](https://starfit.org).
 
 # Installation
-Tested with Python 3.10
+Tested with Python 3.10, 3.11
 
 Optional: A working LaTeX installation and dvipng is required to create plots with LaTeX labels (ideal for publication). Otherwise, Matplotlib's default MathText is used, which may not render all symbols correctly.
 

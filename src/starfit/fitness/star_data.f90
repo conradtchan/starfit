@@ -7,6 +7,17 @@ module star_data
 
   save
 
+  ! use of inverse may be less accurate but a lot faster if comparing
+  ! to many models.
+
+  logical, parameter :: &
+       use_inverse = .true., &
+       warn_subthreshold_detection = .false., &
+       stop_subthreshold_detection = .false.
+
+  real(kind=real64), parameter :: &
+       det_lim = -80.d0
+
   integer(kind=int64) :: &
        nel, ncov
   real(kind=real64), dimension(:), allocatable :: &
@@ -17,19 +28,19 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor, measu, tresh
+       upper, covar, uncor, measu, detec, nocov, erinv, ernoi
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor, nmeasu, ntresh
+       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv, nernoi
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor, imeasu, itresh
+       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi
 
   real(kind=real64), dimension(:, :), allocatable :: &
-       m
+       mm, mm1
   real(kind=real64), dimension(:), allocatable :: &
-       zp, z1, z
+       zvp, zv, &
+       erri, erri2
   real(kind=real64) :: &
-       mp, zz, mm
-
+       mp
 
 contains
 
@@ -85,9 +96,38 @@ contains
     cov = cov_
 
     call init_domains()
+    call init_erri()
     call init_covariance_matrix()
+    call init_inverse()
+    call init_check_thresholds()
 
   end subroutine set_star_data
+
+
+  subroutine init_check_thresholds()
+
+    implicit none
+
+    integer(kind=int64) :: &
+         i, i1
+
+    if (any(det(idetec) > obs(idetec))) then
+       if (warn_subthreshold_detection) then
+          do i1 = 1, ndetec
+             i = idetec(i1)
+             if (det(i) > obs(i)) then
+                print*,'[set_star_data] WARNING i=',i,'det=',det(i), 'obs=', obs(i)
+             endif
+          end do
+       endif
+
+       if (stop_subthreshold_detection) then
+          error stop '[set_star_data] observation below detection limit'
+       endif
+    end if
+
+  end subroutine init_check_thresholds
+
 
   subroutine init_domains
 
@@ -95,13 +135,12 @@ contains
 
     integer(kind=int64), dimension(:), allocatable :: &
          ii
-
     integer(kind=int64) :: &
          i
 
     if (allocated(upper)) then
-       deallocate(upper, covar, uncor, measu, tresh)
-       deallocate(iupper, icovar, iuncor, imeasu, itresh)
+       deallocate(upper, covar, uncor, measu, detec, nocov, erinv, ernoi)
+       deallocate(iupper, icovar, iuncor, imeasu, idetec,inocov, ierinv, iernoi)
     endif
 
     ! find masks for correlated, uncorreclated, and limit errors
@@ -110,13 +149,19 @@ contains
     covar = any(cov /= 0, 2)
     uncor = .not.(upper.or.covar)
     measu = .not.upper
-    tresh = measu(:) .and. (det(:) > -80.d0)
+    detec = measu(:) .and. (det(:) > det_lim)
+    nocov = .not.covar
+    erinv = upper.or.detec.or.uncor
+    ernoi = .not.erinv
 
     nupper = count(upper)
     ncovar = count(covar)
     nuncor = count(uncor)
     nmeasu = nel - nupper
-    ntresh = count(tresh)
+    ndetec = count(detec)
+    nnocov = nel - ncovar
+    nerinv = count(erinv)
+    nernoi = nel - nerinv
 
     allocate(ii(nel))
     do i=1, nel
@@ -126,9 +171,13 @@ contains
     icovar = pack(ii, covar)
     iuncor = pack(ii, uncor)
     imeasu = pack(ii, measu)
-    itresh = pack(ii, tresh)
+    idetec = pack(ii, detec)
+    inocov = pack(ii, nocov)
+    ierinv = pack(ii, erinv)
+    iernoi = pack(ii, ernoi)
 
   end subroutine init_domains
+
 
   subroutine init_covariance_matrix
 
@@ -140,30 +189,64 @@ contains
     integer(kind=int64) :: &
          i, j, k, ie, je
 
-    if (allocated(m)) then
-       deallocate(m)
+    if (ncovar == 0) then
+       return
     endif
 
-    allocate(m(ncovar, ncovar))
+    if (allocated(mm)) then
+       deallocate(mm)
+    endif
+
+    allocate(mm(ncovar, ncovar))
 
     do i=1, ncovar
        ie = icovar(i)
-       m(i,i) = err(ie)**2
+       mm(i,i) = err(ie)**2
        do j=1,i
           if (j < i) then
-             m(i,j) = 0.0d0
+             mm(i,j) = 0.0d0
           endif
           je = icovar(j)
           do k = 1, ncov
-             m(i,j) = m(i,j) + cov(ie,k) * cov(je,k)
+             mm(i,j) = mm(i,j) + cov(ie,k) * cov(je,k)
           enddo
           if (j < i) then
-             m(j,i) = m(i,j)
+             mm(j,i) = mm(i,j)
           endif
        enddo
     enddo
 
   end subroutine init_covariance_matrix
+
+
+  subroutine init_inverse
+
+    use mleqs, only: &
+         inverse
+
+    implicit none
+
+    if (.not.use_inverse) then
+       return
+    endif
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    if (.not.allocated(mm)) then
+       error stop '[init_inverse] matrix mm not present'
+       return
+    endif
+
+    if (allocated(mm1)) then
+       deallocate(mm1)
+    endif
+
+    mm1 = inverse(mm, ncovar)
+
+  end subroutine init_inverse
+
 
   subroutine init_covaricance_const
 
@@ -172,49 +255,67 @@ contains
 
     implicit none
 
-    if (allocated(zp)) then
-       deallocate(zp, z1)
+    real(kind=real64), dimension(:), allocatable :: &
+         zv1
+
+    if (ncovar == 0) then
+       mp = 0.d0
+       return
     endif
 
-    allocate(zp(ncovar), z1(ncovar))
+    if (allocated(zvp)) then
+       deallocate(zvp)
+    endif
 
-    z1(:) = 1.d0
-    zp(:) = leqs(m, z1, ncovar)
-    mp = sum(zp(:) * z1(:))
+    allocate(zvp(ncovar))
+    if (use_inverse) then
+       zvp(:) = sum(mm1(:,:), 2)
+    else
+       allocate(zv1(ncovar))
+       zv1(:) = 1.d0
+       zvp(:) = leqs(mm, zv1, ncovar)
+    endif
+    mp = sum(zvp(:))
 
   end subroutine init_covaricance_const
 
-  subroutine init_abu_covariance(abu)
+  subroutine init_erri2
 
-    use mleqs, only: &
-         leqs
+    use utils, only: &
+         signan
 
     implicit none
 
-    real(kind=real64), dimension(:), intent(in) :: &
-         abu
-
-    real(kind=real64), dimension(:), allocatable :: &
-         v
-    if (size(abu, 1) /= nel) then
-       error stop '[init_abu_covariance] abu dimension mismatch'
+    if (allocated(erri2)) then
+       deallocate(erri2)
     endif
 
-    if (allocated(z)) then
-       deallocate(z)
+    allocate(erri2(nel))
+
+    erri2(iernoi) = signan()
+    erri2(ierinv) = 1.d0 / err(ierinv)**2
+
+  end subroutine init_erri2
+
+
+  subroutine init_erri
+
+    use utils, only: &
+         signan
+
+    implicit none
+
+    if (allocated(erri)) then
+       deallocate(erri)
     endif
 
-    allocate(z(ncovar), v(ncovar))
+    allocate(erri(nel))
 
-    v(:) = obs(icovar) - abu(icovar)
+    erri(iernoi) = signan()
+    erri(ierinv) = 1.d0 / err(ierinv)
 
-    z(:) = leqs(m, v, ncovar)
-    mm = sum(v(:) * z(:))
-    zz = sum(z(:))
+  end subroutine init_erri
 
-    deallocate(v)
-
-  end subroutine init_abu_covariance
 
   function abu_covariance(abu) result(xcov)
 
@@ -233,12 +334,20 @@ contains
        error stop '[abu_covariance] abu dimension mismatch'
     endif
 
+    if (ncovar == 0) then
+       xcov = 0.d0
+       return
+    endif
+
+    allocate(diff(ncovar))
+
     diff = obs(icovar) - abu(icovar)
     xcov = diff_covariance(diff)
 
     deallocate(diff)
 
   end function abu_covariance
+
 
   function diff_covariance(diff) result(xcov)
 
@@ -253,19 +362,125 @@ contains
     real(kind=real64) :: &
          xcov
 
-    real(kind=real64), dimension(:), allocatable :: &
+    real(kind=real64), dimension(:), allocatable  :: &
          part1, part2
 
     if (size(diff, 1) /= nel) then
+       print*, '[diff_covariance] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
        error stop '[diff_covariance] diff dimension mismatch'
     endif
 
+    if (ncovar == 0) then
+       xcov = 0.d0
+       return
+    endif
+
+    allocate(part1(ncovar), part2(ncovar))
     part1 = diff(icovar)
-    part2 = leqs(m, part1, ncovar)
+    if (use_inverse) then
+       part2 = matmul(mm1, part1)
+    else
+       part2 = leqs(mm, part1, ncovar)
+    endif
     xcov = sum(part1(:) * part2(:))
 
     deallocate(part1, part2)
 
   end function diff_covariance
+
+
+  function diff_z(diff) result(xz)
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64) :: &
+         xz
+
+    if (ncovar == 0) then
+       xz = 0.d0
+       return
+    endif
+
+    if (size(diff, 1) /= nel) then
+       print*, '[diff_z] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
+       error stop '[diff_z] diff dimension mismatch'
+    endif
+
+    xz = sum(zvp(:) * diff(icovar))
+
+  end function diff_z
+
+
+  function diff_zv(diff) result(xzv)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64), dimension(ncovar) :: &
+         xzv
+
+    real(kind=real64), dimension(ncovar)  :: &
+         part
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    if (size(diff, 1) /= nel) then
+       print*, '[diff_zv] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
+       error stop '[diff_zv] diff dimension mismatch'
+    endif
+
+    part(:) = diff(icovar)
+    if (use_inverse) then
+       xzv(:) = matmul(mm1, part)
+    else
+       xzv(:) = leqs(mm, part, ncovar)
+    endif
+
+  end function diff_zv
+
+
+  function reduced_diff_zv(diff) result(xzv)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64), dimension(ncovar) :: &
+         xzv
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    if (size(diff, 1) /= ncovar) then
+       print*, '[reduced_diff_zv] size(diff, 1) = ', size(diff, 1), &
+            'expected ncovar = ', ncovar
+       error stop '[reduced_diff_zv] diff dimension mismatch'
+    endif
+
+    if (use_inverse) then
+       xzv(:) = matmul(mm1, diff)
+    else
+       xzv(:) = leqs(mm, diff, ncovar)
+    endif
+
+  end function reduced_diff_zv
 
 end module star_data
