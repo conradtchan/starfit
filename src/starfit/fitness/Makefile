@@ -25,7 +25,7 @@ LIBRARY_OBJECTS = \
 	powell.o \
 	abu_data.o \
 	star_data.o \
-	mfitness.o
+	fitting.o
 
 EXECUTABLE_OBJECTS = \
 	test.o \
@@ -74,14 +74,14 @@ star_data.o star_data.mod &: ${SOURCE}/star_data.f90 \
 	@rm -f star_data.mod
 	$(F90) $(FFLAGS) $<
 
-mfitness.o mfitness.mod &: ${SOURCE}/mfitness.f90 \
+fitting.o fitting.mod &: ${SOURCE}/fitting.f90 \
 	typedef.mod powell.mod mleqs.mod norm.mod \
 	star_data.mod abu_data.mod utils.mod
-	@rm -f mfitness.mod
+	@rm -f fitting.mod
 	$(F90) $(FFLAGS) $<
 
 tests.o tests.mod &: ${SOURCE}/tests.f90 \
-	typedef.mod mfitness.mod
+	typedef.mod fitting.mod
 	@rm -f tests.mod
 	$(F90) $(FFLAGS) $<
 

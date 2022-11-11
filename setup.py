@@ -28,7 +28,7 @@ fit_sources = [
         "mleqs.f90",
         "star_data.f90",
         "abu_data.f90",
-        "mfitness.f90",
+        "fitting.f90",
         "solver.f90",
     ]
 ]
