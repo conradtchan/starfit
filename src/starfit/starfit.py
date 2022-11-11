@@ -20,7 +20,7 @@ from .autils.physconst import MSUN
 from .autils.stardb import StarDB
 from .autils.utils import index1d, is_iterable
 from .fit import get_fitness
-from .star import Star
+from .star import LOW, Star
 from .starplot import (
     IntFormatter,
     _plot_title_formatters,
@@ -99,6 +99,7 @@ class StarFit(Logged):
         db_label=None,
         cdf=True,
         cov=False,
+        det=False,
         debug=False,
         show=False,
     ):
@@ -253,6 +254,8 @@ class StarFit(Logged):
             ]
         )
         eval_data = star.element_abundances[mask_zmax]
+
+        # check whether to use covariances
         if cov is False:
             data_type = star.data_type.copy()
             assert data_type[-1][0] == "covariance"
@@ -266,6 +269,10 @@ class StarFit(Logged):
                 eval_data.error**2 + np.sum(eval_data.covariance**2, axis=1)
             )
             eval_data = eval_data_new
+
+        # check whether to use detection thresholds
+        if det is False:
+            eval_data.det = LOW[star.data_format]
 
         # Remove upper limit elements if upper limits is not enabled
         mask_uplim = np.array([error > 0 for error in eval_data.error])
