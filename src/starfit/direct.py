@@ -26,9 +26,7 @@ class Direct(StarFit):
 
         assert stars is not None, "require stars"
 
-        stars = np.array(stars)
-        if stars.ndim == 1:
-            stars = stars.reshape((1, -1))
+        stars = np.atleast_2d(np.array(stars))
         if stars.ndim == 2 and self.db_n == 1:
             stars = np.stack((np.full_like(stars, 0), stars), axis=-1)
         assert stars.ndim == 3, "require database info"
