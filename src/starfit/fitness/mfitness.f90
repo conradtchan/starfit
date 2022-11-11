@@ -651,7 +651,7 @@ contains
     real(kind=real64), dimension(nstar, nstar) :: &
          f2
     real(kind=real64) :: &
-         dxr
+         dxr, c1, c2
 
     integer(kind=int64) :: &
          iter
@@ -686,6 +686,12 @@ contains
        x(:) = x(:) - dx(:)
        if (dxr < 1.0d-6) goto 1000
     enddo
+
+    call chi2(c1, 0.5d0 * (1.d0 + tanh(x(:))), abu, nstar)
+    call chi2(c2, 0.5d0 * (1.d0 + tanh(x(:) + dx(:))), abu, nstar)
+    if (abs(c1 - c2) / (abs(c1 + c2) + 1.d-99) < 1e-8) then
+       goto 1000
+    endif
 
     if (stop_on_nonconvergence) then
        error stop '[newton] did not converge.'
@@ -786,7 +792,7 @@ contains
          FMIN = 0.5d0
 
     integer(kind=int64), parameter :: &
-         max_steps = 100
+         max_steps = 200
 
     integer(kind=int64), intent(in) :: &
          nstar
@@ -839,12 +845,13 @@ contains
        if (dxr < 1.0d-12) goto 1000
     enddo
 
-    iter = 1
-    call chi2(c1, exp(x(:)), abu, iter)
-    call chi2(c2, exp(x(:) + dx(:)), abu, iter)
+    call chi2(c1, exp(x(:)), abu, nstar)
+    call chi2(c2, exp(x(:) + dx(:)), abu, nstar)
+    print*,'[A]', c1, c2, dx
     if (abs(c1 - c2) / (abs(c1 + c2) + 1.d-99) < 1e-8) then
        goto 1000
     endif
+    print*,'[B]'
 
     if (stop_on_nonconvergence) then
        error stop '[newton2] did not converge.'
@@ -1203,8 +1210,10 @@ contains
 
     real(kind=real64), dimension(nstar) :: &
          x
-    real(kind=real64) :: rhobeg, rhoend
-    integer(kind=int64) :: calls, iprint
+    real(kind=real64) :: &
+         rhobeg, rhoend
+    integer(kind=int64) :: &
+         calls, iprint
 
     ! save module data for calfun
 
@@ -1215,9 +1224,11 @@ contains
     ! Options for the uobyqa solver
 
     rhobeg = 1.d0
-    rhoend = 1.d-5
+    rhoend = 1.d-6
     iprint = 0
-    calls = 50 * nstar
+
+    calls = nstar**4 + 8 * nstar**3 + 23 * nstar**2 + 42 * nstar + &
+         max(2 * nstar**2 + 4, 18 * nstar)
 
     if (any(c >= 1.d0)) then
        if (stop_on_large_offset) then
