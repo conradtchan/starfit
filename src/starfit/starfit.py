@@ -13,6 +13,7 @@ import numpy as np
 from . import DB, REF, SOLAR
 from .autils import abusets
 from .autils.abuset import AbuData
+from .autils.isotope import Ion
 from .autils.isotope import ion as I
 from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
@@ -230,11 +231,15 @@ class StarFit(Logged):
             z_min = 1
         if isinstance(z_min, str):
             z_min = I(z_min, element=True).Z
+        if isinstance(z_min, Ion):
+            z_min = z_min.Z
         z_min = max(z_min, 1)
         if z_max is None:
             z_max = 92
         if isinstance(z_max, str):
             z_max = I(z_max, element=True).Z
+        if isinstance(z_max, Ion):
+            z_max = z_max.Z
         if z_max == 0:
             z_max = 92
 
