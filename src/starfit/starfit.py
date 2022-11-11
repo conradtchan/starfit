@@ -1,9 +1,13 @@
 """Results objects from the various algorithms"""
 
+import colorsys
+from itertools import cycle
 from pathlib import Path
 from string import capwords
 from textwrap import wrap
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 
 from . import DB, REF, SOLAR
@@ -17,7 +21,7 @@ from .autils.stardb import StarDB
 from .autils.utils import index1d, is_iterable
 from .fit import get_fitness
 from .star import Star
-from .starplot import abuplot
+from .starplot import _title_formatters, _unit_formatters, leg_copyright, leg_starname
 from .utils import find_all, find_data
 
 # uniform and brief units
@@ -481,36 +485,6 @@ class StarFit(Logged):
         )
         return sol, fitness
 
-    def plot(self, index=0, **kwargs):
-        """Call plotting routines to plot the best fit."""
-
-        bestsol = self.sorted_stars[index]
-        self.labels, self.plotdata = abuplot(
-            indices=bestsol["index"].tolist(),
-            offsets=bestsol["offset"].tolist(),
-            star=self.star,
-            database=self.db,
-            database_idx=self.db_idx,
-            database_off=self.db_off,
-            database_label=self.db_lab,
-            full_abudata=self.full_abudata,
-            eval_data=self.eval_data,
-            list_db=self.list_db,
-            list_comb=self.list_comb,
-            sun_full=self.sun_full,
-            sun_star=self.sun_star,
-            combine=self.combine,
-            exclude_index=self.exclude_index,
-            uplim_index_star=self.uplim_index_star,
-            lolim_index_all=self.lolim_index_all,
-            solution_fitness=self.sorted_fitness[0],
-            **kwargs,
-        )
-
-    def plot_fitness(self):
-        # Fitness over time plot
-        raise NotImplementedError()
-
     def text_result(self, n=20, *, n0=0, format="unicode", wide=12, _return_dbx=False):
         """Print data of best fit."""
         text = []
@@ -801,3 +775,420 @@ class StarFit(Logged):
         self.group_off = group_off
         self.group_idx = group_idx
         self.group_index = group_index
+
+    def plot(
+        self,
+        index=0,
+        fig=None,
+        ax=None,
+        fontsize=None,
+        annosize=None,
+        figsize=(10, 6),
+        dpi=102,
+        show_copyright=True,
+        dist=None,
+        xlim=None,
+        ylim=None,
+        data_size=3,
+        save=None,
+        return_plot_data=False,
+    ):
+        """Call plotting routines to plot the best fit."""
+
+        bestsol = self.sorted_stars[index]
+        indices = bestsol["index"]
+        offsets = bestsol["offset"]
+
+        if ax is None:
+            if fig is None:
+                fig, ax = plt.subplots(
+                    figsize=figsize,
+                    dpi=dpi,
+                    facecolor="white",
+                    edgecolor="white",
+                )
+            else:
+                ax = fig.add_subplot(111)
+
+        if annosize is None:
+            if fontsize is not None:
+                annosize = fontsize
+            else:
+                annosize = "small"
+
+        if fontsize is None:
+            fontsize = 12
+
+        ax.set_xlabel("Element charge number", fontsize=fontsize)
+        ax.set_ylabel("Logarithm of Abundance Relative to Sun", fontsize=fontsize)
+
+        zlist_db = np.array([ion.Z for ion in self.list_db])
+        zlist_comb = np.array([ion.Z for ion in self.list_comb])
+
+        # First, sum up the values for all the stars in the solution
+        summed = np.sum((self.full_abudata[:, indices] + 1.0e-99) * offsets, axis=1)
+
+        # Transform the list of matched elements to an index for the db
+        index_t = np.in1d(zlist_db, zlist_comb, assume_unique=True)
+
+        logsun_full = np.log10(self.sun_full)
+        logsun_star = np.log10(self.sun_star)
+
+        # The star data points
+        y_star = self.eval_data.abundance - logsun_star
+        y_star_det = self.eval_data.detection - logsun_star
+
+        x_star = np.array([ion.Z for ion in self.eval_data.element])
+
+        y_star_uco = np.abs(self.eval_data.error)
+        y_star_cov = np.sqrt(np.sum(self.eval_data.covariance**2, axis=1))
+        y_star_err = np.sqrt(y_star_cov**2 + y_star_uco**2)
+
+        y_star_err = np.tile(y_star_err, (2, 1))
+        y_star_uco = np.tile(y_star_uco, (2, 1))
+
+        # set asymmetric error for upper limits
+        up_lims = self.uplim_index_star
+        y_star_err[1, up_lims] = 0
+
+        leg_starname(ax, self.star.name)
+
+        if show_copyright:
+            leg_copyright(ax)
+
+        # Components of the solution
+        lines = ["--", "-.", ":", "-"]
+        linecycler = cycle(lines)
+
+        labels = list()
+        texlabels = list()
+
+        for i, (offset, index) in enumerate(zip(offsets, indices)):
+            raw = list()
+            parameters = list()
+            db_idx = self.db_idx[index]
+            db = self.db[db_idx]
+            dbindex = index - self.db_off[db_idx]
+            if self.db_n > 1:
+                db_name = self.db_lab[db_idx]
+                try:
+                    int(db_name)
+                    db_name = f"DB {db_name}"
+                except:
+                    pass
+                parameters.append(db_name)
+            for j in range(db.nfield):
+                if db.fieldflags[j] != StarDB.Flags.parameter:
+                    continue
+                value = db.fielddata[dbindex][j]
+                unit = db.fieldunits[j]
+                name = db.fieldnames[j]
+                form = db.fieldformats[j]
+                if unit == "-":
+                    unit = ""
+                raw.append(f"{value:{form}} {unit}".strip())
+
+                if name in _title_formatters:
+                    value = _title_formatters[name](value, form, unit)
+                elif unit in _unit_formatters:
+                    value = _unit_formatters[unit](value, form)
+                else:
+                    value = f"{value:{form}}"
+                    unit = _unit_translate.get(unit, unit)
+                    if unit not in (
+                        "",
+                        "-",
+                    ):
+                        value = f"{value} {unit}"
+                parameters.append(value)
+            texlabels.append(", ".join(parameters))
+            if self.db_n > 1:
+                key = f"{db_name}, {dbindex}"
+            else:
+                key = f"{dbindex}"
+            labels.append(f"{key}: " + ", ".join(raw))
+
+            # The pattern found by the algorithm
+            y_a = np.log10(summed[index_t]) - logsun_full
+            x_a = np.array(zlist_comb)
+
+            x_ga = np.array(zlist_comb)
+
+            # Move the x position for combined things
+            x_star = x_star.astype("f8")
+            x_a = x_a.astype("f8")
+            x_ga = x_ga.astype("f8")
+            for row in self.combine:
+                if len(row) > 0:
+                    for x in [x_star, x_a, x_ga]:
+
+                        # Get the first in the combined elements
+                        ind = np.where(x == row[0])[0]
+                        if len(ind) > 0:
+
+                            # Make the new position the average of the first
+                            # consecutives
+                            consec = np.array_split(
+                                row, np.where(np.diff(row) != 1)[0] + 1
+                            )
+                            x[ind[0]] = np.mean(consec[0])
+
+            # Plot components if there are more than one
+            if len(indices) > 1:
+                y_ga = (
+                    np.log10((self.full_abudata[index_t, index] * offset) + 1.0e-99)
+                    - logsun_full
+                )
+
+                ax.plot(
+                    x_ga,
+                    y_ga,
+                    marker="",
+                    linestyle=next(linecycler),
+                    lw=1.3,
+                    color=colorsys.hsv_to_rgb(i * 360 / len(indices), 1, 1),
+                    label=texlabels[i],
+                )
+
+        # Change the label of the summed line based on how many components there are
+        if len(indices) > 1:
+            sumlabel = "Sum"
+        else:
+            sumlabel = texlabels[0]
+
+        # Green line
+        ax.plot(
+            x_a,
+            y_a,
+            color="g",
+            lw=2.0,
+        )
+
+        # Red triangles
+        ax.plot(
+            x_a[~self.lolim_index_all],
+            y_a[~self.lolim_index_all],
+            marker="^",
+            markerfacecolor="red",
+            markeredgecolor="red",
+            lw=0,
+        )
+
+        # Hollow triangles
+        ax.plot(
+            x_a[self.lolim_index_all],
+            y_a[self.lolim_index_all],
+            marker="^",
+            markerfacecolor="white",
+            markeredgecolor="red",
+            lw=0,
+        )
+
+        # Hidden line for legend purposes
+        ax.plot(
+            1000,
+            1000,
+            marker="^",
+            markerfacecolor="red",
+            markeredgecolor="red",
+            color="g",
+            lw=2.0,
+            label=sumlabel,
+        )
+
+        if dist is None:
+            # Calculate bounding box
+            txt = fig.text(0, 0, "gh", fontsize=annosize)
+            renderer = fig.canvas.get_renderer()
+            bbox = txt.get_window_extent(renderer)
+            txt.remove()
+            dist = bbox.height
+
+        # Plot limits
+        if ylim is None:
+            ylim = (np.min(y_star) - 1.0, 0.9)
+
+        if xlim is None:
+            xlim = (zlist_comb[0] - 0.99, zlist_comb[-1] + 0.99)
+
+        # Calculate number of pixels per data
+        dpi = fig.get_dpi()
+        height_inch = figsize[1]
+        height_pixel = height_inch * dpi
+        data_scale = height_pixel / (ylim[1] - ylim[0])
+        space = fontsize / data_scale
+        gap_size = 3.5 * space
+
+        anno = np.copy(y_a)
+
+        # This is the ind corresponding to elements in the star data (the error bar points)
+        for z, zor in zip(x_a, zlist_comb):
+            # We use x_a instead of zlist_comb because it has the modified Z
+            # for the combined elements
+            ind = np.where(x_a == z)[0][0]
+            if zor in range(2, zlist_comb[-1]):
+                if y_a[ind] - y_a[ind - 1] >= y_a[ind + 1] - y_a[ind]:
+                    if z in x_star:
+                        star_ind = np.where(x_star == z)[0][0]
+                        if (
+                            0 < (y_star[star_ind] - y_a[ind]) <= gap_size
+                            or 0
+                            < (y_star[star_ind] - y_a[ind] - y_star_err[1, [star_ind]])
+                            <= gap_size
+                        ):
+                            anno[ind] = y_star[star_ind] + y_star_err[1, [star_ind]]
+                    loc = (0, 0.7 * dist)
+                elif y_a[ind] - y_a[ind - 1] <= y_a[ind + 1] - y_a[ind]:
+                    if z in x_star:
+                        star_ind = np.where(x_star == z)[0][0]
+                        if (
+                            0 < -(y_star[star_ind] - y_a[ind]) <= gap_size
+                            or 0
+                            < -(y_star[star_ind] - y_a[ind]) - y_star_err[0, [star_ind]]
+                            <= gap_size
+                        ):
+                            anno[ind] = (
+                                y_star[star_ind] - y_star_err[1, [star_ind]] - space
+                            )
+                    loc = (0, -dist)
+
+            elif z == 1 or z == zlist_comb[-1]:
+                loc = (0, 0.7 * dist)
+
+            # Make a special label for combined things
+            label = None
+            for row, group in enumerate(self.combine):
+                if len(group) > 0:
+                    if zor == group[0]:
+                        strings = [str(I(z)) for z in self.combine[row]]
+                        label = "+".join(strings)
+            if label is None:
+                label = I(int(z)).element_symbol()
+
+            ax.annotate(
+                label,
+                xy=(z, anno[ind]),
+                xycoords="data",
+                xytext=loc,
+                textcoords="offset points",
+                size=annosize,
+                ha="center",
+                va="center",
+            )
+
+        leg = ax.legend(
+            bbox_to_anchor=[0.98, 0.92],
+            loc="upper right",
+            numpoints=1,
+            prop={"size": fontsize},
+            frameon=False,
+        )
+        leg.set_draggable(True)
+
+        # Show detection thresholds
+        for x, y in zip(x_star, y_star_det):
+            if y < 20:
+                continue
+            ax.plot(
+                x + 0.4 * np.array([-1, 1]),
+                np.array([y, y]),
+                ls="-",
+                lw=data_size,
+                color="#0000003f",
+            )
+
+        # Show correlated errors
+        cov_sel = (y_star_cov > 0) & ~up_lims
+        ax.errorbar(
+            np.array(x_star)[cov_sel],
+            y_star[cov_sel],
+            yerr=y_star_uco[:, cov_sel],
+            ls="None",
+            marker="o",
+            ms=0,
+            capsize=data_size,
+            color=(0.7, 0.7, 0.7),
+            mfc=(0, 0, 0),
+            uplims=False,
+        )
+
+        # Plot for the excluded data points
+        ax.errorbar(
+            np.array(x_star)[self.exclude_index],
+            y_star[self.exclude_index],
+            yerr=y_star_err[:, self.exclude_index],
+            ls="None",
+            marker="o",
+            ms=data_size * 1.5,
+            color=(0, 0, 0),
+            mfc=(1, 1, 1),
+            capsize=data_size,
+            uplims=up_lims[self.exclude_index],
+        )
+
+        # Plot for the data points
+        ax.errorbar(
+            np.array(x_star)[~self.exclude_index],
+            y_star[~self.exclude_index],
+            yerr=y_star_err[:, ~self.exclude_index],
+            ls="None",
+            marker="o",
+            ms=0,
+            capsize=data_size,
+            color=(0, 0, 0),
+            mfc=(0, 0, 0),
+            uplims=up_lims[~self.exclude_index],
+        )
+
+        # Make some dots for points that aren't uplims
+        ii = np.where(~self.exclude_index)[0]
+        ij = np.where(up_lims[ii] == 0)[0]
+        ii = ii[ij]
+        ax.scatter(
+            np.array(x_star)[ii],
+            y_star[ii],
+            marker="o",
+            s=10 * data_size,
+            color=(0, 0, 0),
+        )
+
+        ax.set_ybound(*ylim)
+        ax.set_xbound(*xlim)
+
+        # ax.ticklabel_format(style='plain')
+        ax.tick_params(axis="both", which="major", labelsize=fontsize)
+
+        # Is there an easier way?
+        class IntFormatter(mpl.ticker.FuncFormatter):
+            def __init__(self, *args, **kwargs):
+                def formatter(*args, **kwargs):
+                    """
+                    function to format string for use with ticker
+                    """
+                    v = args[0]
+                    if int(v) == v:
+                        v = int(v)
+                    return str(v)
+
+                super().__init__(formatter)
+
+        ax.xaxis.set_major_formatter(IntFormatter())
+        ax.yaxis.set_major_formatter(IntFormatter())
+
+        fig.tight_layout()
+        fig.show()
+
+        if save is True:
+            save = (
+                self.star.name
+                + "."
+                + "-".join([str(index) for index in indices])
+                + "."
+                + str(index)
+            )
+            save = "../plots/" + save + ".pdf"
+        if isinstance(save, str):
+            fig.savefig(save)
+
+        if return_plot_data:
+            return labels, (x_a, y_a)
