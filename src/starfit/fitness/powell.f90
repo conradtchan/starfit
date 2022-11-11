@@ -35,12 +35,12 @@ contains
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% uobyqa.f %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  subroutine uobyqa(f, n, x, rhobeg, rhoend, iprint, maxfun)
+  subroutine uobyqa(calfun, n, x, rhobeg, rhoend, iprint, maxfun)
 
     implicit none
 
     procedure(template) :: &
-         f
+         calfun
     integer(kind=int64), intent(in) :: &
          n
     real(kind=real64), intent(in out), dimension(:) :: &
@@ -85,7 +85,7 @@ contains
 
     npt = (n * (n + 3)) / 2 + 1
 
-    CALL uobyqb(f, n, x, rhobeg, rhoend, iprint, maxfun, npt)
+    CALL uobyqb(calfun, n, x, rhobeg, rhoend, iprint, maxfun, npt)
 
   end subroutine uobyqa
 
