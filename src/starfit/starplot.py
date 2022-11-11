@@ -67,6 +67,57 @@ _title_formatters = {
 }
 
 
+def leg_starname(ax, name):
+    legt = ax.legend(
+        [],
+        [],
+        title=name,
+        title_fontproperties=dict(
+            size="x-large",
+        ),
+        bbox_to_anchor=[0.99, 0.99],
+        loc="upper right",
+        frameon=False,
+    )
+    legt.set_draggable(True)
+    ax.add_artist(legt)
+
+
+def leg_copyright(ax):
+    legc = ax.legend(
+        [],
+        [],
+        title=r"$\copyright$ www.StarFit.org",
+        title_fontproperties=dict(
+            size="x-small",
+        ),
+        bbox_to_anchor=[-0.005, -0.02],
+        loc="lower left",
+        frameon=False,
+    )
+    legc.set_draggable(True)
+    ax.add_artist(legc)
+
+
+def leg_info(ax, lines):
+    if isinstance(lines, str):
+        lines = lines.splitlines()
+    lines = "\n".join(lines)
+    legc = ax.legend(
+        [],
+        [],
+        title=lines,
+        title_fontproperties=dict(
+            size="medium",
+        ),
+        bbox_to_anchor=[0.99, 0.05],
+        loc="lower right",
+        frameon=False,
+    )
+    legc.set_draggable(True)
+    ax.add_artist(legc)
+
+
 def abuplot(
     indices=None,
     offsets=None,
@@ -155,34 +206,10 @@ def abuplot(
     if database_label is None:
         database_label = [f"{i:d}" for i in range(len(database))]
 
-    legt = ax.legend(
-        [],
-        [],
-        title=star.name,
-        title_fontproperties=dict(
-            size="x-large",
-        ),
-        bbox_to_anchor=[0.99, 0.99],
-        loc="upper right",
-        frameon=False,
-    )
-    legt.set_draggable(True)
-    ax.add_artist(legt)
+    leg_starname(ax, star.name)
 
     if show_copyright:
-        legc = ax.legend(
-            [],
-            [],
-            title=r"$\copyright$ www.StarFit.org",
-            title_fontproperties=dict(
-                size="x-small",
-            ),
-            bbox_to_anchor=[-0.005, -0.02],
-            loc="lower left",
-            frameon=False,
-        )
-        legc.set_draggable(True)
-        ax.add_artist(legc)
+        leg_copyright(ax)
 
     # Components of the solution
     lines = ["--", "-.", ":", "-"]
@@ -529,34 +556,3 @@ def abuplot(
         fig.savefig(savename)
 
     return labels, (x_a, y_a)
-
-
-def fitplot(starname, generations, popsize, genesize, times, history, gen=False):
-    fig = plt.figure(
-        figsize=(10, 6),
-        dpi=102,
-        facecolor="white",
-        edgecolor="white",
-    )
-    ax = fig.add_subplot(111)
-    if gen:
-        ax.set_xlabel("Generations")
-        times = np.arange(generations + 1)
-    else:
-        ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Fitness (Error)")
-    ax.set_title(
-        "{starname:s} - Generations: {generations:d}, Population size: {popsize:d}, Gene size: {genesize:d}".format(
-            starname=starname,
-            generations=generations,
-            popsize=popsize,
-            genesize=genesize,
-        )
-    )
-    ax.plot(times, history["average"], label="average", marker="", color="tab:blue")
-    ax.plot(times, history["best"], label="best", marker="", color="tab:green")
-    ax.plot(times, history["worst"], label="worst", marker="", color="tab:red")
-    ax.set_yscale("log")
-    leg = ax.legend(loc="best")
-    leg.set_draggable(True)
-    fig.tight_layout()

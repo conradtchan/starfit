@@ -4,6 +4,7 @@ import sys
 import time
 from collections import Counter
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import comb
 
@@ -12,7 +13,7 @@ from .autils.utils import is_iterable
 from .fit import get_fitness
 from .solgen._solgen import gen_slice
 from .starfit import StarFit
-from .starplot import fitplot
+from .starplot import leg_copyright, leg_info, leg_starname
 from .utils import getch
 
 
@@ -615,14 +616,42 @@ class Ga(StarFit):
 
         return s
 
-    def plot_fitness(self, gen=False):
-        # Fitness over time plot
-        fitplot(
-            starname=self.star.name,
-            generations=self.gen,
-            popsize=self.pop_size,
-            genesize=self.sol_size,
-            times=self.times,
-            history=self.history,
-            gen=gen,
-        )
+    def plot_fitness(self, gen=False, fig=None, ax=None, show_copyright=True):
+        """
+        plot fitness as a function of time
+        """
+
+        if ax is None:
+            if fig is None:
+                fig, ax = plt.subplots(
+                    figsize=(10, 6),
+                    dpi=102,
+                    facecolor="white",
+                    edgecolor="white",
+                )
+            else:
+                ax = fig.add_subplot(111)
+        if gen:
+            ax.set_xlabel("Generations")
+            times = np.arange(self.gen + 1)
+        else:
+            ax.set_xlabel("Time (s)")
+            times = self.times
+
+        ax.set_ylabel("Fitness (Error)")
+        leg_starname(ax, self.star.name)
+        if show_copyright:
+            leg_copyright(ax)
+        info = f"Generations: {self.gen:d}\nPopulation size: {self.pop_size:d}\nGene size: {self.sol_size:d}"
+        leg_info(ax, info)
+
+        ax.plot(times, self.history["average"], label="average", color="tab:blue")
+        ax.plot(times, self.history["best"], label="best", color="tab:green")
+        ax.plot(times, self.history["worst"], label="worst", color="tab:red")
+        ax.set_yscale("log")
+
+        leg = ax.legend(loc=(0.5, 0.1))
+        leg.set_draggable(True)
+
+        if fig is not None:
+            fig.tight_layout()
