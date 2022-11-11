@@ -39,9 +39,18 @@ _unit_translate = {
     "He core fraction": "He core",
 }
 
+_unit_translate_html = {
+    "Msun": "M<sub>&#x2609;</sub>",
+}
+
 _title_translate = {
     "lower mass cut": "Mlow",
     "upper mass cut": "Mhigh",
+}
+
+_title_translate_html = {
+    "Mlow": "M<sub>low</sub>",
+    "Mhigh": "M<sub>high</sub>",
 }
 
 
@@ -559,28 +568,27 @@ class StarFit(Logged):
             wide = len(base_title) + nfield <= wide
 
         def _head(base_title, base_units, title, units):
-            text.append(
-                base_title
-                + [
-                    _title_translate[word]
-                    if word in _title_translate
-                    else capwords(word)
-                    for word in title
-                ]
-            )
-            text.append(
-                base_units
-                + [
-                    f"({_unit_translate.get(word, word)})"
-                    if word
-                    not in (
-                        "",
-                        "-",
-                    )
-                    else ""
-                    for word in units
-                ]
-            )
+            line = base_title.copy()
+            for word in title:
+                if word in _title_translate:
+                    word = _title_translate[word]
+                    if format == "html":
+                        word = _title_translate_html.get(word, word)
+                else:
+                    word = capwords(word)
+                line.append(word)
+            text.append(line)
+            line = base_units.copy()
+            for word in units:
+                if word in ("-", ""):
+                    word = ""
+                else:
+                    word = _unit_translate.get(word, word)
+                    if format == "html":
+                        word = _unit_translate_html.get(word, word)
+                    word = f"({word})"
+                line.append(word)
+            text.append(line)
 
         def _wide_head():
             _head(base_title, base_units, fields[:, 0], fields[:, 1])
