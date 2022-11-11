@@ -230,10 +230,13 @@ class StarFit(Logged):
             z_min = 1
         if isinstance(z_min, str):
             z_min = I(z_min, element=True).Z
+        z_min = max(z_min, 1)
         if z_max is None:
             z_max = 92
         if isinstance(z_max, str):
             z_max = I(z_max, element=True).Z
+        if z_max == 0:
+            z_max = 92
 
         self.z_min = z_min
         self.z_max = z_max
@@ -835,7 +838,7 @@ class StarFit(Logged):
             fontsize = 12
 
         ax.set_xlabel("Element charge number", fontsize=fontsize)
-        ax.set_ylabel("Logarithm of Abundance Relative to Sun", fontsize=fontsize)
+        ax.set_ylabel("Logarithm of abundance relative to sun", fontsize=fontsize)
 
         zlist_db = np.array([ion.Z for ion in self.list_db])
         zlist_comb = np.array([ion.Z for ion in self.list_comb])
