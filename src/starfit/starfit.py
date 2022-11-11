@@ -40,7 +40,7 @@ _unit_translate = {
 }
 
 _unit_translate_html = {
-    "Msun": "M<sub>&starf;</sub>",
+    "Msun": "M<sub>&#x2609;</sub>",
 }
 
 _title_translate = {
