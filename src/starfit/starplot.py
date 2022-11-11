@@ -29,7 +29,7 @@ import numpy as np
 
 from .autils.keputils import mass_string
 
-_unit_translate = {
+_plot_unit_translate = {
     "solar masses": r"$\mathsf{M}_\odot$",
     "M_sun": r"$\mathsf{M}_\odot$",
     "Msun": r"$\mathsf{M}_\odot$",
@@ -40,19 +40,19 @@ _unit_translate = {
 }
 
 
-def _unit_format_mixing(value, *_):
+def _plot_unit_format_mixing(value, *_):
     if value == 0:
         return "(no mixing)"
     return rf"$\log(f_{{\mathsf{{mix}}}})={np.log10(value):4.1f}$"
 
 
-_unit_formatters = {
+_plot_unit_formatters = {
     "model": lambda value, *_: f"Model {value}",
-    "He core fraction": _unit_format_mixing,
+    "He core fraction": _plot_unit_format_mixing,
     "solar masses": lambda value, *_: rf"{mass_string(value)} $\mathsf{{M}}_{{\odot}}$",
 }
 
-_title_formatters = {
+_plot_title_formatters = {
     "lower mass cut": lambda value, *_: rf"$\ge{mass_string(value)}\,\mathsf{{M}}_{{\odot}}$",
     "upper mass cut": lambda value, *_: rf"$\le{mass_string(value)}\,\mathsf{{M}}_{{\odot}}$",
     "gamma": lambda value, form, *_: rf"$\Gamma={value:{form}}$",
@@ -110,3 +110,17 @@ def leg_info(ax, lines):
     )
     legc.set_draggable(True)
     ax.add_artist(legc)
+
+
+class IntFormatter(mpl.ticker.FuncFormatter):
+    def __init__(self, *args, **kwargs):
+        def formatter(*args, **kwargs):
+            """
+            function to format string for use with ticker
+            """
+            v = args[0]
+            if int(v) == v:
+                v = int(v)
+            return str(v)
+
+        super().__init__(formatter)

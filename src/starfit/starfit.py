@@ -1,12 +1,12 @@
 """Results objects from the various algorithms"""
 
 import colorsys
+from io import BytesIO
 from itertools import cycle
 from pathlib import Path
 from string import capwords
 from textwrap import wrap
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,7 +21,14 @@ from .autils.stardb import StarDB
 from .autils.utils import index1d, is_iterable
 from .fit import get_fitness
 from .star import Star
-from .starplot import _title_formatters, _unit_formatters, leg_copyright, leg_starname
+from .starplot import (
+    IntFormatter,
+    _plot_title_formatters,
+    _plot_unit_formatters,
+    _plot_unit_translate,
+    leg_copyright,
+    leg_starname,
+)
 from .utils import find_all, find_data
 
 # uniform and brief units
@@ -778,7 +785,7 @@ class StarFit(Logged):
 
     def plot(
         self,
-        index=0,
+        num=0,
         fig=None,
         ax=None,
         fontsize=None,
@@ -791,11 +798,12 @@ class StarFit(Logged):
         ylim=None,
         data_size=3,
         save=None,
+        save_format=None,
         return_plot_data=False,
     ):
         """Call plotting routines to plot the best fit."""
 
-        bestsol = self.sorted_stars[index]
+        bestsol = self.sorted_stars[num]
         indices = bestsol["index"]
         offsets = bestsol["offset"]
 
@@ -888,13 +896,13 @@ class StarFit(Logged):
                     unit = ""
                 raw.append(f"{value:{form}} {unit}".strip())
 
-                if name in _title_formatters:
-                    value = _title_formatters[name](value, form, unit)
-                elif unit in _unit_formatters:
-                    value = _unit_formatters[unit](value, form)
+                if name in _plot_title_formatters:
+                    value = _plot_title_formatters[name](value, form, unit)
+                elif unit in _plot_unit_formatters:
+                    value = _plot_unit_formatters[unit](value, form)
                 else:
                     value = f"{value:{form}}"
-                    unit = _unit_translate.get(unit, unit)
+                    unit = _plot_unit_translate.get(unit, unit)
                     if unit not in (
                         "",
                         "-",
@@ -951,10 +959,11 @@ class StarFit(Logged):
                 )
 
         # Change the label of the summed line based on how many components there are
+        chi = rf"($\chi^2={self.sorted_fitness[num]:0.2f})$"
         if len(indices) > 1:
-            sumlabel = "Sum"
+            sumlabel = f"Sum {chi}"
         else:
-            sumlabel = texlabels[0]
+            sumlabel = f"{texlabels[0]} {chi}"
 
         # Green line
         ax.plot(
@@ -1158,20 +1167,6 @@ class StarFit(Logged):
         # ax.ticklabel_format(style='plain')
         ax.tick_params(axis="both", which="major", labelsize=fontsize)
 
-        # Is there an easier way?
-        class IntFormatter(mpl.ticker.FuncFormatter):
-            def __init__(self, *args, **kwargs):
-                def formatter(*args, **kwargs):
-                    """
-                    function to format string for use with ticker
-                    """
-                    v = args[0]
-                    if int(v) == v:
-                        v = int(v)
-                    return str(v)
-
-                super().__init__(formatter)
-
         ax.xaxis.set_major_formatter(IntFormatter())
         ax.yaxis.set_major_formatter(IntFormatter())
 
@@ -1184,11 +1179,11 @@ class StarFit(Logged):
                 + "."
                 + "-".join([str(index) for index in indices])
                 + "."
-                + str(index)
+                + str(num)
             )
-            save = "../plots/" + save + ".pdf"
-        if isinstance(save, str):
-            fig.savefig(save)
+            save = Path.cwd().parent / "plots" / (save + ".pdf")
+        if isinstance(save, (str, Path, BytesIO)):
+            fig.savefig(save, format=save_format)
 
         if return_plot_data:
             return labels, (x_a, y_a)
