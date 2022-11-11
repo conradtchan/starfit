@@ -616,7 +616,15 @@ class Ga(StarFit):
 
         return s
 
-    def plot_fitness(self, gen=False, fig=None, ax=None, show_copyright=True):
+    def plot_fitness(
+        self,
+        gen=False,
+        fig=None,
+        ax=None,
+        show_copyright=True,
+        figsize=(10, 6),
+        dpi=102,
+    ):
         """
         plot fitness as a function of time
         """
@@ -624,8 +632,8 @@ class Ga(StarFit):
         if ax is None:
             if fig is None:
                 fig, ax = plt.subplots(
-                    figsize=(10, 6),
-                    dpi=102,
+                    figsize=figsize,
+                    dpi=dpi,
                     facecolor="white",
                     edgecolor="white",
                 )
