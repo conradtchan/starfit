@@ -13,6 +13,7 @@ import numpy as np
 from . import DB, REF, SOLAR
 from .autils import abusets
 from .autils.abuset import AbuData
+from .autils.isotope import Ion
 from .autils.isotope import ion as I
 from .autils.isotope import ufunc_Z
 from .autils.logged import Logged
@@ -221,19 +222,30 @@ class StarFit(Logged):
         for i, element in enumerate(z_exclude):
             if isinstance(element, str):
                 z_exclude[i] = I(element, element=True).Z
+            if isinstance(element, Ion):
+                z_exclude[i] = element.Z
         if z_lolim is None:
             z_lolim = []
         for i, element in enumerate(z_lolim):
             if isinstance(element, str):
                 z_lolim[i] = I(element, element=True).Z
+            if isinstance(element, Ion):
+                z_lolim[i] = element.Z
         if z_min is None:
             z_min = 1
         if isinstance(z_min, str):
             z_min = I(z_min, element=True).Z
+        if isinstance(z_min, Ion):
+            z_min = z_min.Z
+        z_min = max(z_min, 1)
         if z_max is None:
             z_max = 92
         if isinstance(z_max, str):
             z_max = I(z_max, element=True).Z
+        if isinstance(z_max, Ion):
+            z_max = z_max.Z
+        if z_max == 0:
+            z_max = 92
 
         self.z_min = z_min
         self.z_max = z_max
@@ -835,7 +847,7 @@ class StarFit(Logged):
             fontsize = 12
 
         ax.set_xlabel("Element charge number", fontsize=fontsize)
-        ax.set_ylabel("Logarithm of Abundance Relative to Sun", fontsize=fontsize)
+        ax.set_ylabel("Logarithm of abundance relative to sun", fontsize=fontsize)
 
         zlist_db = np.array([ion.Z for ion in self.list_db])
         zlist_comb = np.array([ion.Z for ion in self.list_comb])
