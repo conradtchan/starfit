@@ -222,11 +222,15 @@ class StarFit(Logged):
         for i, element in enumerate(z_exclude):
             if isinstance(element, str):
                 z_exclude[i] = I(element, element=True).Z
+            if isinstance(element, Ion):
+                z_exclude[i] = element.Z
         if z_lolim is None:
             z_lolim = []
         for i, element in enumerate(z_lolim):
             if isinstance(element, str):
                 z_lolim[i] = I(element, element=True).Z
+            if isinstance(element, Ion):
+                z_lolim[i] = element.Z
         if z_min is None:
             z_min = 1
         if isinstance(z_min, str):
