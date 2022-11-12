@@ -14,8 +14,8 @@ def get_fitness(
     sol,
     ejecta=[],
     fixed_offsets=False,
-    cdf=0,
-    ls=False,
+    local_search=True,
+    **kwargs,
 ):
     """
     Evaluate the fitness of a set of solutions.
@@ -24,8 +24,11 @@ def get_fitness(
 
     if fixed_offsets:
         offset = ejecta[sol["index"]]
-        if ls is True:
-            ls = False
+        if local_search in (
+            True,
+            Ellipsis,
+        ):
+            local_search = False
     else:
         offset = sol["offset"]
 
@@ -39,8 +42,8 @@ def get_fitness(
         eval_data.covariance,
         abu,
         offset,
-        cdf=cdf,
-        ls=ls,
+        local_search=local_search,
+        **kwargs,
     )
 
     sol["offset"] = offsets
@@ -96,7 +99,7 @@ def get_solution(
     gen_end,
     exclude_index,
     trimmed_db,
-    fixed=False,
+    fixed_offsets=False,
     ejecta=None,
     return_size=None,
     sol_size=None,
@@ -118,7 +121,7 @@ def get_solution(
 
     solutions["index"][:] = index[gen_map(gen_start, gen_end, num, size, com)]
 
-    if fixed:
+    if fixed_offsets:
         solutions["offset"][:, :] = ejecta[solutions["index"][:, :]]
     else:
         solutions[:, :]["offset"] = 1.0e-5
@@ -126,9 +129,8 @@ def get_solution(
     fitness = get_fitness(
         sol=solutions,
         trimmed_db=trimmed_db,
-        fixed_offsets=fixed,
+        fixed_offsets=fixed_offsets,
         ejecta=ejecta,
-        ls=not fixed,
         z_exclude_index=exclude_index,
         **kwargs,
     )

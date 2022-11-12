@@ -112,6 +112,8 @@ class StarFit(Logged):
         det=False,
         debug=False,
         show=False,
+        limit_solution=None,
+        limit_solver=None,
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -262,6 +264,8 @@ class StarFit(Logged):
         self.upper_lim = upper_lim
         self.z_lolim = z_lolim
         self.z_exclude = z_exclude
+        self.limit_solution = limit_solution
+        self.limit_solver = limit_solver
 
         # Read a star
         star = Star(filename, silent=self.silent)
@@ -500,13 +504,13 @@ class StarFit(Logged):
             if offsets is None:
                 assert optimize is True
                 sol[i, :]["offset"] = 1.0e-3 / stars.shape[1]
-                ls = True
+                local_search = True
             else:
                 sol[i, :]["offset"] = offsets[i]
                 if optimize is True:
-                    ls = False
+                    local_search = False
                 else:
-                    ls = None
+                    local_search = None
 
         fitness = get_fitness(
             self.trimmed_db,
@@ -516,7 +520,9 @@ class StarFit(Logged):
             self.ejecta,
             fixed_offsets=fixed_offsets,
             cdf=self.cdf,
-            ls=ls,
+            local_search=local_search,
+            limit_solver=self.limit_solver,
+            limit_solution=self.limit_solution,
         )
         return sol, fitness
 
