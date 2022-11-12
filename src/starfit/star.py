@@ -162,17 +162,34 @@ If no covariances are provide, the entire error is random.
 As of the time of this writing, StarFit does not use correlated
 upper limits, but that may change in the future.
 
+
+========================================
+Historic Versions: (cummulative)
+========================================
+100001: solar normalisation missing
+100000: reference ine missing
 """
 import numpy as np
 
 from . import BBN, REF, SOLAR, STARS
 from .autils.abusets import BBNAbu, SolAbu
+from .autils.isotope import Ion
 from .autils.isotope import ion as I
 from .autils.logged import Logged
 from .utils import find_data
 
 # low values for detection limits
 LOW = np.array([np.nan] + [-199.0] * 6 + [1.0e-199])
+
+DATA_FORMAT = {
+    1: "log epsilon",
+    2: "[X]",
+    3: "[X/X_ref]",
+    4: "log(X/Si) + 6",
+    5: "log Y",
+    6: "[X/H]",
+    7: "(X/Si) * 1e6",
+}
 
 
 # A class for each set of readings
@@ -294,9 +311,10 @@ class Star(Logged):
         if self.version >= 10001:
             # Source
             self.source = content[n]
-            # Comment
-            self.comment = content[n + 1]
-            n += 2
+            n += 1
+        # Comment
+        self.comment = content[n + 1]
+        n += 1
         # Format
         items = [int(x) for x in content[n].split()[0]]
         assert (
@@ -336,7 +354,12 @@ class Star(Logged):
                 norm = int(content[n])
             except:
                 norm = content[n]
-            self.norm_element = I(norm)
+            norm = I(norm)
+            if norm.is_void:
+                self.norm_element = None
+            else:
+                self.norm_element = norm
+
         n += 1
         # Number of elements
         self.n_elements = n_elements
@@ -357,6 +380,7 @@ class Star(Logged):
             self.solar_ref = None
 
         # Convert
+        self.input_data_format = self.data_format
         self.element_abundances = self._convert5(
             self.element_abundances, self.data_format, self.norm_element
         )
@@ -438,6 +462,38 @@ class Star(Logged):
         else:
             raise Exception(f"Format type {data_format:d} not found")
         return array
+
+    def get_elements(self):
+        """
+        return all elements in dataset
+        """
+        return [a.element.Name() for a in self.element_abundances]
+
+    def get_upper_limits(self):
+        return [a.element.Name() for a in self.element_abundances if a.error < 0]
+
+    def get_detection_thresholds(self):
+        return [a.element.Name() for a in self.element_abundances if a.detection > -80]
+
+    def get_covariances(self):
+        return [
+            a.element.Name()
+            for a in self.element_abundances
+            if np.any(a.covariance != 0)
+        ]
+
+    def get_n_covariances(self):
+        return self.element_abundances.covariance.shape[-1]
+
+    def get_input_data_format(self):
+        return DATA_FORMAT[self.input_data_format]
+
+    def get_norm(self):
+        if self.norm_element is None:
+            return ""
+        if isinstance(self.norm_element, Ion):
+            return self.norm_element.Name()
+        return str(self.norm_element)
 
     # A nice readable name
     def __str__(self):
