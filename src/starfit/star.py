@@ -313,7 +313,7 @@ class Star(Logged):
             self.source = content[n]
             n += 1
         # Comment
-        self.comment = content[n + 1]
+        self.comment = content[n]
         n += 1
         # Format
         items = [int(x) for x in content[n].split()[0]]
@@ -467,10 +467,18 @@ class Star(Logged):
         """
         return all elements in dataset
         """
-        return [a.element.Name() for a in self.element_abundances]
+        return [
+            a.element.Name()
+            for a in self.element_abundances
+            if a.element not in self.added_elements
+        ]
 
     def get_upper_limits(self):
-        return [a.element.Name() for a in self.element_abundances if a.error < 0]
+        return [
+            a.element.Name()
+            for a in self.element_abundances
+            if a.error < 0 and a.element not in self.added_elements
+        ]
 
     def get_detection_thresholds(self):
         return [a.element.Name() for a in self.element_abundances if a.detection > -80]
@@ -521,6 +529,7 @@ class Star(Logged):
             "Adding BBN upper limits of H and He into star data if missing"
         )
 
+        self.added_elements = list()
         for i in range(2):
             element = I(Z=i + 1)
             if self.element_abundances[i].element is not element:
@@ -533,6 +542,7 @@ class Star(Logged):
                 self.element_abundances = self._rec_insert_1d(
                     self.element_abundances, entry, i
                 )
+                self.added_elements.append(element)
         self.n_elements = self.element_abundances.shape[0]
 
 
