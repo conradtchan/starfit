@@ -670,10 +670,7 @@ class StarFit(Logged):
         elif full is False:
             self.print_db(dbx=dbx)
 
-    def format_db(self, ind=0, pad="", dbx=None):
-        if pad is None:
-            pad = ""
-        pad = " " * ind + pad
+    def text_db(self, dbx=None):
         if dbx is None:
             dbx = range(self.db_n)
         db_len = 2
@@ -685,18 +682,29 @@ class StarFit(Logged):
                 num &= int(lab) == i
             except:
                 pass
-        if num:
-            string = [pad + f"{'DB':>{db_len}}  Name"]
-        else:
-            string = [pad + f"NR  {'DB':>{db_len}}  Name"]
+        lines = list()
+        line = list()
+        if not num:
+            line.appaned("NR")
+        line.append(f"{'DB':>{db_len}}")
+        line.append("Name")
+        lines.append(line)
         for i in dbx:
             db = self.db[i]
-            if num:
-                string.append(pad + f"{self.db_lab[i]:>{db_len}}  {db.name}")
-            else:
-                string.append(pad + f"{i:>2d}  {self.db_lab[i]:>{db_len}}  {db.name}")
-        string = "\n".join(string)
-        return string
+            line = list()
+            if not num:
+                line.append(f"{i:>2d}")
+            line.append(f"{self.db_lab[i]:>{db_len}}")
+            line.append(f"{db.name}")
+            lines.append(line)
+        return lines
+
+    def format_db(self, ind=0, pad="", dbx=None):
+        if pad is None:
+            pad = ""
+        pad = " " * ind + pad
+        lines = self.text_db(dbx=dbx)
+        return "\n".join([pad + "  ".join(line) for line in lines])
 
     def print_db(self, *args, **kwargs):
         logger = kwargs.pop("logger", False)
