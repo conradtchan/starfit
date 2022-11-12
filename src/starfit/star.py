@@ -480,6 +480,13 @@ class Star(Logged):
             if a.error < 0 and a.element not in self.added_elements
         ]
 
+    def get_measured(self):
+        return [
+            a.element.Name()
+            for a in self.element_abundances
+            if a.error > 0 and a.element not in self.added_elements
+        ]
+
     def get_detection_thresholds(self):
         return [a.element.Name() for a in self.element_abundances if a.detection > -80]
 
