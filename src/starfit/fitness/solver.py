@@ -54,14 +54,26 @@ def fitness(
     abu,
     offsets,
     cdf=None,
-    ls=False,
-    flags=FLAGS_DEFAULT,
+    local_search=True,
+    limit_solution=None,
+    limit_solver=None,
 ):
 
     nsol = abu.shape[0]
     nstar = abu.shape[1]
     nel = abu.shape[2]
     ncov = covariance.shape[1]
+
+    if limit_solution is None:
+        limit_solution = True
+    if limit_solver is None:
+        limit_solver = True
+
+    flags = 0
+    if limit_solution:
+        flags += FLAGS_LIMIT_SOLUTION
+    if limit_solver:
+        flags += FLAGS_LIMITED_SOLVER
 
     if cdf is None:
         cdf = True
@@ -80,9 +92,9 @@ def fitness(
         else:
             raise
 
-    ils = LS_MODES.get(ls, None)
+    ils = LS_MODES.get(local_search, None)
     if ils is None:
-        raise Exception(f"Unknown search option {ls=}")
+        raise Exception(f"Unknown search option {local_search=}")
 
     fitness, offset = fitness_(
         c=offsets,

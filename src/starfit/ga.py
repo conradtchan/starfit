@@ -158,7 +158,9 @@ class Ga(StarFit):
             fixed_offsets=fixed_offsets,
             ejecta=self.ejecta,
             cdf=self.cdf,
-            ls=self.local_search,
+            limit_solution=self.limit_solution,
+            limit_solver=self.limit_solver,
+            local_search=self.local_search,
         )
 
         # Initial history points
@@ -408,7 +410,7 @@ class Ga(StarFit):
             fixed_offsets=self.fixed_offsets,
             ejecta=self.ejecta,
             cdf=self.cdf,
-            ls=self.local_search,
+            local_search=self.local_search,
         )
 
         # Recombine
