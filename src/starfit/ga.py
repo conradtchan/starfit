@@ -655,9 +655,9 @@ class Ga(StarFit):
         info = f"Generations: {self.gen:d}\nPopulation size: {self.pop_size:d}\nGene size: {self.sol_size:d}"
         leg_info(ax, info)
 
+        ax.plot(times, self.history["worst"], label="worst", color="tab:red")
         ax.plot(times, self.history["average"], label="average", color="tab:blue")
         ax.plot(times, self.history["best"], label="best", color="tab:green")
-        ax.plot(times, self.history["worst"], label="worst", color="tab:red")
         ax.set_yscale("log")
 
         leg = ax.legend(loc=(0.5, 0.1))
