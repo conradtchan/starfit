@@ -670,7 +670,7 @@ class StarFit(Logged):
         elif full is False:
             self.print_db(dbx=dbx)
 
-    def text_db(self, dbx=None):
+    def text_db(self, dbx=None, filename=False):
         if dbx is None:
             dbx = range(self.db_n)
         db_len = 2
@@ -695,15 +695,18 @@ class StarFit(Logged):
             if not num:
                 line.append(f"{i:>2d}")
             line.append(f"{self.db_lab[i]:>{db_len}}")
-            line.append(f"{db.name}")
+            if filename:
+                line.append(Path(db.filename).name)
+            else:
+                line.append(db.name)
             lines.append(line)
         return lines
 
-    def format_db(self, ind=0, pad="", dbx=None):
+    def format_db(self, ind=0, pad="", **kwargs):
         if pad is None:
             pad = ""
         pad = " " * ind + pad
-        lines = self.text_db(dbx=dbx)
+        lines = self.text_db(**kwargs)
         return "\n".join([pad + "  ".join(line) for line in lines])
 
     def print_db(self, *args, **kwargs):
