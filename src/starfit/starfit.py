@@ -687,7 +687,10 @@ class StarFit(Logged):
         if not num:
             line.appaned("NR")
         line.append(f"{'DB':>{db_len}}")
-        line.append("Name")
+        if filename:
+            line.append("File")
+        else:
+            line.append("Name")
         lines.append(line)
         for i in dbx:
             db = self.db[i]
