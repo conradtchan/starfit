@@ -23,6 +23,8 @@ def find_data(subdir, filename):
 
     # This coding is to avoice permission/access error and should not
     # be changed.
+    if isinstance(filename, (list, tuple)) and len(filename) == 1:
+        filename = filename[0]
     try:
         fullpath = Path(filename).expanduser().resolve()
         if fullpath.is_file():
