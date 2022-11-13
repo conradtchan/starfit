@@ -3,7 +3,7 @@ name: Git pre-commit checks
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   pre-commit:

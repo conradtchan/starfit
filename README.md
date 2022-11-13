@@ -2,7 +2,7 @@
 ![x](https://github.com/conradtchan/starfit/actions/workflows/pre-commit.yml/badge.svg)
 ![x](https://github.com/conradtchan/starfit/actions/workflows/publish.yml/badge.svg)
 
-![GitHub commits since latest release (by SemVer including pre-releases)](https://img.shields.io/github/commits-since/conradtchan/starfit/latest/master?include_prereleases)
+![GitHub commits since latest release (by SemVer including pre-releases)](https://img.shields.io/github/commits-since/conradtchan/starfit/latest/main?include_prereleases)
 ![GitHub Release Date](https://img.shields.io/github/release-date/conradtchan/starfit)
 
 Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the [old IDL code](https://2sn.org/starfit/) by [Alexander Heger](https://2sn.org).
@@ -249,7 +249,7 @@ stars
 ```
 
 # Contributing to StarFit
-Contributions to the StarFit code are welcome. The `master` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
+Contributions to the StarFit code are welcome. The `main` branch is protected and cannot be committed to directly. Instead, please create a Pull Request with your proposed contributions.  To make a new branch and set to track `origin`
 ```shell
 git checkout -b <new_branch>
 git push --set-upstream origin <new_branch>
