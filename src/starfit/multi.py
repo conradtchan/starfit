@@ -233,7 +233,7 @@ class Multi(StarFit):
             f"Matching {self.n_combinations:,d} combinations of {self.sol_size} stars"
         )
         if len(self.group) > 1:
-            print(f"Grouping: {' x '.join(str(i) for i in self.group_comb)}")
+            print("Grouping: " + " \u00D7 ".join(str(i) for i in self.group_comb))
         if self.db_n == 1:
             print(f"Database: {self.db[0].name}")
         else:
