@@ -3,7 +3,7 @@ name: StarFit tests (pytest)
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   test:
