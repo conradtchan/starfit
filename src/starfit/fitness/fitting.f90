@@ -847,11 +847,9 @@ contains
 
     call chi2(c1, exp(x(:)), abu, nstar)
     call chi2(c2, exp(x(:) + dx(:)), abu, nstar)
-    print*,'[A]', c1, c2, dx
     if (abs(c1 - c2) / (abs(c1 + c2) + 1.d-99) < 1e-8) then
        goto 1000
     endif
-    print*,'[B]'
 
     if (stop_on_nonconvergence) then
        error stop '[newton2] did not converge.'
