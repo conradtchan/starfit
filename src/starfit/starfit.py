@@ -15,7 +15,7 @@ from .autils import abusets
 from .autils.abuset import AbuData
 from .autils.isotope import Ion
 from .autils.isotope import ion as I
-from .autils.isotope import ufunc_Z
+from .autils.isotope import ufunc_idx, ufunc_Z
 from .autils.logged import Logged
 from .autils.physconst import MSUN
 from .autils.stardb import StarDB
@@ -126,6 +126,10 @@ class StarFit(Logged):
         """
         self.debug = debug
 
+        # Read a star
+        star = Star(filename, silent=self.silent)
+        self.star = star
+
         if isinstance(db, (str, Path, StarDB)):
             db = (db,)
         database = list()
@@ -174,15 +178,26 @@ class StarFit(Logged):
             data = AbuData(db.data, db.ions, molfrac=True)
             self.data.append(data)
         if self.db_n == 1:
-            self.ions = self.data[0].ions.copy()
-            self.data = self.data[0].data.copy()
+            self.data = self.data[0]
+        else:
+            self.data = AbuData.join(self.data, silent=self.silent)
+        if not (
+            set(ufunc_idx(self.star.element_abundances.element))
+            < set(ufunc_idx(self.data.ions))
+        ):
+            star_ions = AbuData(
+                np.ndarray((0, self.star.n_elements)),
+                self.star.element_abundances.element,
+                molfrac=True,
+            )
+            self.data = AbuData.join([self.data, star_ions], silent=self.silent)
+        self.ions = self.data.ions
+        self.data = self.data.data
+        if self.db_n == 1:
             self.db_idx = np.full(self.data.shape[0], 0, dtype=np.int64)
             self.db_off = np.array([0], dtype=np.int64)
             self.db_num = np.array([self.data.shape[0]], dtype=np.int64)
         else:
-            self.data = AbuData.join(self.data, silent=True)
-            self.ions = self.data.ions
-            self.data = self.data.data
             self.db_idx = np.ndarray(self.data.shape[0], dtype=np.int64)
             self.db_off = np.ndarray(len(self.db), dtype=np.int64)
             self.db_num = np.ndarray(len(self.db), dtype=np.int64)
@@ -266,10 +281,6 @@ class StarFit(Logged):
         self.z_exclude = z_exclude
         self.limit_solution = limit_solution
         self.limit_solver = limit_solver
-
-        # Read a star
-        star = Star(filename, silent=self.silent)
-        self.star = star
 
         # Remove elements with Z > z_max and Z < z_min
         mask_zmax = np.array(
