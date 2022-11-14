@@ -18,7 +18,6 @@ class Direct(StarFit):
         offsets=None,
         fig=None,
         fixed_offsets=False,
-        optimize=True,  # True | False - where adjust solution.
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -42,11 +41,22 @@ class Direct(StarFit):
         # convert to actual indices
         stars = self.db_off[stars[:, :, 0]] + stars[:, :, 1]
 
+        if offsets is not None:
+            if np.ndim(offsets) == 0 and stars.shape[:] == (1, 1):
+                offsets = np.asarray([[offsets]])
+            elif np.ndim(offsets) == 1:
+                n_offsets = len(offsets)
+                if stars.shape[:2] == (n_offsets, 1):
+                    offsets = np.asarray(offsets).reshape((n_offsets, 1))
+                elif stars.shape[:2] == (1, n_offsets):
+                    offsets = np.asarray(offsets).reshape((1, n_offsets))
+            offsets = np.asarray(offsets)
+            assert (
+                offsets.shape == stars.shape[:2]
+            ), "offsets dimensions need to match stars dimensions"
+
         sol, fitness = self.run(
-            stars=stars,
-            offsets=offsets,
-            fixed_offsets=fixed_offsets,
-            optimize=optimize,
+            stars=stars, offsets=offsets, fixed_offsets=fixed_offsets
         )
 
         sort = np.argsort(fitness)
