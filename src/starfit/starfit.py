@@ -372,7 +372,9 @@ class StarFit(Logged):
                 # Get error of each element
                 error = eval_data.error[ii]
 
-                assert np.all(error > 0), "Can only combine data points, not upper lims"
+                assert np.all(
+                    error > 0
+                ), "Can only combine data points, not upper limits"
 
                 # Replace the first element with the combined value
                 ae = abu * (10**error - 1) ** 2
@@ -1154,7 +1156,7 @@ class StarFit(Logged):
 
         # Show detection thresholds
         for x, y in zip(x_star, y_star_det):
-            if y < 20:
+            if y < -20:
                 continue
             ax.plot(
                 x + 0.4 * np.array([-1, 1]),
