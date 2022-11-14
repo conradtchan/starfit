@@ -13,7 +13,9 @@ module star_data
   logical, parameter :: &
        use_inverse = .true., &
        warn_subthreshold_detection = .false., &
-       stop_subthreshold_detection = .false.
+       stop_subthreshold_detection = .false., &
+       warn_zero_error = .true., &
+       stop_zero_error = .true.
 
   real(kind=real64), parameter :: &
        det_lim = -80.d0
@@ -95,6 +97,7 @@ contains
     det = det_
     cov = cov_
 
+    call init_check_errors()
     call init_domains()
     call init_erri()
     call init_covariance_matrix()
@@ -129,6 +132,35 @@ contains
   end subroutine init_check_thresholds
 
 
+  subroutine init_check_errors()
+
+    use utils, only: &
+         signan
+
+    implicit none
+
+    integer(kind=int64) :: &
+         i
+
+    ! check errors
+
+    if (any(err == 0.d0)) then
+       if (warn_zero_error) then
+          do i = 1, nel
+             if (err(i) == 0.d0) then
+                print*,'[init_check_error] WARNING i=',i,'err=',err(i), 'obs=', obs(i)
+                err(i) = signan()
+             endif
+          end do
+       endif
+       if (stop_zero_error) then
+          error stop '[init_check_error] uncorrelated errors must not be zero'
+       endif
+    endif
+
+  end subroutine init_check_errors
+
+
   subroutine init_domains
 
     implicit none
@@ -146,10 +178,10 @@ contains
     ! find masks for correlated, uncorreclated, and limit errors
 
     upper = err < 0.d0
-    covar = any(cov /= 0, 2)
+    covar = any(cov /= 0, 2).and.(.not.upper)
     uncor = .not.(upper.or.covar)
     measu = .not.upper
-    detec = measu(:) .and. (det(:) > det_lim)
+    detec = measu(:).and.(det(:) > det_lim)
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
     ernoi = .not.erinv

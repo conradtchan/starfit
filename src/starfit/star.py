@@ -265,6 +265,10 @@ DATA_FORMAT = {
 }
 
 
+class StarFileError(Exception):
+    pass
+
+
 # A class for each set of readings
 class Star(Logged):
     """All the data read from each file"""
@@ -336,13 +340,20 @@ class Star(Logged):
                     data_array[i].error = float(item)
                     if n_det == 0:
                         data_array[i].detection = LOW[self.data_format]
+                    if data_array[i].error == 0.0:
+                        raise StarFileError(
+                            f"Statistical error can't be zero for element {data_array[i].element!s}"
+                        )
                 elif j == 2 + n_det:
                     if item in ("-",) or data_array[i].error < 0.0:
                         data_array[i].detection = LOW[self.data_format]
                     else:
                         data_array[i].detection = float(item)
                 else:
-                    data_array[i].covariance[j - 3 - n_det] = float(item)
+                    if data_array[i].error < 0.0:
+                        data_array[i].covariance[j - 3 - n_det] = 0.0
+                    else:
+                        data_array[i].covariance[j - 3 - n_det] = float(item)
             if n_det == 1 and len(line) < 4:
                 data_array[i].detection = LOW[self.data_format]
         if n_det == 0:
