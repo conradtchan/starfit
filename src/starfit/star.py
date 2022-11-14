@@ -30,7 +30,7 @@ Zr      1.23   -0.7
 Ba     -1.23   -0.8
 
 DATA FORMAT
-  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
   2 [ ]
   3 [X/Y] Y = norm element, provide [Y/H] in column for Y
   4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -71,7 +71,7 @@ Zr      1.23   -0.7
 Ba     -1.23   -0.8
 
 DATA FORMAT
-  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
   2 [ ]
   3 [X/Y] Y = norm element, provide [Y/H] in column for Y
   4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -113,7 +113,7 @@ Ba     -1.23   -0.8
 Lo09  <--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
-  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+  1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
   2 [ ]
   3 [X/Y] Y = norm element, provide [Y/H] in column for Y
   4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -157,7 +157,7 @@ Ba  -1.23  -0.80
 Lo09	<--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
-1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
 2 [ ]
 3 [X/Y] Y= norm element, provide [Y/H] in column for Y
 4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -215,7 +215,7 @@ Ba  -1.23  -0.80
 Lo09	<--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
-1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H number fraction!)
+1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
 2 [ ]
 3 [X/Y] Y= norm element, provide [Y/H] in column for Y
 4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -421,6 +421,8 @@ class Star(Logged):
             # Data format Type 1 specifies H number fraction
             try:
                 self.norm_element = float(content[n])
+                if self.norm_element <= 0.0:
+                    self.norm_element = 10.0**self.norm_element
             except ValueError:
                 # BBN H number fraction
                 self.norm_element = self.BBN_data.Y("H")
