@@ -310,7 +310,7 @@ class StarFit(Logged):
 
         # check whether to use detection thresholds
         if det is False:
-            eval_data.det = LOW[star.data_format]
+            eval_data.detection = LOW[star.data_format]
 
         # Remove upper limit elements if upper limits is not enabled
         mask_uplim = np.array([error > 0 for error in eval_data.error])
@@ -495,6 +495,8 @@ class StarFit(Logged):
         self.fit_size = self.trimmed_db.shape[0]
         self.db_size = self.trimmed_db.shape[1]
         self.cdf = cdf
+        self.det = det
+        self.cov = cov
 
         del self.data
         del self.ions
