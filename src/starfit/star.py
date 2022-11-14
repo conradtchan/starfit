@@ -336,15 +336,15 @@ class Star(Logged):
                     data_array[i].error = float(item)
                     if n_det == 0:
                         data_array[i].detection = LOW[self.data_format]
-                    if self.data_mode == 1 and len(line) == 3:
-                        assert data_array[i].error < 0.0
                 elif j == 2 + n_det:
-                    if item in ("-",):
+                    if item in ("-",) or data_array[i].error < 0.0:
                         data_array[i].detection = LOW[self.data_format]
                     else:
                         data_array[i].detection = float(item)
                 else:
                     data_array[i].covariance[j - 3 - n_det] = float(item)
+            if n_det == 1 and len(line) < 4:
+                data_array[i].detection = LOW[self.data_format]
         if n_det == 0:
             data_array[:].detection = LOW[self.data_format]
 
@@ -381,7 +381,7 @@ class Star(Logged):
         # Additional lines for the appropriate version numbers
         if self.version < 10001:
             # Star name
-            self.name = content[n].split(" ")[0]
+            self.name = content[n].split()[0]
             self.source = ""
         else:
             # Star name
@@ -394,7 +394,7 @@ class Star(Logged):
         self.comment = content[n]
         n += 1
         # Format
-        items = [int(x) for x in content[n].split()[0]]
+        items = [int(x) for x in content[n].split()]
         assert (
             len(items) == 1 or self.version >= 10200
         ), f"invalid values {n} lines below start of file"
