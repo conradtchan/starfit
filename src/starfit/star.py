@@ -290,6 +290,8 @@ class Star(Logged):
         # Add BBN data
         self._bbn()
 
+        self.filename = filename
+
     # Write list into numpy recarray
     def list_to_array(self, data_list):
 
