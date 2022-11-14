@@ -18,6 +18,7 @@ class Direct(StarFit):
         offsets=None,
         fig=None,
         fixed_offsets=False,
+        optimize=True,  # True | False - where adjust solution.
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -42,7 +43,10 @@ class Direct(StarFit):
         stars = self.db_off[stars[:, :, 0]] + stars[:, :, 1]
 
         sol, fitness = self.run(
-            stars=stars, offsets=offsets, fixed_offsets=fixed_offsets
+            stars=stars,
+            offsets=offsets,
+            fixed_offsets=fixed_offsets,
+            optimize=optimize,
         )
 
         sort = np.argsort(fitness)
