@@ -215,7 +215,7 @@ Ba  -1.23  -0.80
 Lo09	<--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
-1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H number fraction!)
 2 [ ]
 3 [X/Y] Y= norm element, provide [Y/H] in column for Y
 4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
