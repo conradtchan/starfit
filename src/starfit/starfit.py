@@ -179,8 +179,10 @@ class StarFit(Logged):
             self.data.append(data)
         if self.db_n == 1:
             self.data = self.data[0]
+            self.ejecta = self.ejecta[0]
         else:
             self.data = AbuData.join(self.data, silent=self.silent)
+            self.ejecta = np.concatenate(self.ejecta)
         if not (
             set(ufunc_idx(self.star.element_abundances.element))
             < set(ufunc_idx(self.data.ions))
@@ -512,6 +514,8 @@ class StarFit(Logged):
         """Solve for the specified stars"""
         stars = np.array(stars)
         sol = np.ndarray(stars.shape, dtype=[("index", "int"), ("offset", "f8")])
+
+        # TODO - rewrite loop to do vector operations if possible
         for i in range(stars.shape[0]):
             sol[i, :]["index"] = stars[i, :]
             if offsets is None:
