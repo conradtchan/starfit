@@ -215,7 +215,7 @@ Ba  -1.23  -0.80
 Lo09	<--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
-1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H!)
+1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H number fraction!)
 2 [ ]
 3 [X/Y] Y= norm element, provide [Y/H] in column for Y
 4 log X/Si + 6 (by number), norm is assumeed log(Si) + 6 (mol/g)
@@ -417,15 +417,22 @@ class Star(Logged):
             self.data_mode = 0
         n += 1
         # Normalization element
-        if self.data_format == 4:
-            # Data format type 4 specifies log(Si) + 6 in mol/g in this line instead of a normalization element
+        if self.data_format == 1:
+            # Data format Type 1 specifies H number fraction
+            try:
+                self.norm_element = float(content[n])
+            except ValueError:
+                # BBN H number fraction
+                self.norm_element = self.BBN_data.Y("H")
+        elif self.data_format == 4:
+            # Data format Type 4 specifies log(Si) + 6 in mol/g in this line instead of a normalization element
             try:
                 self.norm_element = float(content[n])
             except ValueError:
                 # log10(Solar(Lodders2022).Y(Si))
                 self.norm_element = 1.4433183352909564
         elif self.data_format == 6:
-            # Data format type 6 specifies log(H/H_sun) in this line instead of a normalization element
+            # Data format Type 6 specifies log(H/H_sun) in this line instead of a normalization element
             try:
                 self.norm_element = float(content[n])
             except ValueError:
@@ -444,7 +451,7 @@ class Star(Logged):
             except:
                 norm = content[n]
             norm = I(norm)
-            if norm.is_void:
+            if not norm.is_element:
                 self.norm_element = None
             else:
                 self.norm_element = norm
@@ -483,8 +490,8 @@ class Star(Logged):
         Convert abundance array to Format 5
         """
         if data_format == 1:
-            # Load the solar reference for Hydrogen from the Big Bang
-            h_ref = self.BBN_data.Y("H")
+            # norm_element is H number fraction
+            h_ref = self.norm_element
             # array.abundance[:] = np.log10((10 ** (array.abundance - 12)) * h_ref)
             for a in (array.abundance, array.detection):
                 a[:] = a - 12 + np.log10(h_ref)
