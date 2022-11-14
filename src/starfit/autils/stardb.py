@@ -58,9 +58,10 @@ class StarDB(AbuData, Logged):
      13 ULONG Unsigned Longword Integer
      14 LONG64 64-bit Integer
      15 ULONG64 Unsigned 64-bit Integer
+     16 ASCII8 64-it (8 byte) ASCII String [StarDB]
     """
 
-    current_version = 10100
+    current_version = 10200
     _extension = "stardb"
 
     sys_is_le = sys.byteorder == "little"
@@ -177,6 +178,7 @@ class StarDB(AbuData, Logged):
         "ULONG",
         "LONG64",
         "ULONG64",
+        "ASCII64",
     )
 
     class Type(IntEnum):
@@ -199,6 +201,7 @@ class StarDB(AbuData, Logged):
         int64 = 14
         ulong64 = 15
         uint64 = 15
+        ascii64 = 16
 
     class SignatureError(Exception):
         """
@@ -306,10 +309,12 @@ class StarDB(AbuData, Logged):
         self.dtype_i8 = np.dtype(np.int64).newbyteorder(self.byteorder)
         self.dtype_u8 = np.dtype(np.uint64).newbyteorder(self.byteorder)
         self.dtype_f8 = np.dtype(np.float64).newbyteorder(self.byteorder)
+        self.dtype_s8 = np.dtype((np.bytes_, 8)).newbyteorder(self.byteorder)
 
         self.dtype_i8 = np.dtype(np.int64)
         self.dtype_u8 = np.dtype(np.uint64)
         self.dtype_f8 = np.dtype(np.float64)
+        self.dtype_s8 = np.dtype((np.bytes_, 8))
 
         self.dtypes = np.zeros(len(self.type_names), dtype=object)
         self.dtypes[
@@ -317,8 +322,16 @@ class StarDB(AbuData, Logged):
                 self.Type.float64,
                 self.Type.int64,
                 self.Type.uint64,
+                self.Type.ascii64,
             ]
-        ] = [self.dtype_f8, self.dtype_i8, self.dtype_u8]
+        ] = [self.dtype_f8, self.dtype_i8, self.dtype_u8, self.dtype_s8]
+
+        self._dtypes = {
+            np.uint64: self.Type.uint64,
+            np.int64: self.Type.int64,
+            np.float64: self.Type.float64,
+            np.bytes_: self.Type.ascii64,
+        }
 
     def _from_db(self, db=None, **kwargs):
         """
@@ -331,6 +344,7 @@ class StarDB(AbuData, Logged):
 
         self.version = copy(db.version)
         self.name = copy(db.name)
+        self.label = copy(db.label)
         self.comments = db.comments.copy()
         self.ions = db.ions.copy()
         self.data = db.data.copy()
@@ -379,6 +393,7 @@ class StarDB(AbuData, Logged):
         self.version = self.current_version
 
         self.name = kwargs.get("name", None)
+        self.label = kwargs.get("label", None)
         self.comments = kwargs.get("comments", tuple())
         if isinstance(self.comments, str):
             self.comments = (self.comments,)
@@ -425,14 +440,9 @@ class StarDB(AbuData, Logged):
             self.fieldflags = np.array(self.fieldflags, dtype=np.uint64)
         if self.fieldtypes is None:
             fieldtypes = []
-            dtypes = {
-                np.uint64: self.Type.uint64,
-                np.int64: self.Type.int64,
-                np.float64: self.Type.float64,
-            }
             for i in range(self.nfield):
                 t = self.fielddata.dtype[i].type
-                fieldtypes += [dtypes[t]]
+                fieldtypes += [self._dtypes[t]]
             self.fieldtypes = np.array(fieldtypes, dtype=np.uint64)
         else:
             self.fieldtypes = np.array(self.fieldtypes, dtype=np.uint64)
@@ -477,6 +487,8 @@ class StarDB(AbuData, Logged):
 
         if self.name is None:
             self.name = ""
+        if self.label is None:
+            self.label = ""
         if self.abundance_norm is None:
             self.abundance_norm = ""
 
@@ -862,6 +874,10 @@ class StarDB(AbuData, Logged):
         """
         self.version = int(self._read_uin())
         self.name = str(self._read_str())
+        if self.version < 10200:
+            self.label = ""
+        else:
+            self.label = str(self._read_str())
         self.ncomment = int(self._read_uin())
         self.comments = self._read_str(self.ncomment)
 
@@ -1000,6 +1016,7 @@ class StarDB(AbuData, Logged):
         self.setup_logger()
         self.logger.info(f"Data version: {int(self.version):6d}")
         self.logger.info(f"data set name: {self.name:s}")
+        self.logger.info(f"data set label: {self.label:s}")
 
         self.logger.info("".ljust(58, "="))
         for comment in self.comments:
@@ -1188,6 +1205,7 @@ class StarDB(AbuData, Logged):
         self._write_signature()
         self._write_uin(self.version)
         self._write_str(self.name)
+        self._write_str(self.label)
         self._write_str_arr(self.comments)
         self._write_uin(self.nstar)
         self._write_uin(self.nfield)

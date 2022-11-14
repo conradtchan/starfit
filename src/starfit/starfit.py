@@ -213,7 +213,7 @@ class StarFit(Logged):
         if db_label is None:
             self.db_lab = list()
             for i, d in enumerate(self.db):
-                if hasattr(d, "label"):
+                if hasattr(d, "label") and len(d.label) > 0:
                     self.db_lab.append(d.label)
                 else:
                     self.db_lab.append(f"{i:d}")
