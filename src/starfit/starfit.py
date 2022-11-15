@@ -1081,7 +1081,10 @@ class StarFit(Logged):
 
         # Plot limits
         if ylim is None:
-            ylim = (np.min(y_star) - 1.0, 0.9)
+            ylim = [np.min(y_star) - 1.0, 0.9]
+            y_min_det = np.array([y for y in y_star_det if y > -20])
+            if len(y_min_det) > 0:
+                ylim[0] = min(ylim[0], min(y_min_det) - 0.2)
 
         if xlim is None:
             xlim = (zlist_comb[0] - 0.99, zlist_comb[-1] + 0.99)
