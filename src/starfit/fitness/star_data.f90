@@ -40,7 +40,7 @@ module star_data
        mm, mm1
   real(kind=real64), dimension(:), allocatable :: &
        zvp, zv, &
-       erri, erri2
+       ert, eri, ei2
   real(kind=real64) :: &
        mp
 
@@ -99,7 +99,8 @@ contains
 
     call init_check_errors()
     call init_domains()
-    call init_erri()
+    call init_ert()
+    call init_eri()
     call init_covariance_matrix()
     call init_inverse()
     call init_check_thresholds()
@@ -178,9 +179,9 @@ contains
     ! find masks for correlated, uncorreclated, and limit errors
 
     upper = err < 0.d0
-    covar = any(cov /= 0, 2).and.(.not.upper)
-    uncor = .not.(upper.or.covar)
     measu = .not.upper
+    covar = any(cov /= 0, 2).and.upper
+    uncor = .not.(upper.or.covar)
     detec = measu(:).and.(det(:) > det_lim)
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
@@ -311,42 +312,68 @@ contains
 
   end subroutine init_covaricance_const
 
-  subroutine init_erri2
+  subroutine init_ei2
 
     use utils, only: &
          signan
 
     implicit none
 
-    if (allocated(erri2)) then
-       deallocate(erri2)
+    if (allocated(ei2)) then
+       deallocate(ei2)
     endif
 
-    allocate(erri2(nel))
+    allocate(ei2(nel))
 
-    erri2(iernoi) = signan()
-    erri2(ierinv) = 1.d0 / err(ierinv)**2
+    ei2(iernoi) = signan()
+    ei2(ierinv) = 1.d0 / ert(ierinv)**2
 
-  end subroutine init_erri2
+  end subroutine init_ei2
 
 
-  subroutine init_erri
+  subroutine init_eri
 
     use utils, only: &
          signan
 
     implicit none
 
-    if (allocated(erri)) then
-       deallocate(erri)
+    if (allocated(eri)) then
+       deallocate(eri)
     endif
 
-    allocate(erri(nel))
+    allocate(eri(nel))
 
-    erri(iernoi) = signan()
-    erri(ierinv) = 1.d0 / err(ierinv)
+    eri(iernoi) = signan()
+    eri(ierinv) = 1.d0 / ert(ierinv)
 
-  end subroutine init_erri
+  end subroutine init_eri
+
+
+  subroutine init_ert
+
+    use utils, only: &
+         signan
+
+    implicit none
+
+    if (allocated(ert)) then
+       deallocate(ert)
+    endif
+
+    allocate(ert(nel))
+
+    if (nupper > 0) then
+       ert(iupper) = err(iupper)
+    endif
+    if (ncovar > 0) then
+       ert(icovar) = sqrt(sum(cov(icovar,:)**2, 2) + err(imeasu)**2)
+    endif
+    if (nuncor > 0) then
+       ert(iuncor) = err(iuncor)
+    endif
+
+  end subroutine init_ert
 
 
   function abu_covariance(abu) result(xcov)

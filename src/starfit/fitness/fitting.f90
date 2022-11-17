@@ -52,7 +52,7 @@ contains
 
     use star_data, only: &
          set_star_data, abu_covariance, &
-         init_erri2, &
+         init_ei2, &
          init_covaricance_const
 
     implicit none
@@ -95,7 +95,7 @@ contains
     endif
 
     if ((ls == 0).and.(nstar == 1)) then
-       call init_erri2()
+       call init_ei2()
        call init_covaricance_const()
        if (icdf == 0) then
           do k = 1, nsol
@@ -112,7 +112,7 @@ contains
           do i = 1, nel
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
-          call init_erri2()
+          call init_ei2()
           call init_covaricance_const()
           if (icdf == 0) then
              call analytic_solve(scale, y)
@@ -125,7 +125,7 @@ contains
 
        ! NR solver with modified x-axis
 
-       call init_erri2()
+       call init_ei2()
        call init_covaricance_const()
        if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
           do k = 1, nsol
@@ -148,7 +148,7 @@ contains
 
        ! classical NR solver that converges poorly due to stiffness of log/exp
 
-       call init_erri2()
+       call init_ei2()
        call init_covaricance_const()
        do k = 1, nsol
           call newton_classic(c(k,:), abu(k,:,:), nstar, ierr)
@@ -199,7 +199,7 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         erri
+         eri
 
     use star_data, only: &
          diff_covariance, &
@@ -234,23 +234,23 @@ contains
     diff_det(ierinv) = logy(ierinv) - det(ierinv)
 
     f = diff_covariance(diff_obs)
-    f = f + sum((diff_obs(iuncor) * erri(iuncor))**2)
+    f = f + sum((diff_obs(iuncor) * eri(iuncor))**2)
     if (icdf == 0) then
        do i1=1, nupper
           i = iupper(i1)
           if (diff_obs(i) > 0.d0) then
-             f = f + (diff_obs(i) * erri(i))**2
+             f = f + (diff_obs(i) * eri(i))**2
           endif
        enddo
        do i1=1, ndetec
           i = idetec(i1)
           if (diff_det(i) < 0.d0) then
-             f = f - (diff_det(i) * erri(i))**2
+             f = f - (diff_det(i) * eri(i))**2
           endif
        enddo
     else
-       f = f - 2.d0* sum(logcdf(diff_obs(iupper) * erri(iupper)))
-       f = f + 2.d0* sum(logcdf(diff_det(idetec) * erri(idetec)))
+       f = f - 2.d0* sum(logcdf(diff_obs(iupper) * eri(iupper)))
+       f = f + 2.d0* sum(logcdf(diff_det(idetec) * eri(idetec)))
     endif
 
   end subroutine chi2
@@ -260,14 +260,18 @@ contains
 
     ! return first and second derivative of chi2
 
+    use utils, only: &
+         signan
+
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         erri, erri2, &
+         eri, ei2, &
          icovar, ncovar, &
          nuncor, iuncor, &
          ndetec, idetec, &
          nupper, iupper, &
+         ierinv, iernoi, &
          diff_zv, &
          reduced_diff_zv
 
@@ -293,8 +297,8 @@ contains
 
     real(kind=real64), dimension(nel) :: &
          y, logy, yi, yi2, &
-         diff_obs, diff_obs_erri, diff_obs_erri2, &
-         diff_det, diff_det_erri, diff_det_erri2
+         diff_obs, diff_obs_eri, diff_obs_ei2, &
+         diff_det, diff_det_eri, diff_det_ei2
     real(kind=real64), dimension(ncovar) :: &
          zv, yp, yc, ypp, yic, yc2, yp2, zvp
     real(kind=real64) :: &
@@ -311,10 +315,12 @@ contains
     yi2(:) = yi(:)**2
 
     diff_obs(:) = logy(:) - obs(:)
-    diff_obs_erri2(:) = diff_obs(:) * erri2(:)
+    diff_obs_ei2(ierinv) = diff_obs(ierinv) * ei2(ierinv)
+    diff_obs_ei2(iernoi) = signan()
 
     diff_det(:) = logy(:) - det(:)
-    diff_det_erri2(:) = diff_det(:) * erri2(:)
+    diff_det_ei2(ierinv) = diff_det(ierinv) * ei2(ierinv)
+    diff_det_ei2(iernoi) = signan()
 
     f1(:)   = 0.d0
     f2(:,:) = 0.d0
@@ -343,8 +349,8 @@ contains
 
     do i1 = 1, nuncor
        i = iuncor(i1)
-       fi1 = diff_obs_erri2(i) * yi(i)
-       fi2 = (erri2(i) * ln10i - diff_obs_erri2(i)) * yi2(i)
+       fi1 = diff_obs_ei2(i) * yi(i)
+       fi2 = (ei2(i) * ln10i - diff_obs_ei2(i)) * yi2(i)
        do j = 1, nstar
           f1(j) = f1(j) + fi1 * abu(j,i)
           fa = fi2 * abu(j,i)
@@ -362,8 +368,8 @@ contains
           i = iupper(i1)
           if (diff_obs(i) <= 0.d0) &
                cycle
-          fi1 = diff_obs_erri2(i) * yi(i)
-          fi2 = (erri2(i) * ln10i - diff_obs_erri2(i)) * yi2(i)
+          fi1 = diff_obs_ei2(i) * yi(i)
+          fi2 = (ei2(i) * ln10i - diff_obs_ei2(i)) * yi2(i)
           do j = 1, nstar
              f1(j) = f1(j) + fi1 * abu(j,i)
              fa = fi2 * abu(j,i)
@@ -379,8 +385,8 @@ contains
           i = idetec(i1)
           if (diff_det(i) >= 0.d0) &
                cycle
-          fi1 = diff_det_erri2(i) * yi(i)
-          fi2 = (erri2(i) * ln10i - diff_det_erri2(i)) * yi2(i)
+          fi1 = diff_det_ei2(i) * yi(i)
+          fi2 = (ei2(i) * ln10i - diff_det_ei2(i)) * yi2(i)
           do j = 1, nstar
              f1(j) = f1(j) - fi1 * abu(j,i)
              fa = fi2 * abu(j,i)
@@ -392,16 +398,18 @@ contains
 
     else
 
-       diff_obs_erri(:)  = diff_obs(:) * erri(:)
-       diff_det_erri(:)  = diff_det(:) * erri(:)
+       diff_obs_eri(ierinv) = diff_obs(ierinv) * eri(ierinv)
+       diff_det_eri(ierinv) = diff_det(ierinv) * eri(ierinv)
+       diff_obs_eri(iernoi) = signan()
+       diff_det_eri(iernoi) = signan()
 
        ! upper limits
 
        do i1 = 1, nupper
           i = iupper(i1)
-          fc = logcdfp(diff_obs(i) * erri(i))
-          fi1 = erri(i) * yi(i) * fc
-          fi2 = yi(i) * (1.d0 + ln10i * erri(i) * (fc + diff_obs(i) * erri(i)))
+          fc = logcdfp(diff_obs(i) * eri(i))
+          fi1 = eri(i) * yi(i) * fc
+          fi2 = yi(i) * (1.d0 + ln10i * eri(i) * (fc + diff_obs(i) * eri(i)))
           do j=1, nstar
              fa = fi1 * abu(j, i)
              f1(j) = f1(j) - fa
@@ -415,9 +423,9 @@ contains
 
        do i1 = 1, ndetec
           i = idetec(i1)
-          fc = logcdfp(diff_det(i) * erri(i))
-          fi1 = erri(i) * yi(i) * fc
-          fi2 = yi(i) * (1.d0 + ln10i * erri(i) * (fc + diff_det(i) * erri(i)))
+          fc = logcdfp(diff_det(i) * eri(i))
+          fi1 = eri(i) * yi(i) * fc
+          fi2 = yi(i) * (1.d0 + ln10i * eri(i) * (fc + diff_det(i) * eri(i)))
           do j=1, nstar
              fa = fi1 * abu(j, i)
              f1(j) = f1(j) + fa
@@ -879,7 +887,7 @@ contains
          icdf, obs, det, &
          idetec, iuncor, iupper, idetec, &
          nupper, ndetec, &
-         erri, erri2, &
+         eri, ei2, &
          mp, &
          diff_z
 
@@ -914,8 +922,8 @@ contains
 
     ! Uncorrelated errors
 
-    f1 = f1 + sum(diff_obs(iuncor) * erri2(iuncor))
-    f2 = f2 + sum(erri2(iuncor))
+    f1 = f1 + sum(diff_obs(iuncor) * ei2(iuncor))
+    f2 = f2 + sum(ei2(iuncor))
 
     if (icdf == 0) then
 
@@ -927,8 +935,8 @@ contains
        do i1 = 1, nupper
           i = iupper(i1)
           if (diff_obs(i) > 0.d0) then
-             f1 = f1 + diff_obs(i) * erri2(i)
-             f2 = f2 + erri2(i)
+             f1 = f1 + diff_obs(i) * ei2(i)
+             f2 = f2 + ei2(i)
           endif
        enddo
 
@@ -937,8 +945,8 @@ contains
        do i1 = 1, ndetec
           i = idetec(i1)
           if (diff_det(i) < 0.d0) then
-             f1 = f1 - diff_det(i) * erri2(i)
-             f2 = f2 - erri2(i)
+             f1 = f1 - diff_det(i) * ei2(i)
+             f2 = f2 - ei2(i)
           endif
        enddo
     else
@@ -947,8 +955,8 @@ contains
 
        do i1 = 1, nupper
           i = iupper(i1)
-          df = - logcdfp(diff_obs(i)*erri(i)) * erri(i)
-          de = - diff_obs(i) * erri2(i)
+          df = - logcdfp(diff_obs(i)*eri(i)) * eri(i)
+          de = - diff_obs(i) * ei2(i)
           f1 = f1 + df
           f2 = f2 + df * (df + de)
        enddo
@@ -957,8 +965,8 @@ contains
 
        do i1 = 1, ndetec
           i = idetec(i1)
-          df = + logcdfp(diff_det(i)*erri(i)) * erri(i)
-          de = - diff_det(i) * erri2(i)
+          df = + logcdfp(diff_det(i)*eri(i)) * eri(i)
+          de = - diff_det(i) * ei2(i)
           f1 = f1 + df
           f2 = f2 + df * (df + de)
        enddo
@@ -1041,7 +1049,7 @@ contains
     use star_data, only: &
          nel, &
          obs, det, upper, &
-         erri2, mp, &
+         ei2, mp, &
          inocov, nnocov, idetec, ndetec, &
          diff_z
 
@@ -1089,15 +1097,15 @@ contains
        do i1 = 1, nnocov
           i = inocov(i1)
           if (include_obs(i)) then
-             ei2s = ei2s + erri2(i)
-             diff = diff + diff_obs(i) * erri2(i)
+             ei2s = ei2s + ei2(i)
+             diff = diff + diff_obs(i) * ei2(i)
           endif
        enddo
        do i1 = 1, ndetec
           i = idetec(i1)
           if (include_det(i)) then
-             ei2s = ei2s - erri2(i)
-             diff = diff - diff_det(i) * erri2(i)
+             ei2s = ei2s - ei2(i)
+             diff = diff - diff_det(i) * ei2(i)
           endif
        enddo
 
