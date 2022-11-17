@@ -112,15 +112,37 @@ The chemical yield of the models (and the respective element names) are:
 list(zip(s.list_db, s.full_abudata[:, i_bestfit]))
 ```
 
+### Plots
+
 To make the same plots as the web version:
 ```python
 s.plot()
 ```
-If you want to plot a solution other than the best one, use the parameter `index` (default: `0`)  To plot the 5th best solution, skipping the first `4`, use
+If you want to plot a solution other than the best one, use the parameter `num` (default: `0`)  To plot the 5th best solution, skipping the first `4`, use
 ```python
-s.plot(index=4)
+s.plot(num=4)
 ```
 The legend as well as the star name and copyright string can be moved (dragged).
+Plot parameters iclude
+- `num`: Number of solution, from the top (default: `0`).
+- `yscale`: select the y-scale of the plot.  Numerical value identical to those used for the star data formats.
+- `ynorm`: elemets to use a norm for `[X/Y]' plots (`yscale=3`).
+- `save`: filename to save plot.
+- `range_det`: adjust range to include detection thresholds (default: `False`)
+- `range_lim`: adjust range to incoude detection limits (default: `True`)
+- `range_zmin`: in Z ro conider for determining y range (default: `3`)
+- `pad_abu`: fraction of plot range to use at bottom/top boundary (default: `0.1`).
+- `pad_det`: fraction of plot range to pad detection tresholds (default: `0.05`).
+- `figsize`: dimensions of figure in inches (dedault: `(10, 6)`).
+- `dpi`: resolution of image (default: `102`).
+- `xlim`: overwrite x range (low, high).
+- `ylim`: overwrite y range (low, high).
+- `data_size`: Size of data lines and symols (default: `3`).
+- `fontsize`: size used for axis labels (default: `12`).
+- `annosize`: size used for element symbols (default: `small`).
+- `dist`:  distance of lables from data points.
+- `fig`: figure object to use as canvas, otherwise as new figure is created.
+- `ax`: axis objects to use for drawing, otherwise axis and parent figure are created as needed.
 
 ## Full multi-star search
 

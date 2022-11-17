@@ -10,8 +10,7 @@ from textwrap import wrap
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import DB, REF, SOLAR
-from .autils import abusets
+from . import DB
 from .autils.abuset import AbuData
 from .autils.isotope import Ion
 from .autils.isotope import ion as I
@@ -336,10 +335,7 @@ class StarFit(Logged):
         list_ztrim = list_db[(zdb <= z_max) & (zdb >= z_min)]
 
         # Prepare the sun
-        sun = abusets.SolAbu(
-            name=find_data(REF, SOLAR),
-            silent=self.silent,
-        )
+        sun = self.star.sun
 
         # Transforms the uncombined element numbers for use in the sun
         index_sun = np.in1d(list_db, list_ztrim, assume_unique=True)
@@ -866,6 +862,13 @@ class StarFit(Logged):
         save=None,
         save_format=None,
         return_plot_data=False,
+        yscale=2,
+        ynorm="Fe",
+        range_det=False,  # adjust range to include detection thresholds
+        range_lim=True,  # adjust range to incoude detection limits
+        range_zmin=3,  # adjust range to consider abundances with at least that Z
+        pad_abu=0.1,
+        pad_det=0.05,
     ):
         """Call plotting routines to plot the best fit."""
 
@@ -893,8 +896,11 @@ class StarFit(Logged):
         if fontsize is None:
             fontsize = 12
 
+        convert = Convert_from_5(self, yscale=yscale, ynorm=ynorm)
+
         ax.set_xlabel("Element charge number", fontsize=fontsize)
-        ax.set_ylabel("Logarithm of abundance relative to sun", fontsize=fontsize)
+        ax.set_ylabel(convert.ylabel, fontsize=fontsize)
+        ax.set_yscale(convert.plot_scale)
 
         zlist_db = np.array([ion.Z for ion in self.list_db])
         zlist_comb = np.array([ion.Z for ion in self.list_comb])
@@ -905,14 +911,14 @@ class StarFit(Logged):
         # Transform the list of matched elements to an index for the db
         index_t = np.in1d(zlist_db, zlist_comb, assume_unique=True)
 
-        logsun_full = np.log10(self.sun_full)
-        logsun_star = np.log10(self.sun_star)
+        # logsun_full = np.log10(self.sun_full)
+        # logsun_star = np.log10(self.sun_star)
 
         # The star data points
-        y_star = self.eval_data.abundance - logsun_star
-        y_star_det = self.eval_data.detection - logsun_star
+        y_star = convert.star_abundance
+        y_star_det = convert.star_abundance_det
 
-        x_star = np.array([ion.Z for ion in self.eval_data.element])
+        x_star = ufunc_Z(self.eval_data.element)
 
         y_star_uco = np.abs(self.eval_data.error)
         y_star_cov = np.sqrt(np.sum(self.eval_data.covariance**2, axis=1))
@@ -924,6 +930,12 @@ class StarFit(Logged):
         # set asymmetric error for upper limits
         up_lims = self.uplim_index_star
         y_star_err[1, up_lims] = 0
+
+        cov_sel = (y_star_cov > 0) & ~up_lims
+
+        # convert log errors into coordinate_errors
+        y_star_err = convert.err(y_star_err)
+        y_star_uco = convert.err(y_star_uco)
 
         leg_starname(ax, self.star.name)
 
@@ -983,7 +995,7 @@ class StarFit(Logged):
             labels.append(f"{key}: " + ", ".join(raw))
 
             # The pattern found by the algorithm
-            y_a = np.log10(summed[index_t]) - logsun_full
+            y_a = convert(summed[index_t], ref="full", scale="lin")
             x_a = np.array(zlist_comb)
 
             x_ga = np.array(zlist_comb)
@@ -1009,11 +1021,9 @@ class StarFit(Logged):
 
             # Plot components if there are more than one
             if len(indices) > 1:
-                y_ga = (
-                    np.log10((self.full_abudata[index_t, index] * offset) + 1.0e-99)
-                    - logsun_full
+                y_ga = convert(
+                    self.full_abudata[index_t, index] * offset, ref="full", scale="lin"
                 )
-
                 ax.plot(
                     x_ga,
                     y_ga,
@@ -1073,7 +1083,7 @@ class StarFit(Logged):
 
         if dist is None:
             # Calculate bounding box
-            txt = fig.text(0, 0, "gh", fontsize=annosize)
+            txt = fig.text(0, 0, "Mg", fontsize=annosize)
             renderer = fig.canvas.get_renderer()
             bbox = txt.get_window_extent(renderer)
             txt.remove()
@@ -1081,10 +1091,31 @@ class StarFit(Logged):
 
         # Plot limits
         if ylim is None:
-            ylim = [np.min(y_star) - 1.0, 0.9]
-            y_min_det = np.array([y for y in y_star_det if y > -20])
-            if len(y_min_det) > 0:
-                ylim[0] = min(ylim[0], min(y_min_det) - 0.2)
+            ii = x_star >= range_zmin
+            if not range_lim:
+                ii &= y_star_err[1, :] > 0.0
+            ylim = np.array(
+                [
+                    np.min(y_star[ii] - y_star_err[0, ii]),
+                    np.max(y_star[ii] + y_star_err[1, ii]),
+                ]
+            )
+            if convert.plot_scale == "linear":
+                dylim = ylim[1] - ylim[0]
+                ylim += dylim * np.array([-1, 1]) * pad_abu
+            else:
+                dylim = np.log10(ylim[1]) - np.log10(ylim[0])
+                ylim *= 10 ** (np.array([-1, 1]) * pad_abu * dylim)
+
+            if range_det:
+                y_min_det = np.array([y for y in y_star_det[ii] if y > convert.det_lim])
+                if len(y_min_det) > 0:
+                    if convert.plot_scale == "linear":
+                        ylim[0] = min(ylim[0], min(y_min_det) - pad_det * dylim)
+                    else:
+                        ylim[0] = min(
+                            ylim[0], min(y_min_det) * 10 ** (-pad_det * dylim)
+                        )
 
         if xlim is None:
             xlim = (zlist_comb[0] - 0.99, zlist_comb[-1] + 0.99)
@@ -1152,6 +1183,7 @@ class StarFit(Logged):
                 size=annosize,
                 ha="center",
                 va="center",
+                clip_on=True,
             )
 
         leg = ax.legend(
@@ -1176,7 +1208,6 @@ class StarFit(Logged):
             )
 
         # Show correlated errors
-        cov_sel = (y_star_cov > 0) & ~up_lims
         ax.errorbar(
             np.array(x_star)[cov_sel],
             y_star[cov_sel],
@@ -1237,7 +1268,8 @@ class StarFit(Logged):
         ax.tick_params(axis="both", which="major", labelsize=fontsize)
 
         ax.xaxis.set_major_formatter(IntFormatter())
-        ax.yaxis.set_major_formatter(IntFormatter())
+        if convert.plot_scale == "linear":
+            ax.yaxis.set_major_formatter(IntFormatter())
 
         fig.tight_layout()
         fig.show()
@@ -1256,3 +1288,96 @@ class StarFit(Logged):
 
         if return_plot_data:
             return labels, (x_a, y_a)
+
+
+class Convert_from_5(object):
+    def __init__(self, starfit, yscale=2, ynorm=None):
+        self.yscale = yscale
+        self.ynorm = ynorm
+
+        self.star_log_abundance = starfit.eval_data.abundance
+        self.star_log_abundance_det = starfit.eval_data.detection
+
+        if self.yscale == 1:
+            if starfit.star.data_format == 1:
+                self.log_H = np.log10(starfit.star.norm_element)
+            else:
+                self.log_H = starfit.star.element_abundances.abundance[0]
+        if self.yscale in (2, 3, 6):
+            self.log_sun_full = np.log10(starfit.sun_full)
+            self.log_sun_star = np.log10(starfit.sun_star)
+        if self.yscale in (4, 7):
+            self.ynorm = "Si"
+        if self.yscale == 6:
+            self.ynorm = "H"
+        if self.yscale in (3, 4, 6, 7):
+            if ynorm is None:
+                if starfit.star.data_format == 3:
+                    self.ynorm = starfit.star.norm_element.Name()
+                elif starfit.star.data_format in (
+                    6,
+                    7,
+                ):
+                    self.ynorm = "Si"
+            i = np.where(starfit.star.element_abundances.element == I(self.ynorm))[0]
+            if len(i) == 0:
+                raise AttributeError(f"Norm Element {self.ynorm} not available")
+            i = i[0]
+            self.log_norm_star = starfit.star.element_abundances.abundance[i]
+            self.log_norm_sun = np.log10(starfit.star.sun.Y(self.ynorm))
+
+        self.star_abundance = self.__call__(self.star_log_abundance, "star")
+        self.star_abundance_det = self.__call__(self.star_log_abundance_det, "star")
+
+        if self.yscale in (0, 7):
+            self.plot_scale = "log"
+            self.det_lim = 1e-20
+        else:
+            self.plot_scale = "linear"
+            self.det_lim = -20
+
+    def __call__(self, y, ref=None, scale="log"):
+        if scale == "lin":
+            y = np.log10(y + 1.0e-99)
+        if self.yscale == 5:
+            return y
+        if self.yscale == 0:
+            return 10**y
+        if self.yscale == 1:
+            return y + self.log_H + 12
+        if self.yscale in (2, 3, 6):
+            if ref == "full":
+                y = y - self.log_sun_full
+            elif ref == "star":
+                y = y - self.log_sun_star
+        if self.yscale == 2:
+            return y
+        if self.yscale in (3, 6):
+            return y - self.log_norm_star + self.log_norm_sun
+        if self.yscale in (4, 7):
+            y = y - self.log_norm_star + 6
+            if self.yscale == 4:
+                return y
+            else:
+                return 10**y
+
+    _labels = {
+        0: "Abundace",
+        1: "Abundace (log epsilon)",
+        2: "Logarithm of abundance relative to sun",
+        3: "[X/{norm}]",
+        4: "Logarithm of abundance ({norm} = 10$^{{6}}$ atoms)",
+        5: "Logarithm of abundance (mol$\\,$/$\\,$g)",
+        6: "[X/{norm}]",
+        7: "Abundance ({norm} = 10$^{{6}}$ atoms)",
+    }
+
+    @property
+    def ylabel(self):
+        return self._labels[self.yscale].format(norm=self.ynorm)
+
+    def err(self, err):
+        err = err + self.star_log_abundance
+        err = self.__call__(err, "star")
+        err = err - self.star_abundance
+        return err
