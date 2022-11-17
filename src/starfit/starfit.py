@@ -1083,7 +1083,7 @@ class StarFit(Logged):
 
         if dist is None:
             # Calculate bounding box
-            txt = fig.text(0, 0, "gh", fontsize=annosize)
+            txt = fig.text(0, 0, "Mg", fontsize=annosize)
             renderer = fig.canvas.get_renderer()
             bbox = txt.get_window_extent(renderer)
             txt.remove()
