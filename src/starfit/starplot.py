@@ -121,6 +121,7 @@ class IntFormatter(mpl.ticker.FuncFormatter):
             v = args[0]
             if int(v) == v:
                 v = int(v)
-            return str(v)
+                return str(v)
+            return f"{v:.2g}"
 
         super().__init__(formatter)

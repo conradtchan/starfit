@@ -38,6 +38,7 @@ Ba  -1.23  -0.80
 Lo09	<--- SOLAR REFERENCE; USE "-" IF NOT PROVIDED
 
 DATA FORMAT
+0 Y (mol/g), error is absolute
 1 log epsilon (PREFERRED DUE TO DIFFERENT SOLAR ABUNDANCES, give H mol/g as norm!)
 2 [ ]
 3 [X/Y] Y= norm element, provide [Y/H] in column for Y
@@ -256,6 +257,7 @@ from .utils import find_data
 LOW = np.array([np.nan] + [-199.0] * 6 + [1.0e-199])
 
 DATA_FORMAT = {
+    0: "Y",
     1: "log epsilon",
     2: "[X]",
     3: "[X/X_ref]",
@@ -469,16 +471,20 @@ class Star(Logged):
         self.element_abundances = self.list_to_array(content[n : n + n_elements])
         n += n_elements
         # Solar reference
-        if self.version >= 10002:
-            self.solar_ref = content[n]
-            # Default solar ref
-            if self.solar_ref in (
-                "",
-                "-",
-            ):
-                self.solar_ref = find_data(REF, SOLAR)
+        if self.version < 10002:
+            self.solar_ref = "-"
         else:
-            self.solar_ref = None
+            self.solar_ref = content[n]
+        # Default solar ref
+        if self.solar_ref in (
+            "",
+            "-",
+        ):
+            self.solar_ref = find_data(REF, SOLAR)
+        self.sun = SolAbu(
+            name=self.solar_ref,
+            silent=self.silent,
+        )
 
         # Convert
         self.input_data_format = self.data_format
@@ -494,7 +500,17 @@ class Star(Logged):
         """
         Convert abundance array to Format 5
         """
-        if data_format == 1:
+        if data_format == 0:
+            # sigma is absolute (not dex)
+            array.error[:] = array.error / (array.abundance * np.log(10.0))
+            array.covariance[:, :] = array.covariance[:, :] / (
+                array.abundance.reshape(-1, 1) * np.log(10.0)
+            )
+            # convert lin to log
+            for a in (array.abundance, array.detection):
+                a[:] = np.log10(a[:])
+
+        elif data_format == 1:
             # norm_element is H number fraction
             h_ref = self.norm_element
             # array.abundance[:] = np.log10((10 ** (array.abundance - 12)) * h_ref)
@@ -502,27 +518,25 @@ class Star(Logged):
                 a[:] = a - 12 + np.log10(h_ref)
         elif data_format == 2:
             # Load the abundances for the sun, using the appropriate solar reference
-            sun = SolAbu(self.solar_ref, silent=True)
-            solar = sun.Y(array.element)
+            solar = self.sun.Y(array.element)
             for a in (array.abundance, array.detection):
                 a[:] = np.log10((10 ** (a)) * solar)
         elif data_format == 3:
             # Load the Big Bang hydrogen abundance
             h_ref = self.BBN_data.Y("H")
             # Load the abundances for the sun
-            sun = SolAbu(self.solar_ref, silent=True)
-            solar = sun.Y(array.element)
+            solar = self.sun.Y(array.element)
             # Set the index for the norm element, since this will need to be treated separately
             norm_index = np.where(array.element == norm_element)[0][0]
             # Calculate the linear abundance for the norm element on the star
             norm_abundance = ((10 ** array[norm_index].abundance) * h_ref) * (
-                sun.Y(norm_element) / sun.Y("H")
+                self.sun.Y(norm_element) / self.sun.Y("H")
             )
             norm_detection = ((10 ** array[norm_index].detection) * h_ref) * (
-                sun.Y(norm_element) / sun.Y("H")
+                self.sun.Y(norm_element) / self.sun.Y("H")
             )
             # Calculate the abundance for the norm element on the sun
-            norm_solar = sun.Y(norm_element)
+            norm_solar = self.sun.Y(norm_element)
             for a, b in zip(
                 (array.abundance, array.detection),
                 (norm_abundance, norm_detection),
@@ -545,18 +559,17 @@ class Star(Logged):
             # Since this is format 6, norm_element is actually log(H/H_sun)
             logH = norm_element
             # Load the abundances for the sun, using the appropriate solar reference
-            sun = SolAbu(self.solar_ref, silent=True)
-            solar = sun.Y(array.element)
+            solar = self.sun.Y(array.element)
             # array.abundance[:] = np.log10((10 ** (array.abundance + logH)) * solar)
             for a in (array.abundance, array.detection):
                 a[:] = a[:] + logH + np.log10(solar)
         elif data_format == 7:
-            # sigma is not given logarthmically in dex but absolute
+            # sigma is absolute (not dex)
             array.error[:] = array.error / (array.abundance * np.log(10.0))
             array.covariance[:, :] = array.covariance[:, :] / (
                 array.abundance.reshape(-1, 1) * np.log(10.0)
             )
-            # Since this is format 7, norm_element is actually Y(Si) * 1e6
+            # format 7, norm_element is Y(Si) * 1e6
             Si = norm_element
             for a in (array.abundance, array.detection):
                 a[:] = np.log10(a[:] * Si * 1e-12)
