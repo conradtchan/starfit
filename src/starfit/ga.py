@@ -168,8 +168,7 @@ class Ga(StarFit):
         self.history["mean"] = [np.mean(self.f)]
         self.history["median"] = [np.median(self.f)]
         self.history["worst"] = [np.max(self.f)]
-        self.initsol = self.s[np.argmin(self.f)]
-        self.times += [0]
+        self.times = [0]
 
         if gen is None or gen <= 0:
             gen = 2**30

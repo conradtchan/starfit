@@ -16,8 +16,6 @@ class Single(StarFit):
         if self.show:
             return
 
-        self.gene_size = 1
-
         # Initialize array
         stars = np.recarray(
             (self.db_size, 1), dtype=[("index", np.int64), ("offset", np.float64)]
