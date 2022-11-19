@@ -163,9 +163,11 @@ class Ga(StarFit):
         )
 
         # Initial history points
-        self.history["best"] += [np.min(self.f)]
-        self.history["average"] += [np.mean(self.f)]
-        self.history["worst"] += [np.max(self.f)]
+        self.history = dict()
+        self.history["best"] = [np.min(self.f)]
+        self.history["mean"] = [np.mean(self.f)]
+        self.history["median"] = [np.median(self.f)]
+        self.history["worst"] = [np.max(self.f)]
         self.initsol = self.s[np.argmin(self.f)]
         self.times += [0]
 
@@ -188,7 +190,8 @@ class Ga(StarFit):
         while True:
             self._step()
             self.history["best"] += [self.f[0]]
-            self.history["average"] += [np.mean(self.f)]
+            self.history["mean"] += [np.mean(self.f)]
+            self.history["median"] += [np.median(self.f)]
             self.history["worst"] += [self.f[-1]]
 
             t_new = time.time()
@@ -298,7 +301,7 @@ class Ga(StarFit):
                 )
             )
             print(
-                f"            Best: {self.f[0]:>6.2f}        Average: {np.average(self.f):>6.2f}   Worst: {self.f[-1]:>6.2f}"
+                f"            Best: {self.f[0]:>6.2f}        Average: {np.mean(self.f):>6.2f}   Worst: {self.f[-1]:>6.2f}"
             )
             print(self.fmt_hbar)
             print(self.fmt_head)
@@ -657,7 +660,8 @@ class Ga(StarFit):
         leg_info(ax, info)
 
         ax.plot(times, self.history["worst"], label="worst", color="tab:red")
-        ax.plot(times, self.history["average"], label="average", color="tab:blue")
+        ax.plot(times, self.history["mean"], label="mean", color="tab:blue")
+        ax.plot(times, self.history["median"], label="median", color="tab:cyan")
         ax.plot(times, self.history["best"], label="best", color="tab:green")
         ax.set_yscale("log")
 

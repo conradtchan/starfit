@@ -62,7 +62,6 @@ class StarFit(Logged):
     """
 
     def __init__(self, *args, silent=False, **kwargs):
-        self.history = {"best": [], "average": [], "worst": []}
         self.initsol = None
         self.bestsol = None
         self.times = []
