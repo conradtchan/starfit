@@ -862,8 +862,12 @@ class StarFit(Logged):
         range_zmin=3,  # adjust range to consider abundances with at least that Z
         pad_abu=0.1,
         pad_det=0.05,
+        multi=0,
     ):
         """Call plotting routines to plot the best fit."""
+
+        num = min(max(num, 0), len(self.sorted_stars) - 1)
+        multi = min(max(multi, 0), len(self.sorted_stars))
 
         bestsol = self.sorted_stars[num]
         indices = bestsol["index"]
@@ -935,12 +939,74 @@ class StarFit(Logged):
         if show_copyright:
             leg_copyright(ax)
 
+        # The pattern found by the algorithm
+        y_a = convert(summed[index_t], ref="full", scale="lin")
+        x_a = np.array(zlist_comb)
+
+        x_ga = np.array(zlist_comb)
+
+        # Move the x position for combined things
+        x_star = x_star.astype("f8")
+        x_a = x_a.astype("f8")
+        x_ga = x_ga.astype("f8")
+        for row in self.combine:
+            if len(row) > 0:
+                for x in [x_star, x_a, x_ga]:
+
+                    # Get the first in the combined elements
+                    ind = np.where(x == row[0])[0]
+                    if len(ind) > 0:
+
+                        # Make the new position the average of the first
+                        # consecutives
+                        consec = np.array_split(row, np.where(np.diff(row) != 1)[0] + 1)
+                        x[ind[0]] = np.mean(consec[0])
+
+        # plot alternative solutions
+        for i in range(multi):
+            if i == num:
+                continue
+            sol = self.sorted_stars[i]
+            sol_indices = sol["index"]
+            sol_offsets = sol["offset"]
+            sol_summed = np.sum(
+                (self.full_abudata[:, sol_indices] + 1.0e-99) * sol_offsets, axis=1
+            )
+            y_ga = convert(sol_summed[index_t], ref="full", scale="lin")
+            ax.plot(
+                x_ga,
+                y_ga,
+                linestyle="-",
+                lw=2,
+                zorder=-10,
+                color="#cfcfcf3f",
+            )
+
         # Components of the solution
         lines = ["--", "-.", ":", "-"]
         linecycler = cycle(lines)
 
         labels = list()
         texlabels = list()
+
+        # Change the label of the summed line based on how many components there are
+        chi = rf"($\chi^2={self.sorted_fitness[num]:0.2f})$"
+        if len(indices) > 1:
+            sumlabel = f"Sum {chi}"
+        else:
+            sumlabel = f"{texlabels[0]} {chi}"
+
+        # Hidden line for legend purposes
+        ax.plot(
+            [None],
+            [None],
+            marker="^",
+            markerfacecolor="red",
+            markeredgecolor="red",
+            color="g",
+            lw=2.0,
+            label=sumlabel,
+        )
 
         for i, (offset, index) in enumerate(zip(offsets, indices)):
             raw = list()
@@ -956,6 +1022,7 @@ class StarFit(Logged):
                 except:
                     pass
                 parameters.append(db_name)
+
             for j in range(db.nfield):
                 if db.fieldflags[j] != StarDB.Flags.parameter:
                     continue
@@ -980,6 +1047,7 @@ class StarFit(Logged):
                     ):
                         value = f"{value} {unit}"
                 parameters.append(value)
+
             texlabels.append(", ".join(parameters))
             if self.db_n > 1:
                 key = f"{db_name}, {dbindex}"
@@ -987,52 +1055,42 @@ class StarFit(Logged):
                 key = f"{dbindex}"
             labels.append(f"{key}: " + ", ".join(raw))
 
-            # The pattern found by the algorithm
-            y_a = convert(summed[index_t], ref="full", scale="lin")
-            x_a = np.array(zlist_comb)
-
-            x_ga = np.array(zlist_comb)
-
-            # Move the x position for combined things
-            x_star = x_star.astype("f8")
-            x_a = x_a.astype("f8")
-            x_ga = x_ga.astype("f8")
-            for row in self.combine:
-                if len(row) > 0:
-                    for x in [x_star, x_a, x_ga]:
-
-                        # Get the first in the combined elements
-                        ind = np.where(x == row[0])[0]
-                        if len(ind) > 0:
-
-                            # Make the new position the average of the first
-                            # consecutives
-                            consec = np.array_split(
-                                row, np.where(np.diff(row) != 1)[0] + 1
-                            )
-                            x[ind[0]] = np.mean(consec[0])
-
             # Plot components if there are more than one
             if len(indices) > 1:
-                y_ga = convert(
-                    self.full_abudata[index_t, index] * offset, ref="full", scale="lin"
-                )
-                ax.plot(
-                    x_ga,
-                    y_ga,
-                    marker="",
-                    linestyle=next(linecycler),
-                    lw=1.3,
-                    color=colorsys.hsv_to_rgb(i * 360 / len(indices), 1, 1),
-                    label=texlabels[i],
-                )
+                if multi == 0:
+                    y_ga = convert(
+                        self.full_abudata[index_t, index] * offset,
+                        ref="full",
+                        scale="lin",
+                    )
+                    ax.plot(
+                        x_ga,
+                        y_ga,
+                        linestyle=next(linecycler),
+                        lw=1.3,
+                        color=colorsys.hsv_to_rgb(i * 360 / len(indices), 1, 1),
+                        label=texlabels[i],
+                    )
+                else:
+                    ax.plot(
+                        [None],
+                        [None],
+                        linestyle="none",
+                        lw=0,
+                        color="none",
+                        label=texlabels[i],
+                    )
 
-        # Change the label of the summed line based on how many components there are
-        chi = rf"($\chi^2={self.sorted_fitness[num]:0.2f})$"
-        if len(indices) > 1:
-            sumlabel = f"Sum {chi}"
-        else:
-            sumlabel = f"{texlabels[0]} {chi}"
+        if multi > 0 and not (multi == 1 and num == 0):
+            ax.plot(
+                [None],
+                [None],
+                linestyle="-",
+                lw=2,
+                zorder=-10,
+                label=f"{multi:d} alternative solutions",
+                color="#cfcfcfcf",
+            )
 
         # Green line
         ax.plot(
@@ -1060,18 +1118,6 @@ class StarFit(Logged):
             markerfacecolor="white",
             markeredgecolor="red",
             lw=0,
-        )
-
-        # Hidden line for legend purposes
-        ax.plot(
-            1000,
-            1000,
-            marker="^",
-            markerfacecolor="red",
-            markeredgecolor="red",
-            color="g",
-            lw=2.0,
-            label=sumlabel,
         )
 
         if dist is None:
@@ -1117,45 +1163,58 @@ class StarFit(Logged):
         dpi = fig.get_dpi()
         height_inch = figsize[1]
         height_pixel = height_inch * dpi
-        data_scale = height_pixel / (ylim[1] - ylim[0])
-        space = fontsize / data_scale
-        gap_size = 3.5 * space
+        if convert.plot_scale == "linear":
+            data_scale = height_pixel / (ylim[1] - ylim[0])
+            space = fontsize / data_scale
+            gap_size = 3.5 * space
+        else:
+            data_scale = height_pixel / (np.log10(ylim[1]) - np.log10(ylim[0]))
+            space = fontsize / data_scale
+            gap_size = 10 ** (3.5 * space)
 
         anno = np.copy(y_a)
 
         # This is the ind corresponding to elements in the star data (the error bar points)
-        for z, zor in zip(x_a, zlist_comb):
+        for ind, (z, zor) in enumerate(zip(x_a, zlist_comb)):
             # We use x_a instead of zlist_comb because it has the modified Z
             # for the combined elements
-            ind = np.where(x_a == z)[0][0]
-            if zor in range(2, zlist_comb[-1]):
-                if y_a[ind] - y_a[ind - 1] >= y_a[ind + 1] - y_a[ind]:
-                    if z in x_star:
-                        star_ind = np.where(x_star == z)[0][0]
-                        if (
-                            0 < (y_star[star_ind] - y_a[ind]) <= gap_size
-                            or 0
-                            < (y_star[star_ind] - y_a[ind] - y_star_err[1, [star_ind]])
-                            <= gap_size
-                        ):
-                            anno[ind] = y_star[star_ind] + y_star_err[1, [star_ind]]
-                    loc = (0, 0.7 * dist)
-                elif y_a[ind] - y_a[ind - 1] <= y_a[ind + 1] - y_a[ind]:
-                    if z in x_star:
-                        star_ind = np.where(x_star == z)[0][0]
-                        if (
-                            0 < -(y_star[star_ind] - y_a[ind]) <= gap_size
-                            or 0
-                            < -(y_star[star_ind] - y_a[ind]) - y_star_err[0, [star_ind]]
-                            <= gap_size
-                        ):
-                            anno[ind] = (
-                                y_star[star_ind] - y_star_err[1, [star_ind]] - space
-                            )
-                    loc = (0, -dist)
 
-            elif z == 1 or z == zlist_comb[-1]:
+            y = y_a[ind]
+
+            # determine whether to plot above or below
+            if ind == 0:
+                above = y_a[ind + 1] < y
+            elif ind == len(zlist_comb) - 1:
+                above = y_a[ind - 1] < y
+            else:
+                above = 2 * y >= y_a[ind - 1] + y_a[ind + 1]
+
+            if above:
                 loc = (0, 0.7 * dist)
+            else:
+                loc = (0, -dist)
+
+            if z in x_star:
+                star_ind = np.where(x_star == z)[0][0]
+                ys = y_star[star_ind]
+                ye = y_star_err[:, star_ind]
+
+                if above:
+                    y_up = ys + ye[1]
+                    if convert.plot_scale == "linear":
+                        upper = y + gap_size
+                    else:
+                        upper = y * gap_size
+                    if (y < y_up) and (upper > ys - ye[0]):
+                        anno[ind] = y_up
+                else:
+                    y_lo = ys - ye[0]
+                    if convert.plot_scale == "linear":
+                        lower = y - gap_size
+                    else:
+                        lower = y / gap_size
+                    if (y > y_lo) and (lower < ys + ye[1]):
+                        anno[ind] = y_lo
 
             # Make a special label for combined things
             label = None
@@ -1167,7 +1226,7 @@ class StarFit(Logged):
             if label is None:
                 label = I(int(z)).element_symbol()
 
-            ax.annotate(
+            annotation = ax.annotate(
                 label,
                 xy=(z, anno[ind]),
                 xycoords="data",
@@ -1177,7 +1236,10 @@ class StarFit(Logged):
                 ha="center",
                 va="center",
                 clip_on=True,
+                annotation_clip=False,
             )
+
+            annotation.draggable(True)
 
         leg = ax.legend(
             bbox_to_anchor=[0.98, 0.92],
@@ -1197,7 +1259,7 @@ class StarFit(Logged):
                 np.array([y, y]),
                 ls="-",
                 lw=data_size,
-                color="#0000003f",
+                color="#0000FF3f",
             )
 
         # Show correlated errors
@@ -1206,12 +1268,14 @@ class StarFit(Logged):
             y_star[cov_sel],
             yerr=y_star_uco[:, cov_sel],
             ls="None",
-            marker="o",
+            marker=None,
             ms=0,
-            capsize=data_size,
-            color=(0.7, 0.7, 0.7),
+            lw=2 * data_size,
+            capsize=0,
+            color="#0000ff3f",
             mfc=(0, 0, 0),
             uplims=False,
+            zorder=-1,
         )
 
         # Plot for the excluded data points
