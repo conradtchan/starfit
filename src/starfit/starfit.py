@@ -62,12 +62,6 @@ class StarFit(Logged):
     """
 
     def __init__(self, *args, silent=False, **kwargs):
-        self.history = {"best": [], "average": [], "worst": []}
-        self.initsol = None
-        self.bestsol = None
-        self.times = []
-        self.gen = None
-        self.pop_size = None
         self.silent = silent
 
         self.setup_logger(silent=self.silent)
