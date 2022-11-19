@@ -180,17 +180,17 @@ s = starfit.Multi(
 `starfit.Ga` fits an abundance pattern to a combination of two or more models from the database. The solution is approximate, but approaches the best solution with increased run time.
 
 Additional arguments:
-- `gen`: maximum number of generations (iterations) to search; no limit if `0` or `None`.  Defaut is `1000`.
-- `time_limit`: maximum amount of time (in seconds) to search for solution.  Infinite if `None`.  Default is `20 s`.
-- `sol_size`: number of explosion models to find combinations of
-- `pop_size`: GA parameter - number of solutions in the population
-- `tour_size`: GA parameter - number of solutions per tournament selection
-- `frac_mating_pool`: GA parameter - fraction of solutions in the mating pool
-- `frac_elite`: GA parameter - top fraction of elite solutions
-- `mut_rate_index`: GA parameter - mutation rate of the star index in the database(s)
-- `mut_rate_offset`: GA parameter - mutation rate of the dilution factor
-- `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor
-- `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA
+- `gen`: maximum number of generations (iterations) to search; no limit if `0` or `None` (default: `1000`).
+- `time_limit`: maximum amount of time (in seconds) to search for solution.  Infinite if `None` (default: `20 s`).
+- `sol_size`: number of nucleosynthesis models to combinatine for solution (default: `2`).
+- `pop_size`: GA parameter - number of solutions in the population (default: `200`).
+- `tour_size`: GA parameter - number of solutions per tournament selection (default: `2`).
+- `frac_mating_pool`: GA parameter - fraction of solutions in the mating pool (default: `1`).
+- `frac_elite`: GA parameter - top fraction of elite solutions (default: `0.5`).
+- `mut_rate_index`: GA parameter - mutation rate of the star index in the databases (default: `0.2`).
+- `mut_rate_offset`: GA parameter - mutation rate of the dilution factor (default: `0.1`).
+- `mut_offset_magnitude`: GA parameter - size of the mutation of the dilution factor (default `1`).
+- `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA (default: `True`).
 - `spread`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 - `group`: grouping of data bases, for use with `spread`: try to cover each group but not each database within it separately.  Provide a vector of group length or of tuples with database indices (`0`-based), no duplications allowed.  Same rules as above apply: if group is specified, you need to a provide grouping that covers each database listed by index.
 - `pin`: number or list of groups to require to be included.  Repetirions are allowed to enforce multiple selections from that group.

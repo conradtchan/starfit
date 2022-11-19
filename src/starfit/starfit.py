@@ -312,9 +312,8 @@ class StarFit(Logged):
             eval_data.detection = LOW[star.data_format]
 
         # Remove upper limit elements if upper limits is not enabled
-        mask_uplim = np.array([error > 0 for error in eval_data.error])
-        if not upper_lim:
-            eval_data = eval_data[mask_uplim]
+        if not self.upper_lim:
+            eval_data = eval_data[eval_data.error > 0]
 
         # List of DB ions which will get chopped
         dbions = self.ions.copy()
