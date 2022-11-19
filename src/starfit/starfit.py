@@ -988,25 +988,7 @@ class StarFit(Logged):
 
         labels = list()
         texlabels = list()
-
-        # Change the label of the summed line based on how many components there are
-        chi = rf"($\chi^2={self.sorted_fitness[num]:0.2f})$"
-        if len(indices) > 1:
-            sumlabel = f"Sum {chi}"
-        else:
-            sumlabel = f"{texlabels[0]} {chi}"
-
-        # Hidden line for legend purposes
-        ax.plot(
-            [None],
-            [None],
-            marker="^",
-            markerfacecolor="red",
-            markeredgecolor="red",
-            color="g",
-            lw=2.0,
-            label=sumlabel,
-        )
+        lines_used = list()
 
         for i, (offset, index) in enumerate(zip(offsets, indices)):
             raw = list()
@@ -1063,10 +1045,44 @@ class StarFit(Logged):
                         ref="full",
                         scale="lin",
                     )
+                    lines_used.append(next(linecycler))
                     ax.plot(
                         x_ga,
                         y_ga,
-                        linestyle=next(linecycler),
+                        linestyle=lines_used[-1],
+                        lw=1.3,
+                        color=colorsys.hsv_to_rgb(i * 360 / len(indices), 1, 1),
+                        # label=texlabels[i],
+                    )
+                else:
+                    lines_used.append("none")
+
+        # Change the label of the summed line based on how many components there are
+        chi = rf"($\chi^2={self.sorted_fitness[num]:0.2f})$"
+        if len(indices) > 1:
+            sumlabel = f"Sum {chi}"
+        else:
+            sumlabel = f"{texlabels[0]} {chi}"
+
+        # Hidden lines for legend purposes
+        ax.plot(
+            [None],
+            [None],
+            marker="^",
+            markerfacecolor="red",
+            markeredgecolor="red",
+            color="g",
+            lw=2.0,
+            label=sumlabel,
+        )
+
+        if len(indices) > 1:
+            for i, ls in enumerate(lines_used):
+                if multi == 0:
+                    ax.plot(
+                        [None],
+                        [None],
+                        linestyle=ls,
                         lw=1.3,
                         color=colorsys.hsv_to_rgb(i * 360 / len(indices), 1, 1),
                         label=texlabels[i],
