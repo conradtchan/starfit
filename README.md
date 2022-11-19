@@ -127,6 +127,7 @@ Plot parameters iclude
 - `num`: Number of solution, from the top (default: `0`).
 - `yscale`: select the y-scale of the plot.  Numerical value identical to those used for the star data formats.
 - `ynorm`: elemets to use a norm for `[X/Y]' plots (`yscale=3`).
+- `multi`: plot this many best solution as gray lines (default: `0`).
 - `save`: filename to save plot.
 - `range_det`: adjust range to include detection thresholds (default: `False`)
 - `range_lim`: adjust range to incoude detection limits (default: `True`)
