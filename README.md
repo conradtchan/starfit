@@ -127,7 +127,7 @@ Plot parameters iclude
 - `num`: Number of solution, from the top (default: `0`).
 - `yscale`: select the y-scale of the plot.  Numerical value identical to those used for the star data formats.
 - `ynorm`: elemets to use a norm for `[X/Y]' plots (`yscale=3`).
-- `multi`: plot this many best solution as gray lines (default: `0`).
+- `multi`: plot this many best solutions as gray lines (default: `0`).
 - `save`: filename to save plot.
 - `range_det`: adjust range to include detection thresholds (default: `False`)
 - `range_lim`: adjust range to incoude detection limits (default: `True`)
@@ -144,6 +144,8 @@ Plot parameters iclude
 - `dist`:  distance of lables from data points.
 - `fig`: figure object to use as canvas, otherwise as new figure is created.
 - `ax`: axis objects to use for drawing, otherwise axis and parent figure are created as needed.
+- `xlabel`: overwrite label for x-axis.
+- `ylabel`: overwrite label for y-axis.
 
 ## Full multi-star search
 

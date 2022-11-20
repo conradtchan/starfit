@@ -863,6 +863,8 @@ class StarFit(Logged):
         pad_abu=0.1,
         pad_det=0.05,
         multi=0,
+        xlabel=None,
+        ylabel=None,
     ):
         """Call plotting routines to plot the best fit."""
 
@@ -893,9 +895,11 @@ class StarFit(Logged):
         if fontsize is None:
             fontsize = 12
 
-        convert = Convert_from_5(self, yscale=yscale, ynorm=ynorm)
+        convert = Convert_from_5(self, yscale=yscale, ynorm=ynorm, ylabel=ylabel)
 
-        ax.set_xlabel("Element charge number", fontsize=fontsize)
+        if xlabel is None:
+            xlabel = "Element charge number"
+        ax.set_xlabel(xlabel, fontsize=fontsize)
         ax.set_ylabel(convert.ylabel, fontsize=fontsize)
         ax.set_yscale(convert.plot_scale)
 
@@ -1364,7 +1368,7 @@ class StarFit(Logged):
 
 
 class Convert_from_5(object):
-    def __init__(self, starfit, yscale=2, ynorm=None):
+    def __init__(self, starfit, yscale=2, ynorm=None, ylabel=None):
         self.yscale = yscale
         self.ynorm = ynorm
 
@@ -1409,6 +1413,8 @@ class Convert_from_5(object):
             self.plot_scale = "linear"
             self.det_lim = -20
 
+        self._ylabel = ylabel
+
     def __call__(self, y, ref=None, scale="log"):
         if scale == "lin":
             y = np.log10(y + 1.0e-99)
@@ -1447,6 +1453,8 @@ class Convert_from_5(object):
 
     @property
     def ylabel(self):
+        if self._ylabel is not None:
+            return self._ylabel
         return self._labels[self.yscale].format(norm=self.ynorm)
 
     def err(self, err):
