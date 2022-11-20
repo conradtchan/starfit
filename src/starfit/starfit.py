@@ -499,8 +499,8 @@ class StarFit(Logged):
         self,
         stars,
         offsets=None,
-        fixed_offsets=False,
         optimize=True,
+        **kwargs,
     ):
         """Solve for the specified stars"""
         stars = np.array(stars)
@@ -526,11 +526,11 @@ class StarFit(Logged):
             self.exclude_index,
             sol,
             self.ejecta,
-            fixed_offsets=fixed_offsets,
             cdf=self.cdf,
             local_search=local_search,
             limit_solver=self.limit_solver,
             limit_solution=self.limit_solution,
+            **kwargs,
         )
         return sol, fitness
 
@@ -1365,6 +1365,46 @@ class StarFit(Logged):
 
         if return_plot_data:
             return labels, (x_a, y_a)
+
+    def plot_matrix(self, num=0, zoom=1000, nlab=9):
+        stars = self.sorted_stars[[num]]
+        sol, fitness = self.run(
+            stars=stars["index"],
+            offsets=stars["offset"],
+            fixed_offsets=False,
+            optimize=False,
+            return_matrix=True,
+        )
+        fitness_m = fitness[0]
+
+        y = np.sign(fitness_m) * (
+            np.log10(np.abs(fitness_m) + 1 / zoom) + np.log10(zoom)
+        )
+
+        vmag = np.max(np.abs(y))
+
+        fig, ax = plt.subplots()
+        cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
+        cb = fig.colorbar(cm)
+        cb.set_label("contribution (scaled around zero)")
+        x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
+        cb.set_ticks(x)
+
+        y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
+
+        cb.set_ticklabels([f"{i:5.3f}" for i in y])
+
+        data = self.eval_data[~self.exclude_index]
+
+        ions = data.element
+        ticks = np.arange(len(ions)) + 0.5
+        labels = [i.Name() for i in ions]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(labels)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels(labels)
+
+        fig.tight_layout()
 
 
 class Convert_from_5(object):

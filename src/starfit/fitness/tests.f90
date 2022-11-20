@@ -1,7 +1,7 @@
 module tests
 
   use fitting, only: &
-       fitness
+       fitness, fitness_m
 
   use typedef, only: &
        real64, int64
@@ -153,5 +153,8 @@ contains
     end do
 
   end subroutine suite0
+
+
+
 
 end module tests

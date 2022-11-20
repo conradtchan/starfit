@@ -21,6 +21,24 @@ python module _solver ! in
             integer(kind=int64) intent(in) :: icdf
             integer(kind=int64) intent(in) :: flags
         end subroutine fitness_
+        subroutine fitness_m_(f,c,obs,err,det,cov,abu,nel,ncov,nstar,nsol,ls,icdf,flags) ! in :_solver:solver.f90
+            use fitting, only: fitness_m
+            use typedef, only: real64,int64
+            real(kind=real64) dimension(nsol,nel,nel),intent(out),depend(nsol,nel) :: f
+            real(kind=real64) dimension(nsol,nstar),intent(in,out) :: c
+            real(kind=real64) dimension(nel),intent(in) :: obs
+            real(kind=real64) dimension(nel),intent(in),depend(nel) :: err
+            real(kind=real64) dimension(nel),intent(in),depend(nel) :: det
+            real(kind=real64) dimension(nel,ncov),intent(in),depend(nel) :: cov
+            real(kind=real64) dimension(nsol,nstar,nel),intent(in),depend(nsol,nstar,nel) :: abu
+            integer(kind=int64), optional,intent(in),check(shape(obs, 0) == nel),depend(obs) :: nel=shape(obs, 0)
+            integer(kind=int64), optional,intent(in),check(shape(cov, 1) == ncov),depend(cov) :: ncov=shape(cov, 1)
+            integer(kind=int64), optional,intent(in),check(shape(c, 1) == nstar),depend(c) :: nstar=shape(c, 1)
+            integer(kind=int64), optional,intent(in),check(shape(c, 0) == nsol),depend(c) :: nsol=shape(c, 0)
+            integer(kind=int64) intent(in) :: ls
+            integer(kind=int64) intent(in) :: icdf
+            integer(kind=int64) intent(in) :: flags
+        end subroutine fitness_m_
     end interface
 end python module _solver
 
