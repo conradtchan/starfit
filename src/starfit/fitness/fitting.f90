@@ -12,7 +12,9 @@ module fitting
 
   integer(kind=int64), parameter :: &
        FLAGS_LIMIT_SOLUTION_BIT = 0, &
-       FLAGS_LIMITED_SOLVER_BIT = 1
+       FLAGS_LIMITED_SOLVER_BIT = 1, &
+       FLAGS_NO_CHI2 = 2
+
 
   private
 
@@ -29,7 +31,7 @@ module fitting
        wall_chi2_prime = .false.
 
   public :: &
-       fitness
+       fitness, fitness_m
 
 contains
 
@@ -46,6 +48,8 @@ contains
     !       set to limit sum of weight of all solutions to 1
     !    bit 1:
     !       use tanh solver that limits each solution to 1
+    !    bit 2:
+    !       do not compute final chi**2, only have adjusted offsets (c)
 
     use utils, only: &
          signan
@@ -187,11 +191,61 @@ contains
 
 1000 continue
 
+    if (btest(flags, FLAGS_NO_CHI2)) then
+       goto 2000
+    endif
     do k = 1, nsol
        call chi2(f(k), c(k,:), abu(k,:,:), nstar)
     enddo
 
+2000 continue
+
   end subroutine fitness
+
+
+  subroutine fitness_m(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
+
+    use utils, only: &
+         signan
+
+    use star_data, only: &
+         set_star_data, abu_covariance, &
+         init_ei2, &
+         init_covaricance_const
+
+    implicit none
+
+    integer(kind=int64), intent(in) :: &
+         nstar, nel, nsol, ncov, flags
+
+    real(kind=real64), dimension(nel), intent(in) :: &
+         obs, err, det
+    real(kind=real64), dimension(nel, ncov), intent(in) :: &
+         cov
+    real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
+         abu
+    integer(kind=int64), intent(in) :: &
+         ls
+    integer(kind=int64), intent(in) :: &
+         icdf
+
+    real(kind=real64), dimension(nsol, nel, nel), intent(out) :: &
+         f
+    real(kind=real64), dimension(nsol, nstar), intent(inout) :: &
+         c
+
+    integer(kind=int64) :: &
+         k, xflags
+
+    xflags = ibset(flags, FLAGS_NO_CHI2)
+
+    call fitness(f(:,1,1), c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, xflags)
+
+    do k = 1, nsol
+       call chi2m(f(k,:,:), c(k,:), abu(k,:,:), nstar)
+    enddo
+
+  end subroutine fitness_m
 
 
   subroutine chi2(f, c, abu, nstar)
@@ -254,6 +308,79 @@ contains
     endif
 
   end subroutine chi2
+
+
+  subroutine chi2m(f, c, abu, nstar)
+
+    use star_data, only: &
+         nel, &
+         icdf, obs, det, &
+         eri
+
+    use star_data, only: &
+         diff_covariance_m, &
+         iupper, idetec, ierinv, iuncor, &
+         nupper, ndetec, icovar, nuncor
+
+    use norm, only: &
+         logcdf, logcdfp
+
+    implicit none
+
+    integer(kind=int64), intent(in) :: &
+         nstar
+    real(kind=real64), intent(in), dimension(nstar)  :: &
+         c
+    real(kind=real64), intent(in), dimension(nstar, nel) :: &
+         abu
+
+    real(kind=real64), intent(out), dimension(nel, nel) :: &
+         f
+
+    real(kind=real64), dimension(nel) :: &
+         logy, diff_obs, diff_det
+    integer(kind=int64) :: &
+         i, i1
+
+    do i = 1, nel
+       logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
+    enddo
+
+    diff_obs(:) = logy(:) - obs(:)
+    diff_det(ierinv) = logy(ierinv) - det(ierinv)
+
+    f(:,:) = 0.d0
+    f(icovar,icovar) = diff_covariance_m(diff_obs)
+
+    do i1=1,nuncor
+       i = iuncor(i1)
+       f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
+    enddo
+    if (icdf == 0) then
+       do i1=1, nupper
+          i = iupper(i1)
+          if (diff_obs(i) > 0.d0) then
+             f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
+          endif
+       enddo
+       do i1=1, ndetec
+          i = idetec(i1)
+          if (diff_det(i) < 0.d0) then
+             f(i,i) = f(i,i) - (diff_det(i) * eri(i))**2
+          endif
+       enddo
+    else
+       do i1=1, nupper
+          i = iupper(i1)
+          f(i,i) = f(i,i) - 2.d0*logcdf(diff_obs(i) * eri(i))
+       enddo
+       do i1=1, ndetec
+          i = idetec(i1)
+          f(i,i) = f(i,i) + 2.d0*logcdf(diff_det(i) * eri(i))
+       enddo
+    endif
+
+  end subroutine chi2m
 
 
   subroutine chi2_prime(f1, f2, c)

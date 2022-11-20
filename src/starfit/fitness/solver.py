@@ -1,6 +1,6 @@
 import numpy as np
 
-from ._solver import fitness_
+from ._solver import fitness_, fitness_m_
 
 
 def check_offsets(offsets, flags, tag):
@@ -57,6 +57,7 @@ def fitness(
     local_search=True,
     limit_solution=None,
     limit_solver=None,
+    return_matrix=False,
 ):
 
     nsol = abu.shape[0]
@@ -96,7 +97,12 @@ def fitness(
     if ils is None:
         raise Exception(f"Unknown search option {local_search=}")
 
-    fitness, offset = fitness_(
+    if return_matrix:
+        fitness_x = fitness_m_
+    else:
+        fitness_x = fitness_
+
+    fitness, offset = fitness_x(
         c=offsets,
         obs=observed,
         err=error,

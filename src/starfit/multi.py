@@ -175,8 +175,7 @@ class Multi(StarFit):
             (sorting_size, self.sol_size),
             dtype=[("index", np.int64), ("offset", np.float64)],
         )
-        self.top_fitness = np.ndarray((sorting_size,), dtype=np.float64)
-        self.top_fitness[:] = np.inf
+        self.top_fitness = np.full((sorting_size,), np.inf, dtype=np.float64)
 
     def init_futures(self, threads=None, nice=19):
         if not self.silent:

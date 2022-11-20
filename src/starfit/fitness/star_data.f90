@@ -180,9 +180,11 @@ contains
 
     upper = err < 0.d0
     measu = .not.upper
-    covar = any(cov /= 0, 2).and.upper
+    covar = any(cov /= 0.d0, 2).and.measu
     uncor = .not.(upper.or.covar)
-    detec = measu(:).and.(det(:) > det_lim)
+    ! detec = measu(:).and.(det(:) > det_lim)
+    ! temporary fix
+    detec = measu(:).and.(det(:) > det_lim).and.uncor
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
     ernoi = .not.erinv
@@ -367,7 +369,7 @@ contains
        ert(iupper) = err(iupper)
     endif
     if (ncovar > 0) then
-       ert(icovar) = sqrt(sum(cov(icovar,:)**2, 2) + err(imeasu)**2)
+       ert(icovar) = sqrt(sum(cov(icovar,:)**2, 2) + err(icovar)**2)
     endif
     if (nuncor > 0) then
        ert(iuncor) = err(iuncor)
@@ -447,6 +449,57 @@ contains
     deallocate(part1, part2)
 
   end function diff_covariance
+
+
+  function diff_covariance_m(diff) result(xcov)
+
+    use mleqs, only: &
+         leqs
+
+    implicit none
+
+    real(kind=real64), dimension(:), intent(in) :: &
+         diff
+
+    real(kind=real64), dimension(ncovar, ncovar) :: &
+         xcov
+
+    real(kind=real64), dimension(:), allocatable  :: &
+         part1, part2
+
+    integer(kind=int64) :: &
+         i
+
+    if (size(diff, 1) /= nel) then
+       print*, '[diff_covariance] size(diff, 1) = ', size(diff, 1), &
+            'expected nel = ', nel
+       error stop '[diff_covariance] diff dimension mismatch'
+    endif
+
+    if (ncovar == 0) then
+       return
+    endif
+
+    allocate(part1(ncovar))
+    part1 = diff(icovar)
+    if (use_inverse) then
+       do i=1, ncovar
+          xcov(i,:) = mm1(i,:) * part1(i) * part1(:)
+       enddo
+    else
+       allocate(part2(ncovar))
+       do i=1, ncovar
+          part2(:) = 0.d0
+          part2(i) = part1(i)
+          part2(:) = leqs(mm, part2, ncovar)
+          xcov(i,:) = part2(:) * part1(:)
+       enddo
+       deallocate(part2)
+    endif
+
+    deallocate(part1)
+
+  end function diff_covariance_m
 
 
   function diff_z(diff) result(xz)
