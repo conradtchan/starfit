@@ -99,9 +99,9 @@ contains
 
     call init_check_errors()
     call init_domains()
+    call init_covariance_matrix()
     call init_ert()
     call init_eri()
-    call init_covariance_matrix()
     call init_inverse()
     call init_check_thresholds()
 
@@ -182,9 +182,10 @@ contains
     measu = .not.upper
     covar = any(cov /= 0.d0, 2).and.measu
     uncor = .not.(upper.or.covar)
-    ! detec = measu(:).and.(det(:) > det_lim)
+    ! original (as it should be)
+    detec = measu(:).and.(det(:) > det_lim)
     ! temporary fix
-    detec = measu(:).and.(det(:) > det_lim).and.uncor
+    ! detec = measu(:).and.(det(:) > det_lim).and.uncor
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
     ernoi = .not.erinv
@@ -222,7 +223,7 @@ contains
     implicit none
 
     integer(kind=int64) :: &
-         i, j, k, ie, je
+         i, j, ie, je
 
     if (ncovar == 0) then
        return
@@ -236,18 +237,11 @@ contains
 
     do i=1, ncovar
        ie = icovar(i)
-       mm(i,i) = err(ie)**2
-       do j=1,i
-          if (j < i) then
-             mm(i,j) = 0.0d0
-          endif
+       mm(i,i) = err(ie)**2 + sum(cov(ie,:)**2)
+       do j=1,i-1
           je = icovar(j)
-          do k = 1, ncov
-             mm(i,j) = mm(i,j) + cov(ie,k) * cov(je,k)
-          enddo
-          if (j < i) then
-             mm(j,i) = mm(i,j)
-          endif
+          mm(i,j) = sum(cov(ie,:) * cov(je,:))
+          mm(j,i) = mm(i,j)
        enddo
     enddo
 
@@ -359,6 +353,9 @@ contains
 
     implicit none
 
+    integer(kind=int64) :: &
+         i
+
     if (allocated(ert)) then
        deallocate(ert)
     endif
@@ -369,7 +366,9 @@ contains
        ert(iupper) = err(iupper)
     endif
     if (ncovar > 0) then
-       ert(icovar) = sqrt(sum(cov(icovar,:)**2, 2) + err(icovar)**2)
+       do i=1,ncovar
+          ert(icovar(i)) = sqrt(mm(i,i))
+       enddo
     endif
     if (nuncor > 0) then
        ert(iuncor) = err(iuncor)

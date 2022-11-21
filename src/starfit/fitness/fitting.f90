@@ -133,18 +133,18 @@ contains
        call init_covaricance_const()
        if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
           do k = 1, nsol
-             call newton(c(k,:), abu(k,:,:), nstar, ierr)
+             call newton_tanh(c(k,:), abu(k,:,:), nstar, ierr)
              if (ierr == 1) then
-                call psolve(c(k,:), abu(k,:,:), nstar)
-                call newton(c(k,:), abu(k,:,:), nstar, ierr)
+                call psolve_tanh(c(k,:), abu(k,:,:), nstar)
+                call newton_tanh(c(k,:), abu(k,:,:), nstar, ierr)
              endif
           enddo
        else
           do k = 1, nsol
-             call newton2(c(k,:), abu(k,:,:), nstar, ierr)
+             call newton_log(c(k,:), abu(k,:,:), nstar, ierr)
              if (ierr == 1) then
-                call psolve2(c(k,:), abu(k,:,:), nstar)
-                call newton2(c(k,:), abu(k,:,:), nstar, ierr)
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+                call newton_log(c(k,:), abu(k,:,:), nstar, ierr)
              endif
           enddo
        end if
@@ -157,7 +157,7 @@ contains
        do k = 1, nsol
           call newton_classic(c(k,:), abu(k,:,:), nstar, ierr)
           if (ierr == 1) then
-             call psolve(c(k,:), abu(k,:,:), nstar)
+             call psolve_tanh(c(k,:), abu(k,:,:), nstar)
              call newton_classic(c(k,:), abu(k,:,:), nstar, ierr)
           endif
        enddo
@@ -168,11 +168,11 @@ contains
 
        if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
           do k = 1, nsol
-             call psolve(c(k,:), abu(k,:,:), nstar)
+             call psolve_tanh(c(k,:), abu(k,:,:), nstar)
           enddo
        else
           do k = 1, nsol
-             call psolve2(c(k,:), abu(k,:,:), nstar)
+             call psolve_log(c(k,:), abu(k,:,:), nstar)
           enddo
        endif
     endif
@@ -303,8 +303,8 @@ contains
           endif
        enddo
     else
-       f = f - 2.d0* sum(logcdf(diff_obs(iupper) * eri(iupper)))
-       f = f + 2.d0* sum(logcdf(diff_det(idetec) * eri(idetec)))
+       f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
+       f = f + 2.d0 * sum(logcdf(diff_det(idetec) * eri(idetec)))
     endif
 
   end subroutine chi2
@@ -372,11 +372,11 @@ contains
     else
        do i1=1, nupper
           i = iupper(i1)
-          f(i,i) = f(i,i) - 2.d0*logcdf(diff_obs(i) * eri(i))
+          f(i,i) = f(i,i) - 2.d0 * logcdf(diff_obs(i) * eri(i))
        enddo
        do i1=1, ndetec
           i = idetec(i1)
-          f(i,i) = f(i,i) + 2.d0*logcdf(diff_det(i) * eri(i))
+          f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * eri(i))
        enddo
     endif
 
@@ -672,7 +672,7 @@ contains
   end subroutine newton_classic
 
 
-  subroutine newton_prime(f1, f2, x)
+  subroutine newton_tanh_prime(f1, f2, x)
 
     use abu_data, only: &
          nstar
@@ -744,10 +744,10 @@ contains
        endif
     enddo
 
-  end subroutine newton_prime
+  end subroutine newton_tanh_prime
 
 
-  subroutine newton(c, abu, nstar, ierr)
+  subroutine newton_tanh(c, abu, nstar, ierr)
 
     ! based on apprach used for psolve
 
@@ -811,7 +811,7 @@ contains
     x = atanh(max(min(c(:), ALMOST_ONE), 1e-12) * 2.d0 - 1.d0)
 
     do iter = 1, max_steps
-       call newton_prime(f1, f2, x)
+       call newton_tanh_prime(f1, f2, x)
        dx(:) = leqs(f2, f1, nstar)
        dxr = maxval(abs(dx))
        if (dxr > FMIN) then
@@ -841,10 +841,10 @@ contains
     ierr = 0
     c(:) = 0.5d0 * (1.d0 + tanh(x(:)))
 
-  end subroutine newton
+  end subroutine newton_tanh
 
 
-  subroutine newton2_prime(f1, f2, x)
+  subroutine newton_log_prime(f1, f2, x)
 
     use abu_data, only: &
          nstar
@@ -902,10 +902,10 @@ contains
        endif
     enddo
 
-  end subroutine newton2_prime
+  end subroutine newton_log_prime
 
 
-  subroutine newton2(c, abu, nstar, ierr)
+  subroutine newton_log(c, abu, nstar, ierr)
 
     ! based on apprach used for psolve
 
@@ -969,7 +969,7 @@ contains
     x = log(max(c(:), 1e-12))
 
     do iter = 1, max_steps
-       call newton2_prime(f1, f2, x)
+       call newton_log_prime(f1, f2, x)
        dx(:) = leqs(f2, f1, nstar)
        dxr = maxval(abs(dx))
        if (dxr > FMIN) then
@@ -999,7 +999,7 @@ contains
     ierr = 0
     c = exp(x)
 
-  end subroutine newton2
+  end subroutine newton_log
 
 
   subroutine single_prime(x, f1, f2)
@@ -1274,7 +1274,7 @@ contains
   end subroutine analytic_solve
 
 
-  subroutine psolve_chi2(nstar, x, f)
+  subroutine psolve_tanh_chi2(nstar, x, f)
 
     use abu_data, only: &
          abu
@@ -1314,10 +1314,10 @@ contains
        endif
     enddo
 
-  end subroutine psolve_chi2
+  end subroutine psolve_tanh_chi2
 
 
-  subroutine psolve(c, abu, nstar)
+  subroutine psolve_tanh(c, abu, nstar)
 
     use utils, only: &
          signan
@@ -1378,16 +1378,16 @@ contains
 
     ! Call solver
 
-    call uobyqa(psolve_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
+    call uobyqa(psolve_tanh_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
 
     ! Convert solver space to offsets
 
     c = 0.5d0 * (1.d0 + tanh(x))
 
-  end subroutine psolve
+  end subroutine psolve_tanh
 
 
-  subroutine psolve2_chi2(nstar, x, f)
+  subroutine psolve_log_chi2(nstar, x, f)
 
     use abu_data, only: &
          abu
@@ -1427,10 +1427,10 @@ contains
        endif
     enddo
 
-  end subroutine psolve2_chi2
+  end subroutine psolve_log_chi2
 
 
-  subroutine psolve2(c, abu, nstar)
+  subroutine psolve_log(c, abu, nstar)
 
     use utils, only: &
          signan
@@ -1487,12 +1487,12 @@ contains
 
     ! Call solver
 
-    call uobyqa(psolve2_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
+    call uobyqa(psolve_log_chi2, nstar, x, rhobeg, rhoend, iprint, calls)
 
     ! Convert solver space to offsets
 
     c = exp(x)
 
-  end subroutine psolve2
+  end subroutine psolve_log
 
 end module fitting
