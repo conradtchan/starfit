@@ -40,6 +40,9 @@ contains
     ! If localsearch is enabled, adjust all offsets first
     ! otherwise keep relative weights fixed
     ! If ls < 0, only return chi2, no optimisation
+    ! If ls == 0, no local search (fixed relative weights)
+    ! If ls == 1, fastesy local search
+    ! If ls == 2, force use of psolve
     ! If ls == 2, force use of psolve
     ! if ls == 3, use classic NR solver (not recommended)
     !
@@ -57,7 +60,8 @@ contains
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
-         init_covaricance_const
+         init_covaricance_const, &
+         ndetco
 
     implicit none
 
@@ -98,7 +102,7 @@ contains
        goto 1000
     endif
 
-    if ((ls == 0).and.(nstar == 1)) then
+    if ((ls == 0).and.(nstar == 1).and.(ndetco == 0)) then
        call init_ei2()
        call init_covaricance_const()
        if (icdf == 0) then
@@ -116,16 +120,20 @@ contains
           do i = 1, nel
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
-          call init_ei2()
-          call init_covaricance_const()
-          if (icdf == 0) then
-             call analytic_solve(scale, y)
+          if (ndetco > 0) then
+             call psolve_tanh(c(k,:), abu(k,:,:), nstar)
           else
-             call single_solve(scale, y)
+             call init_ei2()
+             call init_covaricance_const()
+             if (icdf == 0) then
+                call analytic_solve(scale, y)
+             else
+                call single_solve(scale, y)
+             endif
           endif
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
-    else if ((ls == 1).and.(icdf == 1)) then
+    else if ((ls == 1).and.(icdf == 1).and.(ndetco == 0)) then
 
        ! NR solver with modified x-axis
 
@@ -148,7 +156,7 @@ contains
              endif
           enddo
        end if
-    else if ((ls == 3).and.(icdf == 1)) then
+    else if ((ls == 3).and.(icdf == 1).and.(ndetco == 0)) then
 
        ! classical NR solver that converges poorly due to stiffness of log/exp
 
@@ -253,12 +261,13 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         eri
+         eri, &
+         mm1
 
     use star_data, only: &
          diff_covariance, &
-         iupper, idetec, ierinv, iuncor, &
-         nupper, ndetec
+         iupper, ierinv, iuncor, idetuc, idetco, &
+         nupper, ielcov, ndetco, ndetuc
 
     use norm, only: &
          logcdf, logcdfp
@@ -277,8 +286,10 @@ contains
 
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
+    real(kind=real64) :: &
+         mx1, mx2
     integer(kind=int64) :: &
-         i, i1
+         i, i1, im, j, j1, jm
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -296,15 +307,46 @@ contains
              f = f + (diff_obs(i) * eri(i))**2
           endif
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f = f - (diff_det(i) * eri(i))**2
           endif
        enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          im = ielcov(i)
+          if (diff_det(i) < 0.d0) then
+             f = f - diff_det(i)**2 * mm1(im, im)
+          endif
+          do j1=1, i1-1
+             j = idetco(j1)
+             jm = ielcov(j)
+             if (diff_det(i) < 0.d0) then
+                f = f - 2.d0 * diff_det(i)**2 * mm1(im, jm)
+             endif
+             if (diff_det(j) < 0.d0) then
+                f = f - 2.d0 * diff_det(j)**2 * mm1(im, jm)
+             end if
+          enddo
+       enddo
     else
        f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
-       f = f + 2.d0 * sum(logcdf(diff_det(idetec) * eri(idetec)))
+       f = f + 2.d0 * sum(logcdf(diff_det(idetuc) * eri(idetuc)))
+
+       do i1=1,ndetco
+          i = idetco(i1)
+          im = ielcov(i)
+          f = f + 2.d0 * logcdf(diff_det(i) * sqrt(mm1(im, im)))
+          do j1=1, i1-1
+             j = idetco(j1)
+             jm = ielcov(j)
+             mx1 = mm1(im, jm)
+             mx2 = sqrt(abs(mx1))
+             f = f + sign(2.d0, mx1) * &
+                  (logcdf(diff_det(i) * mx2) + logcdf(diff_det(j) * mx2))
+          enddo
+       enddo
     endif
 
   end subroutine chi2
