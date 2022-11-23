@@ -272,7 +272,7 @@ contains
 
     use star_data, only: &
          diff_covariance, &
-         iupper, ierinv, iuncor, idetuc, idetco, &
+         iupper, iuncor, idetuc, idetco, &
          nupper, ndetco, ndetuc
 
     use norm, only: &
@@ -302,7 +302,7 @@ contains
     enddo
 
     diff_obs(:) = logy(:) - obs(:)
-    diff_det(ierinv) = logy(ierinv) - det(ierinv)
+    diff_det(:) = logy(:) - det(:)
 
     f = diff_covariance(diff_obs)
     f = f + sum((diff_obs(iuncor) * eri(iuncor))**2)
@@ -337,7 +337,6 @@ contains
     else
        f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
        f = f + 2.d0 * sum(logcdf(diff_det(idetuc) * eri(idetuc)))
-
        do i1=1,ndetco
           i = idetco(i1)
           f = f + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
@@ -363,7 +362,7 @@ contains
 
     use star_data, only: &
          diff_covariance_m, &
-         iupper, ierinv, iuncor, idetco, idetuc, icovar, &
+         iupper, iuncor, idetco, idetuc, icovar, &
          nupper, ndetco, ndetuc, nuncor
 
     use norm, only: &
@@ -393,7 +392,7 @@ contains
     enddo
 
     diff_obs(:) = logy(:) - obs(:)
-    diff_det(ierinv) = logy(ierinv) - det(ierinv)
+    diff_det(:) = logy(:) - det(:)
 
     f(:,:) = 0.d0
     f(icovar,icovar) = diff_covariance_m(diff_obs)

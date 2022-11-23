@@ -282,6 +282,11 @@ contains
 
     implicit none
 
+    integer(kind=int64), dimension(:), allocatable :: &
+         jdetco
+    integer(kind=int64) :: &
+         i, j
+
     if (ndetco == 0) then
        return
     endif
@@ -294,7 +299,17 @@ contains
        deallocate(m1q, m1s, m1c)
     endif
 
-    m1c = mm1(idetco, idetco)
+    allocate(jdetco(ndetco))
+
+    j = 0
+    do i = 1, ncovar
+       if (detco(icovar(i))) then
+          j = j + 1
+          jdetco(j) = i
+       end if
+    end do
+
+    m1c = mm1(jdetco, jdetco)
     m1q = sqrt(abs(m1c))
     m1s = sign(1.d0, m1c)
 
