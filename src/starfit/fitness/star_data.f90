@@ -37,10 +37,10 @@ module star_data
        ndetco, ndetuc
   integer(kind=int64), dimension(:), allocatable :: &
        iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi, &
-       idetco, idetuc, ielcov
+       idetco, idetuc
 
   real(kind=real64), dimension(:, :), allocatable :: &
-       mm, mm1
+       mm, mm1, m1q, m1s, m1c
   real(kind=real64), dimension(:), allocatable :: &
        zvp, zv, &
        ert, eri, ei2
@@ -106,6 +106,7 @@ contains
     call init_ert()
     call init_eri()
     call init_inverse()
+    call init_matrix_errors()
     call init_check_thresholds()
 
   end subroutine set_star_data
@@ -174,24 +175,6 @@ contains
     integer(kind=int64) :: &
          i
 
-    ! if (allocated(upper)) then
-    !    deallocate(upper, covar, uncor, measu, detec, nocov, erinv, ernoi, &
-    !         detco, detuc)
-    !    if (allocated(iupper)) deallocate(iupper)
-    !    if (allocated(icovar)) deallocate(icovar)
-    !    if (allocated(iuncor)) deallocate(iuncor)
-    !    if (allocated(imeasu)) deallocate(imeasu)
-    !    if (allocated(idetec)) deallocate(idetec)
-    !    if (allocated(inocov)) deallocate(inocov)
-    !    if (allocated(ierinv)) deallocate(ierinv)
-    !    if (allocated(iernoi)) deallocate(iernoi)
-    !    if (allocated(idetco)) deallocate(idetco)
-    !    if (allocated(idetuc)) deallocate(idetuc)
-    ! endif
-    if (allocated(ielcov)) deallocate(ielcov)
-
-    ! find masks for correlated, uncorreclated, and limit errors
-
     upper = err < 0.d0
     measu = .not.upper
     covar = any(cov /= 0.d0, 2).and.measu
@@ -228,12 +211,6 @@ contains
     iernoi = pack(ii, ernoi)
     idetco = pack(ii, detco)
     idetuc = pack(ii, detuc)
-
-    allocate(ielcov(nel))
-    ielcov(:) = 0
-    do i=1, ncovar
-       ielcov(icovar(i)) = i
-    enddo
 
   end subroutine init_domains
 
@@ -299,6 +276,29 @@ contains
     mm1 = inverse(mm, ncovar)
 
   end subroutine init_inverse
+
+
+  subroutine init_matrix_errors
+
+    implicit none
+
+    if (ndetco == 0) then
+       return
+    endif
+
+    if (.not.allocated(mm1)) then
+       error stop '[init_matrix_errors] inverse matrix mm1 not present'
+    endif
+
+    if (allocated(m1q)) then
+       deallocate(m1q, m1s, m1c)
+    endif
+
+    m1c = mm1(idetco, idetco)
+    m1q = sqrt(abs(m1c))
+    m1s = sign(1.d0, m1c)
+
+  end subroutine init_matrix_errors
 
 
   subroutine init_covaricance_const

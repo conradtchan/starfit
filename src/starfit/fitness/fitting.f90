@@ -262,13 +262,12 @@ contains
          nel, &
          icdf, obs, det, &
          eri, &
-         mm1
+         m1c, m1q, m1s
 
     use star_data, only: &
          diff_covariance, &
          iupper, ierinv, iuncor, idetuc, idetco, &
-         nupper, ndetco, ndetuc, &
-         ielcov
+         nupper, ndetco, ndetuc
 
     use norm, only: &
          logcdf, logcdfp
@@ -288,9 +287,9 @@ contains
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
     real(kind=real64) :: &
-         mx1, mx2
+         mx
     integer(kind=int64) :: &
-         i, i1, im, j, j1, jm
+         i, i1, j, j1
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -316,18 +315,16 @@ contains
        enddo
        do i1=1,ndetco
           i = idetco(i1)
-          im = ielcov(i)
           if (diff_det(i) < 0.d0) then
-             f = f - diff_det(i)**2 * mm1(im, im)
+             f = f - diff_det(i)**2 * m1c(i1, i1)
           endif
           do j1=1, i1-1
              j = idetco(j1)
-             jm = ielcov(j)
              if (diff_det(i) < 0.d0) then
-                f = f - 2.d0 * diff_det(i)**2 * mm1(im, jm)
+                f = f - 2.d0 * diff_det(i)**2 * m1c(i1, j1)
              endif
              if (diff_det(j) < 0.d0) then
-                f = f - 2.d0 * diff_det(j)**2 * mm1(im, jm)
+                f = f - 2.d0 * diff_det(j)**2 * m1c(i1, j1)
              end if
           enddo
        enddo
@@ -337,15 +334,12 @@ contains
 
        do i1=1,ndetco
           i = idetco(i1)
-          im = ielcov(i)
-          f = f + 2.d0 * logcdf(diff_det(i) * sqrt(mm1(im, im)))
+          f = f + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
           do j1=1, i1-1
              j = idetco(j1)
-             jm = ielcov(j)
-             mx1 = mm1(im, jm)
-             mx2 = sqrt(abs(mx1))
-             f = f + sign(2.d0, mx1) * &
-                  (logcdf(diff_det(i) * mx2) + logcdf(diff_det(j) * mx2))
+             mx = m1q(i1, j1)
+             f = f + 2.d0 * m1s(i1, j1) * &
+                  (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
           enddo
        enddo
     endif
@@ -359,13 +353,12 @@ contains
          nel, &
          icdf, obs, det, &
          eri, &
-         mm1
+         m1c, m1q, m1s
 
     use star_data, only: &
          diff_covariance_m, &
          iupper, ierinv, iuncor, idetco, idetuc, icovar, &
-         nupper, ndetco, ndetuc, nuncor, &
-         ielcov
+         nupper, ndetco, ndetuc, nuncor
 
     use norm, only: &
          logcdf, logcdfp
@@ -385,9 +378,9 @@ contains
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
     real(kind=real64) :: &
-         mx1, mx2, g
+         mx
     integer(kind=int64) :: &
-         i, i1, im, j, j1, jm
+         i, i1, j, j1
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -418,22 +411,16 @@ contains
        enddo
        do i1=1,ndetco
           i = idetco(i1)
-          im = ielcov(i)
           if (diff_det(i) < 0.d0) then
-             f(i,i) = f(i,i) - diff_det(i)**2 * mm1(im, im)
+             f(i,i) = f(i,i) - diff_det(i)**2 * m1c(i1, i1)
           endif
           do j1=1, i1-1
              j = idetco(j1)
-             jm = ielcov(j)
              if (diff_det(i) < 0.d0) then
-                g = - diff_det(i)**2 * mm1(im, jm)
-                f(i,j) = f(i,j) + g
-                f(j,i) = f(j,i) + g
+                f(i,j) = f(i,j) - diff_det(i)**2 * m1c(i1, j1)
              endif
              if (diff_det(j) < 0.d0) then
-                g = - diff_det(j)**2 * mm1(im, jm)
-                f(i,j) = f(i,j) + g
-                f(j,i) = f(j,i) + g
+                f(i,j) = f(i,j) - diff_det(j)**2 * m1c(i1, j1)
              end if
           enddo
        enddo
@@ -448,20 +435,25 @@ contains
        enddo
        do i1=1,ndetco
           i = idetco(i1)
-          im = ielcov(i)
-          f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * sqrt(mm1(im, im)))
+          f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
           do j1=1, i1-1
              j = idetco(j1)
-             jm = ielcov(j)
-             mx1 = mm1(im, jm)
-             mx2 = sqrt(abs(mx1))
-             g = sign(2.d0, mx1) * &
-                  (logcdf(diff_det(i) * mx2) + logcdf(diff_det(j) * mx2))
-             f(i,j) = f(i,j) + g
-             f(j,i) = f(j,i) + g
+             mx = m1q(i1, j1)
+             f(i,j) = m1s(i1, j1) * &
+                  (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
           enddo
        enddo
     endif
+
+    ! copy symmetric elements
+
+    do i1=1, ndetco
+       i = idetco(i1)
+       do j1=1, i1-1
+          j = idetco(j1)
+          f(j,i) = f(i,j)
+       enddo
+    enddo
 
   end subroutine chi2m
 
