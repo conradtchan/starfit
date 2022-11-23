@@ -263,6 +263,38 @@ or if the `full` parameter is specified to the `print` method
 s.print(full=True)
 ```
 
+## Error matrix plots
+
+The `StarFit` object provide three functions analyse error and plot error contributions.
+
+### Error matrix of data
+
+`plot_star_matrix` plots the error as computed/used by the fitter.
+
+Arguments are
+- `zoom`: How much to zoom in around zero.  Use `False` to disable. (default: `1000`)
+- `nlab`: How many labels to draw on the colorbar (default: `9`).
+- `compress`: Whether to skip elements for which there are no measurements (default: True).
+
+### Inverse of error matrix of data
+
+`plot_star_inverse` plots the inverted error matrix as computed/used by the fitter.
+
+Arguments are
+- `zoom`: How much to zoom in around zero.  Use `False` to disable. (default: `0.1`)
+- `nlab`: How many labels to draw on the colorbar (default: `9`).
+- `compress`: Whether to skip elements for which there are no measurements (default: True).
+
+### Error contributions as computed
+
+`plot_error_matrix` plots the error contributions as computed by the fitter for a given star.
+
+Arguments are
+- `num`: Number of solution to plot, counted from the best (default: `0`).
+- `zoom`: How much to zoom in around zero.  Use `False` to disable. (default: `1000`)
+- `nlab`: How many labels to draw on the colorbar (default: `9`).
+
+
 # Custom data directory
 Custom stellar data and model database files can always be used by providing a full path in the argument. However, users may optionally specify their own data directory using the environment variable `STARFIT_DATA` for convenience:
 ```shell

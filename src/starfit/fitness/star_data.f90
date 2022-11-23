@@ -637,4 +637,50 @@ contains
 
   end function reduced_diff_zv
 
+
+  subroutine get_complete_matrix(m)
+
+    implicit none
+
+    real(kind=real64), dimension(nel, nel) :: &
+         m
+
+    integer(kind=int64) :: &
+         i, i1
+
+    m(:,:) = 0.d0
+
+    if (ncovar > 0) then
+       m(icovar, icovar) = mm(:,:)
+    endif
+    do i1 = 1, nuncor
+       i = iuncor(i1)
+       m(i,i) = err(i)
+    enddo
+
+  end subroutine get_complete_matrix
+
+
+  subroutine get_complete_inverse(m1)
+
+    implicit none
+
+    real(kind=real64), dimension(nel, nel) :: &
+         m1
+
+    integer(kind=int64) :: &
+         i, i1
+
+    m1(:,:) = 0.d0
+
+    if (ncovar > 0) then
+       m1(icovar, icovar) = mm1(:,:)
+    endif
+    do i1 = 1, nuncor
+       i = iuncor(i1)
+       m1(i,i) = ei2(i)
+    enddo
+
+  end subroutine get_complete_inverse
+
 end module star_data

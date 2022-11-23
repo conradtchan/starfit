@@ -20,6 +20,7 @@ from .autils.physconst import MSUN
 from .autils.stardb import StarDB
 from .autils.utils import index1d, is_iterable
 from .fit import get_fitness
+from .fitness.solver import get_complete_inverse, get_complete_matrix
 from .star import LOW, Star
 from .starplot import (
     IntFormatter,
@@ -1366,7 +1367,7 @@ class StarFit(Logged):
         if return_plot_data:
             return labels, (x_a, y_a)
 
-    def plot_matrix(self, num=0, zoom=1000, nlab=9):
+    def plot_error_matrix(self, num=0, zoom=1000, nlab=9):
         stars = self.sorted_stars[[num]]
         sol, fitness = self.run(
             stars=stars["index"],
@@ -1375,28 +1376,104 @@ class StarFit(Logged):
             optimize=False,
             return_matrix=True,
         )
-        fitness_m = fitness[0]
+        m = fitness[0]
 
-        y = np.sign(fitness_m) * (
-            np.log10(np.abs(fitness_m) + 1 / zoom) + np.log10(zoom)
-        )
+        if zoom is not False:
+            y = np.sign(m) * (np.log10(np.abs(m) + 1 / zoom) + np.log10(zoom))
+            scale = " (scaled around zero)"
+        else:
+            y = m
+            scale = ""
 
         vmag = np.max(np.abs(y))
 
         fig, ax = plt.subplots()
         cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
         cb = fig.colorbar(cm)
-        cb.set_label("contribution (scaled around zero)")
-        x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
-        cb.set_ticks(x)
-
-        y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
-
-        cb.set_ticklabels([f"{i:5.3f}" for i in y])
+        cb.set_label(f"error contribution{scale}")
+        if zoom is not False:
+            x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
+            cb.set_ticks(x)
+            y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
+            cb.set_ticklabels([f"{i:5.3f}" for i in y])
 
         data = self.eval_data[~self.exclude_index]
 
         ions = data.element
+        ticks = np.arange(len(ions)) + 0.5
+        labels = [i.Name() for i in ions]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(labels)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels(labels)
+
+        fig.tight_layout()
+
+    def plot_star_matrix(self, zoom=1000, nlab=9, compress=True):
+
+        m = get_complete_matrix(self.star, self.cdf)
+        if zoom is not False:
+            y = np.sign(m) * (np.log10(np.abs(m) + 1 / zoom) + np.log10(zoom))
+            scale = " (scaled around zero)"
+        else:
+            y = m
+            scale = ""
+
+        ions = self.star.element_abundances.element
+        if compress:
+            ii = np.any(y != 0.0, axis=0)
+            y = y[ii][:, ii]
+            ions = ions[ii]
+
+        vmag = np.max(np.abs(y))
+
+        fig, ax = plt.subplots()
+        cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
+        cb = fig.colorbar(cm)
+        cb.set_label(f"matrix elements{scale}")
+        if zoom is not False:
+            x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
+            cb.set_ticks(x)
+            y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
+            cb.set_ticklabels([f"{i:5.3f}" for i in y])
+
+        ticks = np.arange(len(ions)) + 0.5
+        labels = [i.Name() for i in ions]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(labels)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels(labels)
+
+        fig.tight_layout()
+
+    def plot_star_inverse(self, zoom=0.1, nlab=9, compress=True):
+
+        m = get_complete_inverse(self.star, self.cdf)
+        if zoom is not False:
+            y = np.sign(m) * (np.log10(np.abs(m) + 1 / zoom) + np.log10(zoom))
+            scale = " (scaled around zero)"
+        else:
+            y = m
+            scale = ""
+
+        ions = self.star.element_abundances.element
+        if compress:
+            ii = np.any(y != 0.0, axis=0)
+            y = y[ii][:, ii]
+            ions = ions[ii]
+
+        vmag = np.max(np.abs(y))
+
+        fig, ax = plt.subplots()
+        cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
+        cb = fig.colorbar(cm)
+        cb.set_label(f"inverse matrix elements{scale}")
+        if zoom is not False:
+            x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
+            cb.set_ticks(x)
+            y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
+            cb.set_ticklabels([f"{i:5.3f}" for i in y])
+
         ticks = np.arange(len(ions)) + 0.5
         labels = [i.Name() for i in ions]
         ax.set_xticks(ticks)
