@@ -1,3 +1,3 @@
-f2py -m _solver -h solver.pyf --f2cmap .f2py_f2cmap solver.f90 only: fitness_ fitness_m_ :
+f2py -m _solver -h solver.pyf --f2cmap .f2py_f2cmap solver.f90 only: fitness_ fitness_m_ get_complete_matrix_ :
 
 edit solver.pyf to remove all but the fitness_ function

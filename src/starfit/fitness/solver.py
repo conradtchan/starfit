@@ -1,6 +1,6 @@
 import numpy as np
 
-from ._solver import fitness_, fitness_m_
+from ._solver import fitness_, fitness_m_, get_complete_inverse_, get_complete_matrix_
 
 
 def check_offsets(offsets, flags, tag):
@@ -121,3 +121,41 @@ def fitness(
     check_offsets(offset, flags, "RESULT")
 
     return fitness, offset
+
+
+def get_complete_matrix(star, cdf):
+    if cdf:
+        icdf = 1
+    else:
+        icdf = 0
+
+    m = get_complete_matrix_(
+        obs=star.element_abundances.abundance,
+        err=star.element_abundances.error,
+        det=star.element_abundances.detection,
+        cov=star.element_abundances.covariance,
+        nel=star.element_abundances.shape[0],
+        ncov=star.element_abundances.covariance.shape[1],
+        icdf=icdf,
+    )
+
+    return m
+
+
+def get_complete_inverse(star, cdf):
+    if cdf:
+        icdf = 1
+    else:
+        icdf = 0
+
+    m = get_complete_inverse_(
+        obs=star.element_abundances.abundance,
+        err=star.element_abundances.error,
+        det=star.element_abundances.detection,
+        cov=star.element_abundances.covariance,
+        nel=star.element_abundances.shape[0],
+        ncov=star.element_abundances.covariance.shape[1],
+        icdf=icdf,
+    )
+
+    return m
