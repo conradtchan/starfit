@@ -1446,7 +1446,7 @@ class StarFit(Logged):
 
         fig.tight_layout()
 
-    def plot_star_inverse(self, zoom=10, nlab=9, compress=True):
+    def plot_star_inverse(self, zoom=0.1, nlab=9, compress=True):
 
         m = get_complete_inverse(self.star, self.cdf)
         if zoom is not False:
