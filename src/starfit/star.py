@@ -278,7 +278,7 @@ class Star(Logged):
 
     def __init__(self, filename, silent=False):
         self.silent = silent
-        self.setup_logger(silent=silent)
+        self.setup_logger(silent=self.silent)
 
         filename = find_data(STARS, filename)
 
@@ -370,7 +370,8 @@ class Star(Logged):
     def _read(self, filename):
         self.setup_logger(silent=self.silent)
         with open(filename, "rt") as f:
-            self.logger_file_info(f)
+            if not self.silent:
+                self.logger_file_info(f)
             # Initialize empty array for reading each line
             content = []
             # Initialize the count for number of elements
@@ -494,7 +495,8 @@ class Star(Logged):
         # Since the format has been converted, adjust the number accordingly
         self.data_format = 5
 
-        self.close_logger(timing=" Star loaded and converted in")
+        if not self.silent:
+            self.close_logger(timing=" Star loaded and converted in")
 
     def _convert5(self, array, data_format, norm_element):
         """
@@ -646,9 +648,10 @@ class Star(Logged):
     def _bbn(self):
         """Adds BBN data for H and He to the star"""
         self.setup_logger(silent=self.silent)
-        self.logger.info(
-            "Adding BBN upper limits of H and He into star data if missing"
-        )
+        if not self.silent:
+            self.logger.info(
+                "Adding BBN upper limits of H and He into star data if missing"
+            )
 
         self.added_elements = list()
         for i in range(2):

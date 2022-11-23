@@ -54,9 +54,6 @@ contains
     !    bit 2:
     !       do not compute final chi**2, only have adjusted offsets (c)
 
-    use utils, only: &
-         signan
-
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
@@ -107,11 +104,17 @@ contains
        call init_covaricance_const()
        if (icdf == 0) then
           do k = 1, nsol
-             call analytic_solve(c(k,1), abu(k,1,:))
+             call analytic_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
           enddo
        else
           do k = 1, nsol
-             call single_solve(c(k,1), abu(k,1,:))
+             call single_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
           enddo
        endif
     else if ((ls == 0).and.(nstar > 1)) then
@@ -126,9 +129,15 @@ contains
              call init_ei2()
              call init_covaricance_const()
              if (icdf == 0) then
-                call analytic_solve(scale, y)
+                call analytic_solve(scale, y, ierr)
+                if (ierr == 1) then
+                   call psolve_log(c(k,:), abu(k,:,:), nstar)
+                endif
              else
-                call single_solve(scale, y)
+                call single_solve(scale, y, ierr)
+                if (ierr == 1) then
+                   call psolve_log(c(k,:), abu(k,:,:), nstar)
+                endif
              endif
           endif
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
@@ -212,9 +221,6 @@ contains
 
 
   subroutine fitness_m(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
-
-    use utils, only: &
-         signan
 
     use star_data, only: &
          set_star_data, abu_covariance, &
@@ -1183,14 +1189,11 @@ contains
   end subroutine single_prime
 
 
-  subroutine single_solve(c, abu)
+  subroutine single_solve(c, abu, ierr)
 
     ! single NR solver
 
     ! should not be used for icdf == 0
-
-    use utils, only: &
-         signan
 
     use star_data, only: &
          nel
@@ -1212,6 +1215,8 @@ contains
 
     real(kind=real64), intent(inout) :: &
          c
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64) :: &
          x, f1, f2, delta
@@ -1234,7 +1239,7 @@ contains
     if (stop_on_nonconvergence) then
        error stop '[single_solve] did not converge.'
     end if
-    c = signan()
+    ierr = 1
     return
 
 1000 continue
@@ -1243,10 +1248,7 @@ contains
   end subroutine single_solve
 
 
-  subroutine analytic_solve(c, abu)
-
-    use utils, only: &
-         signan
+  subroutine analytic_solve(c, abu, ierr)
 
     use star_data, only: &
          nel, &
@@ -1261,6 +1263,8 @@ contains
          abu
     real(kind=real64), intent(out) :: &
          c
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64) :: &
          x, diff, ei2s, z
@@ -1315,7 +1319,7 @@ contains
           if (stop_on_nonconvergence) then
              error stop '[analytic] all values below threshold'
           endif
-          c = signan()
+          ierr = 1
           return
        endif
 

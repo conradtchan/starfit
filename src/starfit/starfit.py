@@ -511,7 +511,7 @@ class StarFit(Logged):
             sol[i, :]["index"] = stars[i, :]
             if offsets is None:
                 assert optimize is True
-                sol[i, :]["offset"] = 1.0e-3 / stars.shape[1]
+                sol[i, :]["offset"] = 1.0e-4 / stars.shape[1]
                 local_search = True
             else:
                 sol[i, :]["offset"] = offsets[i]

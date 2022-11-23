@@ -39,9 +39,11 @@ class Single(StarFit):
 
         # Identify the best fit by finding the entry with the smallest error
         self.unsorted_fitness = fitness
+        self.unsorted_stars = stars
         sort_index = np.argsort(fitness)
         self.sorted_fitness = fitness[sort_index]
         self.sorted_stars = stars[sort_index]
+        self.rank = sort_index
 
         self.logger.info("Best solution:")
         self.logger.info(" " + str(self.sorted_stars[0, 0]))
