@@ -267,7 +267,8 @@ contains
     use star_data, only: &
          diff_covariance, &
          iupper, ierinv, iuncor, idetuc, idetco, &
-         nupper, ielcov, ndetco, ndetuc
+         nupper, ndetco, ndetuc, &
+         ielcov
 
     use norm, only: &
          logcdf, logcdfp
@@ -357,12 +358,14 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         eri
+         eri, &
+         mm1
 
     use star_data, only: &
          diff_covariance_m, &
-         iupper, idetec, ierinv, iuncor, &
-         nupper, ndetec, icovar, nuncor
+         iupper, ierinv, iuncor, idetco, idetuc, icovar, &
+         nupper, ndetco, ndetuc, nuncor, &
+         ielcov
 
     use norm, only: &
          logcdf, logcdfp
@@ -381,8 +384,10 @@ contains
 
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
+    real(kind=real64) :: &
+         mx1, mx2, g
     integer(kind=int64) :: &
-         i, i1
+         i, i1, im, j, j1, jm
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -405,20 +410,56 @@ contains
              f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
           endif
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f(i,i) = f(i,i) - (diff_det(i) * eri(i))**2
           endif
+       enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          im = ielcov(i)
+          if (diff_det(i) < 0.d0) then
+             f(i,i) = f(i,i) - diff_det(i)**2 * mm1(im, im)
+          endif
+          do j1=1, i1-1
+             j = idetco(j1)
+             jm = ielcov(j)
+             if (diff_det(i) < 0.d0) then
+                g = - diff_det(i)**2 * mm1(im, jm)
+                f(i,j) = f(i,j) + g
+                f(j,i) = f(j,i) + g
+             endif
+             if (diff_det(j) < 0.d0) then
+                g = - diff_det(j)**2 * mm1(im, jm)
+                f(i,j) = f(i,j) + g
+                f(j,i) = f(j,i) + g
+             end if
+          enddo
        enddo
     else
        do i1=1, nupper
           i = iupper(i1)
           f(i,i) = f(i,i) - 2.d0 * logcdf(diff_obs(i) * eri(i))
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * eri(i))
+       enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          im = ielcov(i)
+          f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * sqrt(mm1(im, im)))
+          do j1=1, i1-1
+             j = idetco(j1)
+             jm = ielcov(j)
+             mx1 = mm1(im, jm)
+             mx2 = sqrt(abs(mx1))
+             g = sign(2.d0, mx1) * &
+                  (logcdf(diff_det(i) * mx2) + logcdf(diff_det(j) * mx2))
+             f(i,j) = f(i,j) + g
+             f(j,i) = f(j,i) + g
+          enddo
        enddo
     endif
 
