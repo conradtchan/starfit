@@ -30,14 +30,17 @@ module star_data
        icdf
 
   logical, dimension(:), allocatable :: &
-       upper, covar, uncor, measu, detec, nocov, erinv, ernoi
+       upper, covar, uncor, measu, detec, nocov, erinv, ernoi, &
+       detco, detuc
   integer(kind=int64) :: &
-       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv, nernoi
+       nupper, ncovar, nuncor, nmeasu, ndetec, nnocov, nerinv, nernoi, &
+       ndetco, ndetuc
   integer(kind=int64), dimension(:), allocatable :: &
-       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi
+       iupper, icovar, iuncor, imeasu, idetec, inocov, ierinv, iernoi, &
+       idetco, idetuc
 
   real(kind=real64), dimension(:, :), allocatable :: &
-       mm, mm1
+       mm, mm1, m1q, m1s, m1c
   real(kind=real64), dimension(:), allocatable :: &
        zvp, zv, &
        ert, eri, ei2
@@ -103,6 +106,7 @@ contains
     call init_ert()
     call init_eri()
     call init_inverse()
+    call init_matrix_errors()
     call init_check_thresholds()
 
   end subroutine set_star_data
@@ -171,24 +175,16 @@ contains
     integer(kind=int64) :: &
          i
 
-    if (allocated(upper)) then
-       deallocate(upper, covar, uncor, measu, detec, nocov, erinv, ernoi)
-       deallocate(iupper, icovar, iuncor, imeasu, idetec,inocov, ierinv, iernoi)
-    endif
-
-    ! find masks for correlated, uncorreclated, and limit errors
-
     upper = err < 0.d0
     measu = .not.upper
     covar = any(cov /= 0.d0, 2).and.measu
     uncor = .not.(upper.or.covar)
-    ! original (as it should be)
     detec = measu(:).and.(det(:) > det_lim)
-    ! temporary fix
-    ! detec = measu(:).and.(det(:) > det_lim).and.uncor
     nocov = .not.covar
     erinv = upper.or.detec.or.uncor
     ernoi = .not.erinv
+    detco = detec.and.covar
+    detuc = detec.and.nocov
 
     nupper = count(upper)
     ncovar = count(covar)
@@ -198,6 +194,8 @@ contains
     nnocov = nel - ncovar
     nerinv = count(erinv)
     nernoi = nel - nerinv
+    ndetco = count(detco)
+    ndetuc = count(detuc)
 
     allocate(ii(nel))
     do i=1, nel
@@ -211,6 +209,8 @@ contains
     inocov = pack(ii, nocov)
     ierinv = pack(ii, erinv)
     iernoi = pack(ii, ernoi)
+    idetco = pack(ii, detco)
+    idetuc = pack(ii, detuc)
 
   end subroutine init_domains
 
@@ -256,7 +256,9 @@ contains
     implicit none
 
     if (.not.use_inverse) then
-       return
+       if (ndetco > 0) then
+          error stop '[init_inverse] require inverse for covariant detectin thresholds'
+       end if
     endif
 
     if (ncovar == 0) then
@@ -265,7 +267,6 @@ contains
 
     if (.not.allocated(mm)) then
        error stop '[init_inverse] matrix mm not present'
-       return
     endif
 
     if (allocated(mm1)) then
@@ -275,6 +276,29 @@ contains
     mm1 = inverse(mm, ncovar)
 
   end subroutine init_inverse
+
+
+  subroutine init_matrix_errors
+
+    implicit none
+
+    if (ndetco == 0) then
+       return
+    endif
+
+    if (.not.allocated(mm1)) then
+       error stop '[init_matrix_errors] inverse matrix mm1 not present'
+    endif
+
+    if (allocated(m1q)) then
+       deallocate(m1q, m1s, m1c)
+    endif
+
+    m1c = mm1(idetco, idetco)
+    m1q = sqrt(abs(m1c))
+    m1s = sign(1.d0, m1c)
+
+  end subroutine init_matrix_errors
 
 
   subroutine init_covaricance_const
@@ -340,8 +364,12 @@ contains
 
     allocate(eri(nel))
 
-    eri(iernoi) = signan()
-    eri(ierinv) = 1.d0 / ert(ierinv)
+    if (nernoi > 0) then
+       eri(iernoi) = signan()
+    endif
+    if (nerinv > 0) then
+       eri(ierinv) = 1.d0 / ert(ierinv)
+    endif
 
   end subroutine init_eri
 

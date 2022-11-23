@@ -40,6 +40,9 @@ contains
     ! If localsearch is enabled, adjust all offsets first
     ! otherwise keep relative weights fixed
     ! If ls < 0, only return chi2, no optimisation
+    ! If ls == 0, no local search (fixed relative weights)
+    ! If ls == 1, fastesy local search
+    ! If ls == 2, force use of psolve
     ! If ls == 2, force use of psolve
     ! if ls == 3, use classic NR solver (not recommended)
     !
@@ -51,13 +54,11 @@ contains
     !    bit 2:
     !       do not compute final chi**2, only have adjusted offsets (c)
 
-    use utils, only: &
-         signan
-
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
-         init_covaricance_const
+         init_covaricance_const, &
+         ndetco
 
     implicit none
 
@@ -98,16 +99,22 @@ contains
        goto 1000
     endif
 
-    if ((ls == 0).and.(nstar == 1)) then
+    if ((ls == 0).and.(nstar == 1).and.(ndetco == 0)) then
        call init_ei2()
        call init_covaricance_const()
        if (icdf == 0) then
           do k = 1, nsol
-             call analytic_solve(c(k,1), abu(k,1,:))
+             call analytic_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
           enddo
        else
           do k = 1, nsol
-             call single_solve(c(k,1), abu(k,1,:))
+             call single_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
           enddo
        endif
     else if ((ls == 0).and.(nstar > 1)) then
@@ -116,16 +123,26 @@ contains
           do i = 1, nel
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
-          call init_ei2()
-          call init_covaricance_const()
-          if (icdf == 0) then
-             call analytic_solve(scale, y)
+          if (ndetco > 0) then
+             call psolve_tanh(c(k,:), abu(k,:,:), nstar)
           else
-             call single_solve(scale, y)
+             call init_ei2()
+             call init_covaricance_const()
+             if (icdf == 0) then
+                call analytic_solve(scale, y, ierr)
+                if (ierr == 1) then
+                   call psolve_log(c(k,:), abu(k,:,:), nstar)
+                endif
+             else
+                call single_solve(scale, y, ierr)
+                if (ierr == 1) then
+                   call psolve_log(c(k,:), abu(k,:,:), nstar)
+                endif
+             endif
           endif
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
-    else if ((ls == 1).and.(icdf == 1)) then
+    else if ((ls == 1).and.(icdf == 1).and.(ndetco == 0)) then
 
        ! NR solver with modified x-axis
 
@@ -148,7 +165,7 @@ contains
              endif
           enddo
        end if
-    else if ((ls == 3).and.(icdf == 1)) then
+    else if ((ls == 3).and.(icdf == 1).and.(ndetco == 0)) then
 
        ! classical NR solver that converges poorly due to stiffness of log/exp
 
@@ -205,9 +222,6 @@ contains
 
   subroutine fitness_m(f, c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, flags)
 
-    use utils, only: &
-         signan
-
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
@@ -253,12 +267,13 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         eri
+         eri, &
+         m1c, m1q, m1s
 
     use star_data, only: &
          diff_covariance, &
-         iupper, idetec, ierinv, iuncor, &
-         nupper, ndetec
+         iupper, ierinv, iuncor, idetuc, idetco, &
+         nupper, ndetco, ndetuc
 
     use norm, only: &
          logcdf, logcdfp
@@ -277,8 +292,10 @@ contains
 
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
+    real(kind=real64) :: &
+         mx
     integer(kind=int64) :: &
-         i, i1
+         i, i1, j, j1
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -296,15 +313,41 @@ contains
              f = f + (diff_obs(i) * eri(i))**2
           endif
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f = f - (diff_det(i) * eri(i))**2
           endif
        enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          if (diff_det(i) < 0.d0) then
+             f = f - diff_det(i)**2 * m1c(i1, i1)
+          endif
+          do j1=1, i1-1
+             j = idetco(j1)
+             if (diff_det(i) < 0.d0) then
+                f = f - 2.d0 * diff_det(i)**2 * m1c(i1, j1)
+             endif
+             if (diff_det(j) < 0.d0) then
+                f = f - 2.d0 * diff_det(j)**2 * m1c(i1, j1)
+             end if
+          enddo
+       enddo
     else
        f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
-       f = f + 2.d0 * sum(logcdf(diff_det(idetec) * eri(idetec)))
+       f = f + 2.d0 * sum(logcdf(diff_det(idetuc) * eri(idetuc)))
+
+       do i1=1,ndetco
+          i = idetco(i1)
+          f = f + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
+          do j1=1, i1-1
+             j = idetco(j1)
+             mx = m1q(i1, j1)
+             f = f + 2.d0 * m1s(i1, j1) * &
+                  (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
+          enddo
+       enddo
     endif
 
   end subroutine chi2
@@ -315,12 +358,13 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         eri
+         eri, &
+         m1c, m1q, m1s
 
     use star_data, only: &
          diff_covariance_m, &
-         iupper, idetec, ierinv, iuncor, &
-         nupper, ndetec, icovar, nuncor
+         iupper, ierinv, iuncor, idetco, idetuc, icovar, &
+         nupper, ndetco, ndetuc, nuncor
 
     use norm, only: &
          logcdf, logcdfp
@@ -339,8 +383,10 @@ contains
 
     real(kind=real64), dimension(nel) :: &
          logy, diff_obs, diff_det
+    real(kind=real64) :: &
+         mx
     integer(kind=int64) :: &
-         i, i1
+         i, i1, j, j1
 
     do i = 1, nel
        logy(i) = log(sum(c(:) * abu(:,i))) * ln10i
@@ -363,22 +409,57 @@ contains
              f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
           endif
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f(i,i) = f(i,i) - (diff_det(i) * eri(i))**2
           endif
+       enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          if (diff_det(i) < 0.d0) then
+             f(i,i) = f(i,i) - diff_det(i)**2 * m1c(i1, i1)
+          endif
+          do j1=1, i1-1
+             j = idetco(j1)
+             if (diff_det(i) < 0.d0) then
+                f(i,j) = f(i,j) - diff_det(i)**2 * m1c(i1, j1)
+             endif
+             if (diff_det(j) < 0.d0) then
+                f(i,j) = f(i,j) - diff_det(j)**2 * m1c(i1, j1)
+             end if
+          enddo
        enddo
     else
        do i1=1, nupper
           i = iupper(i1)
           f(i,i) = f(i,i) - 2.d0 * logcdf(diff_obs(i) * eri(i))
        enddo
-       do i1=1, ndetec
-          i = idetec(i1)
+       do i1=1, ndetuc
+          i = idetuc(i1)
           f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * eri(i))
        enddo
+       do i1=1,ndetco
+          i = idetco(i1)
+          f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
+          do j1=1, i1-1
+             j = idetco(j1)
+             mx = m1q(i1, j1)
+             f(i,j) = m1s(i1, j1) * &
+                  (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
+          enddo
+       enddo
     endif
+
+    ! copy symmetric elements
+
+    do i1=1, ndetco
+       i = idetco(i1)
+       do j1=1, i1-1
+          j = idetco(j1)
+          f(j,i) = f(i,j)
+       enddo
+    enddo
 
   end subroutine chi2m
 
@@ -1108,14 +1189,11 @@ contains
   end subroutine single_prime
 
 
-  subroutine single_solve(c, abu)
+  subroutine single_solve(c, abu, ierr)
 
     ! single NR solver
 
     ! should not be used for icdf == 0
-
-    use utils, only: &
-         signan
 
     use star_data, only: &
          nel
@@ -1137,6 +1215,8 @@ contains
 
     real(kind=real64), intent(inout) :: &
          c
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64) :: &
          x, f1, f2, delta
@@ -1159,7 +1239,7 @@ contains
     if (stop_on_nonconvergence) then
        error stop '[single_solve] did not converge.'
     end if
-    c = signan()
+    ierr = 1
     return
 
 1000 continue
@@ -1168,10 +1248,7 @@ contains
   end subroutine single_solve
 
 
-  subroutine analytic_solve(c, abu)
-
-    use utils, only: &
-         signan
+  subroutine analytic_solve(c, abu, ierr)
 
     use star_data, only: &
          nel, &
@@ -1186,6 +1263,8 @@ contains
          abu
     real(kind=real64), intent(out) :: &
          c
+    integer(kind=int64), intent(out) :: &
+         ierr
 
     real(kind=real64) :: &
          x, diff, ei2s, z
@@ -1240,7 +1319,7 @@ contains
           if (stop_on_nonconvergence) then
              error stop '[analytic] all values below threshold'
           endif
-          c = signan()
+          ierr = 1
           return
        endif
 
