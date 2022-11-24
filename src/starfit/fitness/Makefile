@@ -20,7 +20,7 @@ LIBRARY = solver.a
 LIBRARY_OBJECTS = \
 	typedef.o \
 	utils.o \
-	mleqs.o \
+	linalg.o \
 	norm.o \
 	powell.o \
 	abu_data.o \
@@ -59,9 +59,9 @@ powell.o powell.mod &: ${SOURCE}/powell.f90 \
 	@rm -f powell.mod
 	$(F90) $(FFLAGS) $<
 
-mleqs.o mleqs.mod &: ${SOURCE}/mleqs.f90 \
-	typedef.mod
-	@rm -f mleqs.mod
+linalg.o linalg.mod &: ${SOURCE}/linalg.f90 \
+	typedef.mod utils.mod
+	@rm -f linalg.mod
 	$(F90) $(FFLAGS) $<
 
 abu_data.o abu_data.mod &: ${SOURCE}/abu_data.f90 \
@@ -70,12 +70,12 @@ abu_data.o abu_data.mod &: ${SOURCE}/abu_data.f90 \
 	$(F90) $(FFLAGS) $<
 
 star_data.o star_data.mod &: ${SOURCE}/star_data.f90 \
-	typedef.mod mleqs.mod utils.mod
+	typedef.mod linalg.mod utils.mod
 	@rm -f star_data.mod
 	$(F90) $(FFLAGS) $<
 
 fitting.o fitting.mod &: ${SOURCE}/fitting.f90 \
-	typedef.mod powell.mod mleqs.mod norm.mod \
+	typedef.mod powell.mod linalg.mod norm.mod \
 	star_data.mod abu_data.mod utils.mod
 	@rm -f fitting.mod
 	$(F90) $(FFLAGS) $<
@@ -90,11 +90,11 @@ test.o &: ${SOURCE}/test.f90 \
 	$(F90) $(FFLAGS) $<
 
 test_leqs.o &: ${SOURCE}/test_leqs.f90 \
-	typedef.mod mleqs.mod
+	typedef.mod linalg.mod
 	$(F90) $(FFLAGS) $<
 
-test_leqs: test_leqs.o mleqs.o
-	${LINK} ${LFLASG} test_leqs.o mleqs.o -o $@
+test_leqs: test_leqs.o linalg.o utils.o
+	${LINK} ${LFLASG} test_leqs.o linalg.o utils.o -o $@
 
 .PHONY:	clean, ar
 

@@ -1,4 +1,4 @@
-module mleqs
+module linalg
 
   use typedef, only: &
        int64, real64
@@ -24,7 +24,7 @@ module mleqs
     real(kind=real64), dimension(n, n) :: &
          a
 
-    ! this subroutine solves the  linear system a*dy=b,
+    ! this subroutine solves the linear system a*dy=b,
 
     integer(kind=int64) :: &
          k,i,j,n1
@@ -88,7 +88,7 @@ module mleqs
     real(kind=real64), dimension(n, n) :: &
          a
 
-    ! this subroutine solves the  linear system a*dy=b,
+    ! this subroutine finds the inverse of matrix a
 
     integer(kind=int64) :: &
          k,i,j,l,n1
@@ -143,4 +143,69 @@ module mleqs
 
   end function inverse
 
-end module mleqs
+
+  function sqrtm(a, n) result(x1)
+
+    use utils, only: &
+         signan
+
+    implicit none
+
+    save
+
+    integer(kind=int64), parameter :: &
+         itmax = 100
+    real(kind=real64), parameter :: &
+         tol = 1.d-12, &
+         tol2 = 1.d-8
+
+    integer(kind=int64), intent(in) :: &
+         n
+    real(kind=real64), dimension(n, n), intent(in) :: &
+         a
+
+    real(kind=real64), dimension(n, n) :: &
+         x1
+
+    real(kind=real64), dimension(n, n) :: &
+         x0
+
+    ! this subroutine finds the square root of a matrix
+
+    integer(kind=int64) :: &
+         i
+    real(kind=real64) :: &
+         d
+
+    if (n == 1) then
+       x1(1,1) = sqrt(a(1,1))
+       return
+    endif
+
+    x0(:,:) = 0.d0
+    do i = 1, n
+       x0(i,i) = 1.d0
+    end do
+
+    x0(:,:) = 0.5d0 * (x0(:,:) + a(:,:))
+
+    do i=1, itmax
+       x1(:,:) = 0.5d0 * (x0(:,:) + matmul(a(:,:),inverse(x0(:,:), n)))
+       d = sqrt(sum((x0(:,:) - x1(:,:))**2) / sum(x0(:,:)**2))
+       if (d < tol) goto 1000
+       x0(:,:) = x1(:,:)
+    end do
+
+    d = sqrt(sum((matmul(x1, x1) - a(:,:))**2) / sum(a(:,:)**2))
+    if (d < tol2) goto 1000
+
+    ! print*, '[sqrtm]', d
+    ! error stop '[sqrtm] No convergence.'
+    x1(:,:) = signan()
+    return
+
+1000 continue
+
+  end function sqrtm
+
+end module linalg
