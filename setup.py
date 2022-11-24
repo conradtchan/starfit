@@ -25,7 +25,7 @@ fit_sources = [
         "utils.f90",
         "powell.f90",
         "norm.f90",
-        "mleqs.f90",
+        "linalg.f90",
         "star_data.f90",
         "abu_data.f90",
         "fitting.f90",

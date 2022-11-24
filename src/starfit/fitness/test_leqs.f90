@@ -3,8 +3,8 @@ program test_leqs
   use typedef, only: &
        int64, real64
 
-  use mleqs, only: &
-       leqs, inverse
+  use linalg, only: &
+       leqs, inverse, sqrtm
 
   implicit none
 
@@ -54,6 +54,26 @@ program test_leqs
   print*,''
   print*,'----------------'
   print*,''
+
+  print*, 'q', q(1,:)
+  print*, '-', q(2,:)
+  print*, '-', q(3,:)
+
+  print*,''
+  print*,'----------------'
+  print*,''
+
+  q = sqrtm(a, n)
+
+  print*, 'q', q(1,:)
+  print*, '-', q(2,:)
+  print*, '-', q(3,:)
+
+  print*,''
+  print*,'----------------'
+  print*,''
+
+  q = matmul(q, q)
 
   print*, 'q', q(1,:)
   print*, '-', q(2,:)

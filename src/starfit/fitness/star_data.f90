@@ -217,7 +217,7 @@ contains
 
   subroutine init_covariance_matrix
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none
@@ -250,7 +250,7 @@ contains
 
   subroutine init_inverse
 
-    use mleqs, only: &
+    use linalg, only: &
          inverse
 
     implicit none
@@ -280,12 +280,18 @@ contains
 
   subroutine init_matrix_errors
 
+    ! use linalg, only: &
+    !      sqrtm
+
     implicit none
 
     integer(kind=int64), dimension(:), allocatable :: &
          jdetco
     integer(kind=int64) :: &
          i, j
+
+    ! real(kind=real64), dimension(:,:), allocatable :: &
+    !      mmq
 
     if (ndetco == 0) then
        return
@@ -313,12 +319,17 @@ contains
     m1q = sqrt(abs(m1c))
     m1s = sign(1.d0, m1c)
 
+    ! mmq = sqrtm(mm1, ncovar)
+    ! m1q = mmq(jdetco, jdetco)
+    ! allocate(m1s(ndetco, ndetco))
+    ! m1s(:,:) = 1.d0
+
   end subroutine init_matrix_errors
 
 
   subroutine init_covaricance_const
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none
@@ -454,7 +465,7 @@ contains
 
   function diff_covariance(diff) result(xcov)
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none
@@ -495,7 +506,7 @@ contains
 
   function diff_covariance_m(diff) result(xcov)
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none
@@ -572,7 +583,7 @@ contains
 
   function diff_zv(diff) result(xzv)
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none
@@ -608,7 +619,7 @@ contains
 
   function reduced_diff_zv(diff) result(xzv)
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     implicit none

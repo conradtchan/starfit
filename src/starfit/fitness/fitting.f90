@@ -681,7 +681,7 @@ contains
 
   subroutine newton_classic(c, abu, nstar, ierr)
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     use star_data, only: &
@@ -834,7 +834,7 @@ contains
     use utils, only: &
          signan
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     use star_data, only: &
@@ -992,7 +992,7 @@ contains
     use utils, only: &
          signan
 
-    use mleqs, only: &
+    use linalg, only: &
          leqs
 
     use star_data, only: &
