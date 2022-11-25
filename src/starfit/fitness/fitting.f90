@@ -1112,11 +1112,12 @@ contains
     use star_data, only: &
          nel, &
          icdf, obs, det, &
-         idetec, iuncor, iupper, idetec, &
-         nupper, ndetec, &
+         idetec, iuncor, iupper, idetco, idetuc, &
+         nupper, ndetco, ndetuc, &
          eri, ei2, &
          mp, &
-         diff_z
+         diff_z, &
+         m1s, m1c, m1q
 
     use abu_data, only: &
          logabu
@@ -1132,12 +1133,14 @@ contains
     real(kind=real64), intent(out) :: &
          f1, f2
 
+    logical, dimension(nel) :: &
+         detz
     real(kind=real64), dimension(nel) :: &
-         diff_obs, diff_det
+         diff_obs, diff_det, detd
     real(kind=real64) :: &
-         de, df
+         de, df, mx, ms
     integer(kind=int64) :: &
-         i, i1
+         i, i1, j, j1
 
     diff_obs(:) = logabu(:) - obs(:) + x
     diff_det(idetec) = logabu(idetec) - det(idetec) + x
@@ -1167,15 +1170,39 @@ contains
           endif
        enddo
 
-       ! Detection thresholds
+       ! Uncorrelated detection thresholds
 
-       do i1 = 1, ndetec
-          i = idetec(i1)
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f1 = f1 - diff_det(i) * ei2(i)
              f2 = f2 - ei2(i)
           endif
        enddo
+
+       ! Correlated detection thresholds
+
+       do i1 = 1, ndetco
+          detd(1:ndetco) = diff_det(idetco)
+          detz(1:ndetco) = detd(1:ndetco) < 0.d0
+          if (detz(i1)) then
+             mx = m1c(i1, i1)
+             f1 = f1 - detd(i1) * mx
+             f2 = f2 - mx
+          end if
+          do j1=1, i1-1
+             mx = m1c(i1, j1)
+             if (detz(i1)) then
+                f1 = f1 - detd(i1) * mx
+                f2 = f2 - mx
+             end if
+             if (detz(j1)) then
+                f1 = f1 - detd(j1) * mx
+                f2 = f2 - mx
+             end if
+          end do
+       end do
+
     else
 
        ! Upper limits if error < 0 (NOTE: changes sign)
@@ -1188,15 +1215,43 @@ contains
           f2 = f2 + df * (df + de)
        enddo
 
-       ! Detection thresholds
+       ! Uncorrelated detection thresholds
 
-       do i1 = 1, ndetec
-          i = idetec(i1)
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
           df = + logcdfp(diff_det(i)*eri(i)) * eri(i)
           de = - diff_det(i) * ei2(i)
           f1 = f1 + df
           f2 = f2 + df * (df + de)
        enddo
+
+       ! Correlated detection thresholds
+
+       do i1 = 1, ndetco
+          i = idetco(i1)
+          mx = m1q(i1, i1)
+          df = + logcdfp(diff_det(i)*mx) * mx
+          de = - diff_det(i) * mx**2
+          f1 = f1 + df
+          f2 = f2 + df * (df + de)
+          do j1=1, i1-1
+             j = idetco(j1)
+             mx = m1q(i1, j1)
+             ms = m1s(i1, j1)
+
+             df = + logcdfp(diff_det(i)*mx) * mx
+             de = - diff_det(i) * mx**2
+             f1 = f1 + ms * df
+             f2 = f2 + ms * df * (df + de)
+
+             df = + logcdfp(diff_det(j)*mx) * mx
+             de = - diff_det(j) * mx**2
+             f1 = f1 + ms * df
+             f2 = f2 + ms * df * (df + de)
+          end do
+
+       enddo
+
     endif
 
     ! these identical factors make no difference in solver
@@ -1288,7 +1343,7 @@ contains
          ierr
 
     real(kind=real64) :: &
-         x, x1, diff, ei2s, z
+         x, x1, diff, ei2s, z, mx
     real(kind=real64), dimension(nel)  :: &
          diff_obs, diff_det, logabu
 
@@ -1332,32 +1387,33 @@ contains
        do i1 = 1, nnocov
           i = inocov(i1)
           if (include_obs(i)) then
-             ei2s = ei2s + ei2(i)
              diff = diff + diff_obs(i) * ei2(i)
+             ei2s = ei2s + ei2(i)
           endif
        enddo
        do i1 = 1, ndetuc
           i = idetuc(i1)
           if (include_det(i)) then
-             ei2s = ei2s - ei2(i)
              diff = diff - diff_det(i) * ei2(i)
+             ei2s = ei2s - ei2(i)
           endif
        enddo
        do i1 = 1, ndetco
           i = idetco(i1)
           if (include_det(i)) then
-             ei2s = ei2s - m1c(i1, i1)
              diff = diff - diff_det(i) * m1c(i1, i1)
+             ei2s = ei2s - m1c(i1, i1)
           endif
           do j1=1, i1-1
              j = idetco(j1)
+             mx = m1c(i1, j1)
              if (include_det(i)) then
-                ei2s = ei2s - m1c(i1, j1)
-                diff = diff - diff_det(i) * m1c(i1, j1)
+                diff = diff - diff_det(i) * mx
+                ei2s = ei2s - mx
              endif
              if (include_det(j)) then
-                ei2s = ei2s - m1c(i1, j1)
-                diff = diff - diff_det(j) * m1c(i1, j1)
+                diff = diff - diff_det(j) * mx
+                ei2s = ei2s - mx
              end if
           enddo
        enddo
