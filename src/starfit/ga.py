@@ -230,15 +230,17 @@ class Ga(StarFit):
 
                 self.elapsed = elapsed
 
+                self.gen = i
+
                 if not self.silent:
                     self.print_update()
-            if finish:
-                break
+
+                if finish:
+                    break
 
         self.sorted_stars = self.s
         self.sorted_fitness = self.f
 
-        self.gen = i
         self.logger.info("Best fitness:")
         self.logger.info(f" {self.sorted_fitness[0]}")
         self.close_logger(timing="Finished in")
@@ -291,16 +293,21 @@ class Ga(StarFit):
         if n_top > 0:
             for i in range(6 + n_top):
                 sys.stdout.write("\x1b[A")
+            remain = self.elapsed / self.frac_done - self.elapsed
+            if remain > 0:
+                remain = time2human(remain)
+            else:
+                remain = "Done."
             print(
                 "{percent:6.2f} %    Rate: {rate:>9,g}/s   Elapsed: {elapsed:<8}   ETA: {remain:<8}".format(
-                    percent=self.frac_done * 100,
+                    percent=min(1, self.frac_done) * 100,
                     rate=self.n_solved / self.elapsed,
                     elapsed=time2human(self.elapsed),
-                    remain=time2human(self.elapsed / self.frac_done - self.elapsed),
+                    remain=remain,
                 )
             )
             print(
-                f"            Best: {self.f[0]:>6.2f}        Average: {np.mean(self.f):>6.2f}   Worst: {self.f[-1]:>6.2f}"
+                f"Gen: {self.gen:<6d} Best: {self.f[0]:>6.2f}        Average: {np.mean(self.f):>6.2f}   Worst: {self.f[-1]:>6.2f}"
             )
             print(self.fmt_hbar)
             print(self.fmt_head)
