@@ -339,21 +339,6 @@ contains
              enddo
           enddo
        endif
-       ! do i1=1,ndetco
-       !    i = idetco(i1)
-       !    if (diff_det(i) < 0.d0) then
-       !       f = f - diff_det(i)**2 * m1c(i1, i1)
-       !    endif
-       !    do j1=1, i1-1
-       !       j = idetco(j1)
-       !       if (diff_det(i) < 0.d0) then
-       !          f = f - 2.d0 * diff_det(i)**2 * m1c(i1, j1)
-       !       endif
-       !       if (diff_det(j) < 0.d0) then
-       !          f = f - 2.d0 * diff_det(j)**2 * m1c(i1, j1)
-       !       end if
-       !    enddo
-       ! enddo
     else
        f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
        f = f + 2.d0 * sum(logcdf(diff_det(idetuc) * eri(idetuc)))
@@ -400,8 +385,10 @@ contains
     real(kind=real64), intent(out), dimension(nel, nel) :: &
          f
 
+    logical, dimension(nel) :: &
+         detz
     real(kind=real64), dimension(nel) :: &
-         logy, diff_obs, diff_det
+         logy, diff_obs, diff_det, det2
     real(kind=real64) :: &
          mx
     integer(kind=int64) :: &
@@ -420,44 +407,49 @@ contains
     do i1=1,nuncor
        i = iuncor(i1)
        f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
-    enddo
+    end do
     if (icdf == 0) then
        do i1=1, nupper
           i = iupper(i1)
           if (diff_obs(i) > 0.d0) then
              f(i,i) = f(i,i) + (diff_obs(i) * eri(i))**2
-          endif
-       enddo
+          end if
+       end do
        do i1=1, ndetuc
           i = idetuc(i1)
           if (diff_det(i) < 0.d0) then
              f(i,i) = f(i,i) - (diff_det(i) * eri(i))**2
-          endif
-       enddo
-       do i1=1,ndetco
-          i = idetco(i1)
-          if (diff_det(i) < 0.d0) then
-             f(i,i) = f(i,i) - diff_det(i)**2 * m1c(i1, i1)
-          endif
-          do j1=1, i1-1
-             j = idetco(j1)
-             if (diff_det(i) < 0.d0) then
-                f(i,j) = f(i,j) - diff_det(i)**2 * m1c(i1, j1)
-             endif
-             if (diff_det(j) < 0.d0) then
-                f(i,j) = f(i,j) - diff_det(j)**2 * m1c(i1, j1)
+          end if
+       end do
+       if (ndetco > 0) then
+          detz(1:ndetco) = diff_det(idetco) < 0.d0
+          det2(1:ndetco) = diff_det(idetco)**2
+          do i1=1, ndetco
+             i = idetco(i1)
+             if (detz(i1)) then
+                f(i,i) = f(i,i) - det2(i1) * m1c(i1, i1)
              end if
-          enddo
-       enddo
+             do j1=1, i1-1
+                j = idetco(j1)
+                mx = - m1c(i1, j1)
+                if (detz(i1)) then
+                   f(i,j) = f(i,j) + det2(i) * mx
+                end if
+                if (detz(j1)) then
+                   f(i,j) = f(i,j) + det2(j) * mx
+                end if
+             end do
+          end do
+       end if
     else
        do i1=1, nupper
           i = iupper(i1)
           f(i,i) = f(i,i) - 2.d0 * logcdf(diff_obs(i) * eri(i))
-       enddo
+       end do
        do i1=1, ndetuc
           i = idetuc(i1)
           f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * eri(i))
-       enddo
+       end do
        do i1=1,ndetco
           i = idetco(i1)
           f(i,i) = f(i,i) + 2.d0 * logcdf(diff_det(i) * m1q(i1, i1))
@@ -466,9 +458,9 @@ contains
              mx = m1q(i1, j1)
              f(i,j) = m1s(i1, j1) * &
                   (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
-          enddo
-       enddo
-    endif
+          end do
+       end do
+    end if
 
     ! copy symmetric elements
 
@@ -477,8 +469,8 @@ contains
        do j1=1, i1-1
           j = idetco(j1)
           f(j,i) = f(i,j)
-       enddo
-    enddo
+       end do
+    end do
 
   end subroutine chi2m
 
@@ -496,11 +488,13 @@ contains
          eri, ei2, &
          icovar, ncovar, &
          nuncor, iuncor, &
-         ndetec, idetec, &
          nupper, iupper, &
          ierinv, iernoi, &
+         ndetco, idetco, &
+         ndetuc, idetuc, &
          diff_zv, &
-         reduced_diff_zv
+         reduced_diff_zv, &
+         m1c, m1s, m1q
 
     use abu_data, only: &
          abu, nstar
@@ -522,16 +516,19 @@ contains
     real(kind=real64), intent(out), dimension(nstar, nstar) :: &
          f2
 
+    logical, dimension(nel) :: &
+         detz
     real(kind=real64), dimension(nel) :: &
          y, logy, yi, yi2, &
-         diff_obs, diff_obs_eri, diff_obs_ei2, &
-         diff_det, diff_det_eri, diff_det_ei2
+         diff_obs, diff_obs_ei2, &
+         diff_det, diff_det_ei2, &
+         detd
     real(kind=real64), dimension(ncovar) :: &
          zv, yp, yc, ypp, yic, yc2, yp2, zvp
     real(kind=real64) :: &
-         fi1, fi2, fa, fc
+         fi1, fi2, fa, fc, mx, ms
     integer(kind=int64) :: &
-         i, i1, j, k
+         i, i1, l, l1, j, k
 
     do i = 1, nel
        y(i) = sum(c(:) * abu(:,i))
@@ -606,10 +603,10 @@ contains
           enddo
        enddo
 
-       ! detection thresholds
+       ! uncorreltaed detection thresholds
 
-       do i1 = 1, ndetec
-          i = idetec(i1)
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
           if (diff_det(i) >= 0.d0) &
                cycle
           fi1 = diff_det_ei2(i) * yi(i)
@@ -623,12 +620,55 @@ contains
           enddo
        enddo
 
-    else
+       ! correlated detection thresholds
 
-       diff_obs_eri(ierinv) = diff_obs(ierinv) * eri(ierinv)
-       diff_det_eri(ierinv) = diff_det(ierinv) * eri(ierinv)
-       diff_obs_eri(iernoi) = signan()
-       diff_det_eri(iernoi) = signan()
+       if (ndetco > 0) then
+          detd(1:ndetco) = diff_det(idetco)
+          detz(1:ndetco) = detd(1:ndetco) < 0.d0
+          do i1 = 1, ndetco
+             i = idetco(i1)
+             if (detz(i1)) then
+                  mx = m1c(i1, i1)
+                  fi1 = detd(i1) * mx * yi(i)
+                  fi2 = (ln10i - detd(i1)) * mx * yi2(i)
+                  do j = 1, nstar
+                     f1(j) = f1(j) - fi1 * abu(j,i)
+                     fa = fi2 * abu(j,i)
+                     do k=1,j
+                        f2(j,k) = f2(j,k) - fa * abu(k,i)
+                     enddo
+                  end do
+               end if
+               do l1 = 1, i1-1
+                  l = idetco(l1)
+                  mx = m1c(i1, l1)
+                  if (detz(i1)) then
+                     fi1 = detd(i1) * mx * yi(i)
+                     fi2 = (ln10i - detd(i1)) * mx * yi2(i)
+                     do j = 1, nstar
+                        f1(j) = f1(j) - fi1 * abu(j,i)
+                        fa = fi2 * abu(j,i)
+                        do k=1,j
+                           f2(j,k) = f2(j,k) - fa * abu(k,i)
+                        enddo
+                     end do
+                  end if
+                  if (detz(l1)) then
+                     fi1 = detd(l1) * mx * yi(l)
+                     fi2 = (ln10i - detd(l1)) * mx * yi2(l)
+                     do j = 1, nstar
+                        f1(j) = f1(j) - fi1 * abu(j,l)
+                        fa = fi2 * abu(j,l)
+                        do k=1,j
+                           f2(j,k) = f2(j,k) - fa * abu(k,l)
+                        enddo
+                     end do
+                  end if
+               end do
+            end do
+         end if
+
+      else
 
        ! upper limits
 
@@ -646,10 +686,10 @@ contains
           enddo
        enddo
 
-       ! detection thresholds
+       ! uncorrelated detection thresholds
 
-       do i1 = 1, ndetec
-          i = idetec(i1)
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
           fc = logcdfp(diff_det(i) * eri(i))
           fi1 = eri(i) * yi(i) * fc
           fi2 = yi(i) * (1.d0 + ln10i * eri(i) * (fc + diff_det(i) * eri(i)))
@@ -662,7 +702,52 @@ contains
           enddo
        enddo
 
-    endif
+       ! correlated detection thresholds
+
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
+          mx = m1q(i1, i1)
+          fc = logcdfp(diff_det(i) * mx)
+          fi1 = mx * yi(i) * fc
+          fi2 = yi(i) * (1.d0 + ln10i * mx * (fc + diff_det(i) * mx))
+          do j=1, nstar
+             fa = fi1 * abu(j, i)
+             f1(j) = f1(j) + fa
+             do k=1, j
+                f2(j,k) = f2(j,k) - fi2 * fa * abu(k,i)
+             enddo
+          enddo
+
+          do l1=1, l1-1
+             l = idetco(l1)
+             mx = m1q(i1, l1)
+             ms = m1s(i1, l1) * 0.5d0
+
+             fc = logcdfp(diff_det(i) * mx)
+             fi1 = mx * yi(i) * fc
+             fi2 = yi(i) * (1.d0 + ln10i * mx * (fc + diff_det(i) * mx))
+             do j=1, nstar
+                fa = fi1 * abu(j, i) * ms
+                f1(j) = f1(j) + fa
+                do k=1, j
+                   f2(j,k) = f2(j,k) - fi2 * fa * abu(k,i)
+                end do
+             end do
+
+             fc = logcdfp(diff_det(l) * mx)
+             fi1 = mx * yi(l) * fc
+             fi2 = yi(l) * (1.d0 + ln10i * mx * (fc + diff_det(l) * mx))
+             do j=1, nstar
+                fa = fi1 * abu(j, l) * ms
+                f1(j) = f1(j) + fa
+                do k=1, j
+                   f2(j,k) = f2(j,k) - fi2 * fa * abu(k,l)
+                end do
+             end do
+          end do
+       end do
+
+    end if
 
     ! these identical factors make no difference in solver
     ! Just for correctness while debugging
@@ -1230,21 +1315,21 @@ contains
        do i1 = 1, ndetco
           i = idetco(i1)
           mx = m1q(i1, i1)
-          df = + logcdfp(diff_det(i)*mx) * mx
+          df = + logcdfp(diff_det(i) * mx) * mx
           de = - diff_det(i) * mx**2
           f1 = f1 + df
           f2 = f2 + df * (df + de)
           do j1=1, i1-1
              j = idetco(j1)
              mx = m1q(i1, j1)
-             ms = m1s(i1, j1)
+             ms = m1s(i1, j1) * 0.5d0
 
-             df = + logcdfp(diff_det(i)*mx) * mx
+             df = + logcdfp(diff_det(i) * mx) * mx
              de = - diff_det(i) * mx**2
              f1 = f1 + ms * df
              f2 = f2 + ms * df * (df + de)
 
-             df = + logcdfp(diff_det(j)*mx) * mx
+             df = + logcdfp(diff_det(j) * mx) * mx
              de = - diff_det(j) * mx**2
              f1 = f1 + ms * df
              f2 = f2 + ms * df * (df + de)
@@ -1406,14 +1491,14 @@ contains
           endif
           do j1=1, i1-1
              j = idetco(j1)
-             mx = m1c(i1, j1)
+             mx = - m1c(i1, j1)
              if (include_det(i)) then
-                diff = diff - diff_det(i) * mx
-                ei2s = ei2s - mx
+                diff = diff + diff_det(i) * mx
+                ei2s = ei2s + mx
              endif
              if (include_det(j)) then
-                diff = diff - diff_det(j) * mx
-                ei2s = ei2s - mx
+                diff = diff + diff_det(j) * mx
+                ei2s = ei2s + mx
              end if
           enddo
        enddo
