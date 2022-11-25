@@ -290,8 +290,10 @@ contains
     real(kind=real64), intent(out) :: &
          f
 
+    logical, dimension(nel) :: &
+         detz
     real(kind=real64), dimension(nel) :: &
-         logy, diff_obs, diff_det
+         logy, diff_obs, diff_det, det2
     real(kind=real64) :: &
          mx
     integer(kind=int64) :: &
@@ -319,21 +321,39 @@ contains
              f = f - (diff_det(i) * eri(i))**2
           endif
        enddo
-       do i1=1,ndetco
-          i = idetco(i1)
-          if (diff_det(i) < 0.d0) then
-             f = f - diff_det(i)**2 * m1c(i1, i1)
-          endif
-          do j1=1, i1-1
-             j = idetco(j1)
-             if (diff_det(i) < 0.d0) then
-                f = f - 2.d0 * diff_det(i)**2 * m1c(i1, j1)
+       if (ndetco > 0) then
+          detz(1:ndetco) = diff_det(idetco) < 0.d0
+          det2(1:ndetco) = diff_det(idetco)**2
+          do i1=1,ndetco
+             if (detz(i1)) then
+                f = f - det2(i1) * m1c(i1, i1)
              endif
-             if (diff_det(j) < 0.d0) then
-                f = f - 2.d0 * diff_det(j)**2 * m1c(i1, j1)
-             end if
+             do j1=1, i1-1
+                mx = - 2.d0 * m1c(i1, j1)
+                if (detz(i1)) then
+                   f = f + det2(i1) * mx
+                endif
+                if (detz(j1)) then
+                   f = f + det2(j1) * mx
+                end if
+             enddo
           enddo
-       enddo
+       endif
+       ! do i1=1,ndetco
+       !    i = idetco(i1)
+       !    if (diff_det(i) < 0.d0) then
+       !       f = f - diff_det(i)**2 * m1c(i1, i1)
+       !    endif
+       !    do j1=1, i1-1
+       !       j = idetco(j1)
+       !       if (diff_det(i) < 0.d0) then
+       !          f = f - 2.d0 * diff_det(i)**2 * m1c(i1, j1)
+       !       endif
+       !       if (diff_det(j) < 0.d0) then
+       !          f = f - 2.d0 * diff_det(j)**2 * m1c(i1, j1)
+       !       end if
+       !    enddo
+       ! enddo
     else
        f = f - 2.d0 * sum(logcdf(diff_obs(iupper) * eri(iupper)))
        f = f + 2.d0 * sum(logcdf(diff_det(idetuc) * eri(idetuc)))
@@ -1254,7 +1274,9 @@ contains
          obs, det, upper, &
          ei2, mp, &
          inocov, nnocov, idetec, ndetec, &
-         diff_z
+         ndetco, idetco, ndetuc, idetuc, &
+         diff_z, &
+         m1c
 
     implicit none
 
@@ -1266,7 +1288,7 @@ contains
          ierr
 
     real(kind=real64) :: &
-         x, diff, ei2s, z
+         x, x1, diff, ei2s, z
     real(kind=real64), dimension(nel)  :: &
          diff_obs, diff_det, logabu
 
@@ -1276,7 +1298,7 @@ contains
          change
 
     integer(kind=int64) :: &
-         i, i1
+         i, i1, j, j1
 
     logabu(:) = log(abu(:)) * ln10i
 
@@ -1286,12 +1308,20 @@ contains
     z = diff_z(diff_obs)
 
     ! First, include all upper limits as if they were detections, and
-    ! exclude all detection thresholds as it you were above
+    ! exclude all detection thresholds as it the data was above
+
+    ! both, excluding upper limits as detections and including
+    ! detecton threshols will only move the solution downward, so
+    ! there is no loops
+
+    ! this may or may not work with correlation matrix and thresholds.
 
     change = .true.
 
     include_obs(:) = .true.
     include_det(:) = .false.
+
+    x1 = 1.d6
 
     do while (change)
 
@@ -1306,12 +1336,30 @@ contains
              diff = diff + diff_obs(i) * ei2(i)
           endif
        enddo
-       do i1 = 1, ndetec
-          i = idetec(i1)
+       do i1 = 1, ndetuc
+          i = idetuc(i1)
           if (include_det(i)) then
              ei2s = ei2s - ei2(i)
              diff = diff - diff_det(i) * ei2(i)
           endif
+       enddo
+       do i1 = 1, ndetco
+          i = idetco(i1)
+          if (include_det(i)) then
+             ei2s = ei2s - m1c(i1, i1)
+             diff = diff - diff_det(i) * m1c(i1, i1)
+          endif
+          do j1=1, i1-1
+             j = idetco(j1)
+             if (include_det(i)) then
+                ei2s = ei2s - m1c(i1, j1)
+                diff = diff - diff_det(i) * m1c(i1, j1)
+             endif
+             if (include_det(j)) then
+                ei2s = ei2s - m1c(i1, j1)
+                diff = diff - diff_det(j) * m1c(i1, j1)
+             end if
+          enddo
        enddo
 
        if (ei2s == 0.d0) then
@@ -1323,6 +1371,16 @@ contains
        endif
 
        x = -diff / ei2s
+
+       if (x > x1) then
+          if (stop_on_nonconvergence) then
+             error stop '[analytic] loops.'
+          endif
+          ierr = 1
+          return
+       end if
+
+       x1 = x
 
        change = .false.
        do i1 = 1, nnocov
@@ -1345,6 +1403,7 @@ contains
              endif
           endif
        enddo
+       ! if ndetco > 0: check if assumptions become wrong: fail
     enddo
 
     c = exp(x * ln10)
