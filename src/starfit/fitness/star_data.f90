@@ -181,7 +181,7 @@ contains
     uncor = .not.(upper.or.covar)
     detec = measu(:).and.(det(:) > det_lim)
     nocov = .not.covar
-    erinv = upper.or.detec.or.uncor
+    erinv = upper.or.uncor ! == nocov
     ernoi = .not.erinv
     detco = detec.and.covar
     detuc = detec.and.nocov
