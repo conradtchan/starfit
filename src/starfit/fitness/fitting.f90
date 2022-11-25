@@ -57,8 +57,7 @@ contains
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
-         init_covaricance_const, &
-         ndetco
+         init_covaricance_const
 
     implicit none
 
@@ -99,7 +98,7 @@ contains
        goto 1000
     endif
 
-    if ((ls == 0).and.(nstar == 1).and.(ndetco == 0)) then
+    if ((ls == 0).and.(nstar == 1)) then
        call init_ei2()
        call init_covaricance_const()
        if (icdf == 0) then
@@ -123,26 +122,22 @@ contains
           do i = 1, nel
              y(i) = sum(c(k,:) * abu(k,:,i))
           enddo
-          if (ndetco > 0) then
-             call psolve_tanh(c(k,:), abu(k,:,:), nstar)
+          call init_ei2()
+          call init_covaricance_const()
+          if (icdf == 0) then
+             call analytic_solve(scale, y, ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
           else
-             call init_ei2()
-             call init_covaricance_const()
-             if (icdf == 0) then
-                call analytic_solve(scale, y, ierr)
-                if (ierr == 1) then
-                   call psolve_log(c(k,:), abu(k,:,:), nstar)
-                endif
-             else
-                call single_solve(scale, y, ierr)
-                if (ierr == 1) then
-                   call psolve_log(c(k,:), abu(k,:,:), nstar)
-                endif
+             call single_solve(scale, y, ierr)
+             if (ierr == 1) then
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
              endif
           endif
           c(k,:) = c(k,:) * min(scale, 1.d0 / sum(c(k,:)))
        enddo
-    else if ((ls == 1).and.(icdf == 1).and.(ndetco == 0)) then
+    else if ((ls == 1).and.(icdf == 1)) then
 
        ! NR solver with modified x-axis
 
@@ -165,7 +160,7 @@ contains
              endif
           enddo
        end if
-    else if ((ls == 3).and.(icdf == 1).and.(ndetco == 0)) then
+    else if ((ls == 3).and.(icdf == 1)) then
 
        ! classical NR solver that converges poorly due to stiffness of log/exp
 
@@ -704,8 +699,8 @@ contains
 
        ! correlated detection thresholds
 
-       do i1 = 1, ndetuc
-          i = idetuc(i1)
+       do i1 = 1, ndetco
+          i = idetco(i1)
           mx = m1q(i1, i1)
           fc = logcdfp(diff_det(i) * mx)
           fi1 = mx * yi(i) * fc
@@ -718,7 +713,7 @@ contains
              enddo
           enddo
 
-          do l1=1, l1-1
+          do l1=1, i1-1
              l = idetco(l1)
              mx = m1q(i1, l1)
              ms = m1s(i1, l1) * 0.5d0

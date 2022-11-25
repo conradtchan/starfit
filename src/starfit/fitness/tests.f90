@@ -75,8 +75,9 @@ contains
 
     if (idet > 0) then
        det(nel) = obs(nel) - 1.d0
-       det(nel-2) = obs(nel-2) - 1.d0
        det(nel-1) = obs(nel-1) + 1.d0
+       det(nel-2) = obs(nel-2) - 1.d0
+       det(nel-3) = obs(nel-3) - 2.d0
     endif
 
     print*
