@@ -43,7 +43,7 @@ module star_data
        mm, mm1, m1q, m1s, m1c
   real(kind=real64), dimension(:), allocatable :: &
        zvp, zv, &
-       ert, eri, ei2
+       ert, et2, eri, ei2
   real(kind=real64) :: &
        mp
 
@@ -181,7 +181,7 @@ contains
     uncor = .not.(upper.or.covar)
     detec = measu(:).and.(det(:) > det_lim)
     nocov = .not.covar
-    erinv = upper.or.uncor ! == nocov
+    erinv = upper.or.uncor.or.detec
     ernoi = .not.erinv
     detco = detec.and.covar
     detuc = detec.and.nocov
@@ -358,23 +358,39 @@ contains
 
   end subroutine init_covaricance_const
 
-  subroutine init_ei2
+
+  subroutine init_ert
 
     use utils, only: &
          signan
 
     implicit none
 
-    if (allocated(ei2)) then
-       deallocate(ei2)
+    integer(kind=int64) :: &
+         i
+
+    if (allocated(ert)) then
+       deallocate(ert, et2)
     endif
 
-    allocate(ei2(nel))
+    allocate(ert(nel), et2(nel))
 
-    ei2(iernoi) = signan()
-    ei2(ierinv) = 1.d0 / ert(ierinv)**2
+    if (nupper > 0) then
+       ert(iupper) = err(iupper)
+       et2(iupper) = ert(iupper)**2
+    endif
+    if (ncovar > 0) then
+       do i=1,ncovar
+          et2(icovar(i)) = mm(i,i)
+       enddo
+       ert(icovar) = sqrt(et2(icovar))
+    endif
+    if (nuncor > 0) then
+       ert(iuncor) = err(iuncor)
+       et2(iuncor) = ert(iuncor)**2
+    endif
 
-  end subroutine init_ei2
+  end subroutine init_ert
 
 
   subroutine init_eri
@@ -400,35 +416,23 @@ contains
   end subroutine init_eri
 
 
-  subroutine init_ert
+  subroutine init_ei2
 
     use utils, only: &
          signan
 
     implicit none
 
-    integer(kind=int64) :: &
-         i
-
-    if (allocated(ert)) then
-       deallocate(ert)
+    if (allocated(ei2)) then
+       deallocate(ei2)
     endif
 
-    allocate(ert(nel))
+    allocate(ei2(nel))
 
-    if (nupper > 0) then
-       ert(iupper) = err(iupper)
-    endif
-    if (ncovar > 0) then
-       do i=1,ncovar
-          ert(icovar(i)) = sqrt(mm(i,i))
-       enddo
-    endif
-    if (nuncor > 0) then
-       ert(iuncor) = err(iuncor)
-    endif
+    ei2(iernoi) = signan()
+    ei2(ierinv) = 1.d0 / ert(ierinv)**2
 
-  end subroutine init_ert
+  end subroutine init_ei2
 
 
   function abu_covariance(abu) result(xcov)
