@@ -1504,15 +1504,10 @@ class Convert_from_5(object):
             self.ynorm = "Si"
         if self.yscale == 6:
             self.ynorm = "H"
+        if starfit.star.data_format == 3:
+            if self.ynorm is None:
+                self.ynorm = starfit.star.norm_element.Name()
         if self.yscale in (3, 4, 6, 7):
-            if ynorm is None:
-                if starfit.star.data_format == 3:
-                    self.ynorm = starfit.star.norm_element.Name()
-                elif starfit.star.data_format in (
-                    6,
-                    7,
-                ):
-                    self.ynorm = "Si"
             i = np.where(starfit.star.element_abundances.element == I(self.ynorm))[0]
             if len(i) == 0:
                 raise AttributeError(f"Norm Element {self.ynorm} not available")
