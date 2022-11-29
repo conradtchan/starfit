@@ -9,6 +9,7 @@ from textwrap import wrap
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.special import gamma
 
 from . import DB
 from .autils.abuset import AbuData
@@ -513,7 +514,10 @@ class StarFit(Logged):
             if offsets is None:
                 assert optimize is True
                 sol[i, :]["offset"] = 1.0e-4 / stars.shape[1]
-                local_search = True
+                if stars.shape[1] == 1:
+                    local_search = False
+                else:
+                    local_search = True
             else:
                 sol[i, :]["offset"] = offsets[i]
                 if optimize is True:
@@ -870,7 +874,7 @@ class StarFit(Logged):
         """Call plotting routines to plot the best fit."""
 
         num = min(max(num, 0), len(self.sorted_stars) - 1)
-        multi = min(max(multi, 0), len(self.sorted_stars))
+        multi = min(max(multi, -1), len(self.sorted_stars))
 
         bestsol = self.sorted_stars[num]
         indices = bestsol["index"]
@@ -966,6 +970,33 @@ class StarFit(Logged):
                         # consecutives
                         consec = np.array_split(row, np.where(np.diff(row) != 1)[0] + 1)
                         x[ind[0]] = np.mean(consec[0])
+
+        # superimpose alternate solutions by weight
+        if multi < 0:
+            w = self.W()
+            wm = np.max(w)
+            for i in range(self.db_size):
+                if i == num:
+                    continue
+                alpha = w[i] / wm
+                if alpha * 1024 < 1:
+                    continue
+                sol = self.unsorted_stars[i]
+                sol_indices = sol["index"]
+                sol_offsets = sol["offset"]
+                sol_summed = np.sum(
+                    (self.full_abudata[:, sol_indices] + 1.0e-99) * sol_offsets, axis=1
+                )
+                y_ga = convert(sol_summed[index_t], ref="full", scale="lin")
+                ax.plot(
+                    x_ga,
+                    y_ga,
+                    linestyle="-",
+                    lw=2,
+                    zorder=-10,
+                    color="#cfcfcf",
+                    alpha=alpha,
+                )
 
         # plot alternative solutions
         for i in range(multi):
@@ -1102,14 +1133,18 @@ class StarFit(Logged):
                         label=texlabels[i],
                     )
 
-        if multi > 0 and not (multi == 1 and num == 0):
+        if multi != 0 and not (multi == 1 and num == 0):
+            if multi > 0:
+                label = f"{multi:d} alternative solutions"
+            else:
+                label = "weighed alternative solutions"
             ax.plot(
                 [None],
                 [None],
                 linestyle="-",
                 lw=2,
                 zorder=-10,
-                label=f"{multi:d} alternative solutions",
+                label=label,
                 color="#cfcfcfcf",
             )
 
@@ -1482,6 +1517,12 @@ class StarFit(Logged):
         ax.set_yticklabels(labels)
 
         fig.tight_layout()
+
+    def W(self):
+        k = self.fit_size - 1
+        k2 = k * 0.5
+        chi2 = self.unsorted_fitness * k
+        return chi2 ** (k2 - 1) * np.exp(-0.5 * chi2) * np.sqrt(0.5) ** k / gamma(k2)
 
 
 class Convert_from_5(object):
