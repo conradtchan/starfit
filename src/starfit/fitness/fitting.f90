@@ -9,7 +9,8 @@ module fitting
        stop_on_nonconvergence = .false., &
        stop_on_large_offset = .false., &
        stop_on_zero_offset = .false., &
-       detcov_tot = .true.
+       detcov_tot = .true., &
+       test_derivative = .false.
 
   integer(kind=int64), parameter :: &
        FLAGS_LIMIT_SOLUTION_BIT = 0, &
@@ -1373,8 +1374,8 @@ contains
           do i1 = 1, ndetco
              i = idetco(i1)
              mx = sum(m1c(i1, 1:i1))
-             df = logcdfp(diff_det(i) * eri(i)) * ert(i)
-             de = df * ei2(i) + diff_det(i)
+             df = logcdfp(diff_det(i)*eri(i)) * ert(i)
+             de = (df + diff_det(i)) * ei2(i)
              dfx(i1) = df
              dex(i1) = de
              f1 = f1 + mx * df
@@ -1425,6 +1426,51 @@ contains
   end subroutine single_prime
 
 
+  subroutine single_test_prime(c)
+
+    ! test for single NR solver
+
+    use abu_data, only: &
+         abu
+
+    implicit none
+
+    integer(kind=int64), parameter :: &
+         one = 1
+    real(kind=real64), parameter :: &
+         eps = 1.d-4
+
+    real(kind=real64), intent(in) :: &
+         c
+
+    real(kind=real64) :: &
+         f1, f2, x
+
+    real(kind=real64), dimension(1) :: &
+         cx
+    real(kind=real64), dimension(-1:1) :: &
+         fx
+
+    x = log(c) * ln10i
+    call single_prime(x, f1, f2)
+
+    cx(1) = c
+    call chi2(fx( 0), cx, abu, one)
+    cx(1) = c * (1.d0 - eps)
+    call chi2(fx(-1), cx, abu, one)
+    cx(1) = c * (1.d0 + eps)
+    call chi2(fx(+1), cx, abu, one)
+
+    print*, '[single_test_prime] func: x,f1,f2', x, f1, f2
+
+    f1 = (fx(1)-fx(-1)) / (2.d0 * eps) * ln10
+    f2 = (fx(1)+fx(-1)-2.d0*fx(0)) * (ln10 / eps)**2 + f1 * ln10
+
+    print*, '[single_test_prime] num:  x,f1,f2', x,f1,f2
+
+  end subroutine single_test_prime
+
+
   subroutine single_solve(c, abu, ierr)
 
     ! single NR solver
@@ -1462,6 +1508,9 @@ contains
 
     call set_abu_data(abu, nel, one)
     call init_logabu()
+
+    if (test_derivative) &
+         call single_test_prime(c)
 
     x = log(c) * ln10i
     do iter = 1, max_steps
