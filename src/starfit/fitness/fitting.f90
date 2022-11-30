@@ -9,7 +9,7 @@ module fitting
        stop_on_nonconvergence = .false., &
        stop_on_large_offset = .false., &
        stop_on_zero_offset = .false., &
-       detcov_tot = .false., &
+       detcov_tot = .true., &
        test_derivative = .false.
 
   integer(kind=int64), parameter :: &
