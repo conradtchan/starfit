@@ -9,7 +9,7 @@ module fitting
        stop_on_nonconvergence = .false., &
        stop_on_large_offset = .false., &
        stop_on_zero_offset = .false., &
-       detcov_tot = .true., &
+       detcov_tot = .false., &
        test_derivative = .false.
 
   integer(kind=int64), parameter :: &
@@ -88,7 +88,7 @@ contains
          y
 
     integer(kind=int64) :: &
-         i, k, ierr
+         i, k, ierr, nerr
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
 
@@ -111,12 +111,15 @@ contains
              endif
           enddo
        else
+          nerr = 0
           do k = 1, nsol
              call single_solve(c(k,1), abu(k,1,:), ierr)
              if (ierr == 1) then
+                nerr = nerr + 1
                 call psolve_log(c(k,:), abu(k,:,:), nstar)
              endif
           enddo
+          print*,'[fitness] single: nerr=', nerr
        endif
     else if ((ls == 0).and.(nstar > 1)) then
        do k = 1, nsol
@@ -1438,7 +1441,7 @@ contains
     integer(kind=int64), parameter :: &
          one = 1
     real(kind=real64), parameter :: &
-         eps = 1.d-4
+         eps = 1.d-3
 
     real(kind=real64), intent(in) :: &
          c
@@ -1487,7 +1490,9 @@ contains
     implicit none
 
     integer(kind=int64), parameter :: &
-         one = 1.d0
+         one = 1
+    real(kind=real64), parameter :: &
+         dxmax = 99.d0
 
     integer(kind=int64), parameter :: &
          max_steps = 20
@@ -1515,8 +1520,23 @@ contains
     x = log(c) * ln10i
     do iter = 1, max_steps
        call single_prime(x, f1, f2)
+
        if (f2 == 0.d0) exit
+
+       ! a fix for in case of local min of the derivative
+
+       if (f2 < 0.d0) then
+          if (f1 < 0.d0) then
+             x = x + 1.d0
+          else
+             x = x - 1.d0
+          endif
+          cycle
+       endif
+
        delta = f1 / f2
+       delta = sign(min(abs(delta), dxmax), delta)
+
        x = x - delta
        if (abs(delta) < 1.0d-6) goto 1000
     enddo
