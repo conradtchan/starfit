@@ -10,13 +10,13 @@ module fitting
        stop_on_large_offset = .false., &
        stop_on_zero_offset = .false., &
        detcov_tot = .true., &
-       test_derivative = .false.
+       test_derivative = .false., &
+       print_solver_info = .false.
 
   integer(kind=int64), parameter :: &
        FLAGS_LIMIT_SOLUTION_BIT = 0, &
        FLAGS_LIMITED_SOLVER_BIT = 1, &
        FLAGS_NO_CHI2 = 2
-
 
   private
 
@@ -104,22 +104,27 @@ contains
        call init_ei2()
        call init_covaricance_const()
        if (icdf == 0) then
-          do k = 1, nsol
-             call analytic_solve(c(k,1), abu(k,1,:), ierr)
-             if (ierr == 1) then
-                call psolve_log(c(k,:), abu(k,:,:), nstar)
-             endif
-          enddo
-       else
           nerr = 0
           do k = 1, nsol
-             call single_solve(c(k,1), abu(k,1,:), ierr)
-             if (ierr == 1) then
+             call analytic_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr > 0) then
                 nerr = nerr + 1
                 call psolve_log(c(k,:), abu(k,:,:), nstar)
              endif
           enddo
-          if (nerr > 0) then
+          if ((nerr > 0).and.print_solver_info) then
+             print*,'[fitness] analytic_single: nerr=', nerr
+          endif
+       else
+          nerr = 0
+          do k = 1, nsol
+             call single_solve(c(k,1), abu(k,1,:), ierr)
+             if (ierr > 0) then
+                nerr = nerr + 1
+                call psolve_log(c(k,:), abu(k,:,:), nstar)
+             endif
+          enddo
+          if ((nerr > 0).and.print_solver_info) then
              print*,'[fitness] single: nerr=', nerr
           endif
        endif
@@ -331,7 +336,7 @@ contains
                 f = f - det2(i1) * m1c(i1, i1)
              end if
              do j1=1, i1-1
-                mx = - 2.d0 * m1c(i1, j1)
+                mx = -m1c(i1, j1)
                 if (detz(i1)) then
                    f = f + det2(i1) * mx
                 endif
@@ -1556,6 +1561,52 @@ contains
   end subroutine single_solve
 
 
+  subroutine analytic_test_prime(c, abu, f1_, f2_)
+
+    ! test for analytic single NR solver
+
+    use star_data, only: &
+         nel
+
+    implicit none
+
+    integer(kind=int64), parameter :: &
+         one = 1
+    real(kind=real64), parameter :: &
+         eps = 1.d-4
+
+    real(kind=real64), intent(in) :: &
+         c, f1_, f2_
+    real(kind=real64), intent(in), dimension(nel) :: &
+         abu
+
+    real(kind=real64) :: &
+         f1, f2, x
+
+    real(kind=real64), dimension(1) :: &
+         cx
+    real(kind=real64), dimension(-1:1) :: &
+         fx
+
+    x = log(c) * ln10i
+
+    print*, '[analytic_test_prime] func: x,f1,f2', x, f1_, f2_
+
+    cx(1) = c
+    call chi2(fx( 0), cx, abu, one)
+    cx(1) = c * (1.d0 - eps)
+    call chi2(fx(-1), cx, abu, one)
+    cx(1) = c * (1.d0 + eps)
+    call chi2(fx(+1), cx, abu, one)
+
+    f1 = (fx(1)-fx(-1)) / (2.d0 * eps) * ln10
+    f2 = (fx(1)+fx(-1)-2.d0*fx(0)) * (ln10 / eps)**2 + f1 * ln10
+
+    print*, '[analytic_test_prime] num:  x,f1,f2', x,f1,f2
+
+  end subroutine analytic_test_prime
+
+
   subroutine analytic_solve(c, abu, ierr)
 
     use star_data, only: &
@@ -1666,7 +1717,7 @@ contains
           if (stop_on_nonconvergence) then
              error stop '[analytic] loops.'
           endif
-          ierr = 1
+          ierr = 2
           return
        end if
 
@@ -1676,8 +1727,8 @@ contains
        do i1 = 1, nnocov
           i = inocov(i1)
           if (upper(i).and.(include_obs(i))) then
-             diff = diff_obs(i) + x
-             if (diff < 0.0d0) then
+             mx = diff_obs(i) + x
+             if (mx < 0.0d0) then
                 include_obs(i) = .false.
                 change = .true.
              endif
@@ -1686,8 +1737,8 @@ contains
        do i1 = 1, ndetec
           i = idetec(i1)
           if (.not.include_det(i)) then
-             diff = diff_det(i) + x
-             if (diff < 0.0d0) then
+             mx = diff_det(i) + x
+             if (mx < 0.0d0) then
                 include_det(i) = .true.
                 change = .true.
              endif
@@ -1698,6 +1749,9 @@ contains
 
     ierr = 0
     c = exp(x * ln10)
+
+    if (test_derivative) &
+         call analytic_test_prime(c, abu, (diff + x * ei2s) * 2.d0, ei2s * 2.d0)
 
   end subroutine analytic_solve
 
