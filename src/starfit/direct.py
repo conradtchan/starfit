@@ -16,8 +16,8 @@ class Direct(StarFit):
         *args,
         stars=None,  # A list of the indices of the stars, such as [[114, 3604]]
         offsets=None,
-        fig=None,
         fixed_offsets=False,
+        optimize=True,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -56,15 +56,21 @@ class Direct(StarFit):
             ), "offsets dimensions need to match stars dimensions"
 
         sol, fitness = self.run(
-            stars=stars, offsets=offsets, fixed_offsets=fixed_offsets
+            stars=stars,
+            offsets=offsets,
+            fixed_offsets=fixed_offsets,
+            optimize=optimize,
         )
+
+        self.unsorted_fitness = fitness
+        self.unsorted_stars = sol
 
         sort = np.argsort(fitness)
         self.sorted_fitness = fitness[sort]
         self.sorted_stars = sol[sort]
         self.sol_size = stars.shape[1]
 
-        text = self.format().splitlines()
+        text = self.format(best=False, n=2**12).splitlines()
         n = len(text[2])
         self.logger.info("")
         self.logger.info("-" * n)

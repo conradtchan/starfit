@@ -539,7 +539,9 @@ class StarFit(Logged):
         )
         return sol, fitness
 
-    def text_result(self, n=20, *, n0=0, format="unicode", wide=12, _return_dbx=False):
+    def text_result(
+        self, n=20, *, n0=0, format="unicode", best=True, wide=12, _return_dbx=False
+    ):
         """Print data of best fit."""
         text = []
         if format == "html":
@@ -555,9 +557,16 @@ class StarFit(Logged):
             base_units[2:2] = [""]
         empty_title = [""] * len(base_title)
 
-        n1 = min(n0 + n, len(self.sorted_stars))
+        if best:
+            stars = self.sorted_stars
+            fitness = self.sorted_fitness
+        else:
+            stars = self.unsorted_stars
+            fitness = self.unsorted_fitness
 
-        dbidx = np.array(self.db_idx[self.sorted_stars[n0:n1]["index"]])
+        n1 = min(n0 + n, len(stars))
+
+        dbidx = np.array(self.db_idx[stars[n0:n1]["index"]])
         dbx = np.unique(dbidx.flat)
 
         # wide format
@@ -631,7 +640,7 @@ class StarFit(Logged):
 
         for i in range(n0, n1):
             for j in range(self.sol_size):
-                index, offset = self.sorted_stars[i, j]
+                index, offset = stars[i, j]
                 db_idx = self.db_idx[index]
                 db = self.db[db_idx]
                 if db_idx != db_idx0 and not wide:
@@ -641,7 +650,7 @@ class StarFit(Logged):
                 data = db.fielddata[dbindex]
                 line = list()
                 if j == 0:
-                    line.append(f"{self.sorted_fitness[i]:3.2f}")
+                    line.append(f"{fitness[i]:3.2f}")
                 else:
                     line.append("")
                 line.append(f"{np.log10(offset):7.2f}")
