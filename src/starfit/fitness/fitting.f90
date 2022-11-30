@@ -119,7 +119,9 @@ contains
                 call psolve_log(c(k,:), abu(k,:,:), nstar)
              endif
           enddo
-          print*,'[fitness] single: nerr=', nerr
+          if (nerr > 0) then
+             print*,'[fitness] single: nerr=', nerr
+          endif
        endif
     else if ((ls == 0).and.(nstar > 1)) then
        do k = 1, nsol
