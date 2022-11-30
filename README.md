@@ -14,7 +14,7 @@ An online interface (with a subset of functionality) is available at [starfit.or
 # Installation
 Tested with Python 3.10, 3.11
 
-Optional: A working LaTeX installation and dvipng is required to create plots with LaTeX labels (ideal for publication). Otherwise, Matplotlib's default MathText is used, which may not render all symbols correctly.
+Optional: A working `LaTeX` installation and `dvipng` is required to create plots with LaTeX labels (ideal for publication). Otherwise, `Matplotlib`'s default `MathText` is used, which may not render all symbols correctly.
 
 ## From PyPI (recommended)
 ```shell
@@ -86,7 +86,7 @@ the `print` method allows to specify the number of lines to be printed (`n`), th
 s.print(n0=3, n=1, wide=8, format=None)
 ```
 
-The `info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info uee
+The `info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info use
 ```python
 s.info(2)
 ```
@@ -123,25 +123,25 @@ If you want to plot a solution other than the best one, use the parameter `num` 
 s.plot(num=4)
 ```
 The legend as well as the star name and copyright string can be moved (dragged).
-Plot parameters iclude
+Plot parameters include
 - `num`: Number of solution, from the top (default: `0`).
 - `yscale`: select the y-scale of the plot.  Numerical value identical to those used for the star data formats.
-- `ynorm`: elemets to use a norm for `[X/Y]' plots (`yscale=3`).
-- `multi`: plot this many best solutions as gray lines (default: `0`).  For `multi=-1` lines will be shaded according to relative data point probability based on &#x1D6D8;&sup2; and assuming multi-dimensional Gaussian error.
+- `ynorm`: elements to use a norm for `[X/Y]' plots (`yscale=3`).
+- `multi`: plot this many best solutions as grey lines (default: `0`).  For `multi=-1` lines will be shaded according to relative data point probability based on &#x1D6D8;&sup2; and assuming multi-dimensional Gaussian error.
 - `save`: filename to save plot.
 - `range_det`: adjust range to include detection thresholds (default: `False`)
-- `range_lim`: adjust range to incoude detection limits (default: `True`)
-- `range_zmin`: in Z ro conider for determining y range (default: `3`)
+- `range_lim`: adjust range to include detection limits (default: `True`)
+- `range_zmin`: minimum Z to consider for determining y range (default: `3`)
 - `pad_abu`: fraction of plot range to use at bottom/top boundary (default: `0.1`).
-- `pad_det`: fraction of plot range to pad detection tresholds (default: `0.05`).
-- `figsize`: dimensions of figure in inches (dedault: `(10, 6)`).
+- `pad_det`: fraction of plot range to pad detection thresholds (default: `0.05`).
+- `figsize`: dimensions of figure in inches (default: `(10, 6)`).
 - `dpi`: resolution of image (default: `102`).
 - `xlim`: overwrite x range (low, high).
 - `ylim`: overwrite y range (low, high).
-- `data_size`: Size of data lines and symols (default: `3`).
+- `data_size`: Size of data lines and symbols (default: `3`).
 - `fontsize`: size used for axis labels (default: `12`).
 - `annosize`: size used for element symbols (default: `small`).
-- `dist`:  distance of lables from data points.
+- `dist`:  distance of labels from data points.
 - `fig`: figure object to use as canvas, otherwise as new figure is created.
 - `ax`: axis objects to use for drawing, otherwise axis and parent figure are created as needed.
 - `xlabel`: overwrite label for x-axis.
@@ -153,12 +153,12 @@ Plot parameters iclude
 
 Additional arguments:
 - `fixed_offsets`: Use dilution factors based on the ejecta mass, rather than solving for the optimal dilution ratio of each explosion independently (decreases solve time)
-- `threads`: Number of threads to use.  Default is to use the CPU count (including hyperthreading)
-- `nice`: Nice level of background threads.  Default is 19 (lowest priority on unix systems).
-- `group`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `group` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data base partitons needs to match the number of stars (`sol_size`).  `group` can be a vector with number of data bases to group into each group.  The number of groups needs match the `sol_size` vector.
+- `threads`: Number of threads to use.  Default is to use the CPU count (including hyper-threading)
+- `nice`: Nice level of background threads.  Default is 19 (lowest priority on Unix systems).
+- `group`: by default, all data are merged in one big list and all possible combinations (excluding duplicates) are explored.  If `group` is specified, only combinations form different databases are considered.  This can significantly reduce the cost and often may be more what is intended.  In this case, the number of data base partitions needs to match the number of stars (`sol_size`).  `group` can be a vector with number of data bases to group into each group.  The number of groups needs match the `sol_size` vector.
 
 Changed arguments:
-- sol_size can now be a vector with one entry for each partiton.  The number of entries need to match the number of groups.  A scalar value is equivalent to vector with that many `1`s.  All combinations in each group (without repetitions) are tested.
+- sol_size can now be a vector with one entry for each partition.  The number of entries need to match the number of groups.  A scalar value is equivalent to vector with that many `1`s.  All combinations in each group (without repetitions) are tested.
 ```python
 s = starfit.Multi(
     filename = 'SMSS2003-1142.dat',
@@ -185,7 +185,7 @@ s = starfit.Multi(
 Additional arguments:
 - `gen`: maximum number of generations (iterations) to search; no limit if `0` or `None` (default: `1000`).
 - `time_limit`: maximum amount of time (in seconds) to search for solution.  Infinite if `None` (default: `20 s`).
-- `sol_size`: number of nucleosynthesis models to combinatine for solution (default: `2`).
+- `sol_size`: number of nucleosynthesis models to combine for the solution (default: `2`).
 - `pop_size`: GA parameter - number of solutions in the population (default: `200`).
 - `tour_size`: GA parameter - number of solutions per tournament selection (default: `2`).
 - `frac_mating_pool`: GA parameter - fraction of solutions in the mating pool (default: `1`).
@@ -196,7 +196,7 @@ Additional arguments:
 - `local_search`: GA parameter - solve for the best dilution factors rather than relying on the GA (default: `True`).
 - `spread`: GA parameter - ensure no database sources are skipped unless there are fewer stars than data bases.  This can be useful if there is a large disparity in the number of models between the different data bases and if you have a prior that all data bases should be used.  Eventually, the genetic algorithm should find all combinations that match best anyway, however.
 - `group`: grouping of data bases, for use with `spread`: try to cover each group but not each database within it separately.  Provide a vector of group length or of tuples with database indices (`0`-based), no duplications allowed.  Same rules as above apply: if group is specified, you need to a provide grouping that covers each database listed by index.
-- `pin`: number or list of groups to require to be included.  Repetirions are allowed to enforce multiple selections from that group.
+- `pin`: number or list of groups to require to be included.  Repetitions are allowed to enforce multiple selections from that group.
 
 The default GA parameters should be used unless you really know what you are doing.
 ```python
@@ -225,7 +225,7 @@ The execution can be terminated pressing the `<Enter>` key.
 The history of fitness evolution can be plotted using the `plot_fitness` method.
 
 Additional arguments:
-- `gen`: when set to `True`, plot as a function of generation number.  Otheriwse, plot as a function of computational time (default).
+- `gen`: when set to `True`, plot as a function of generation number.  Otherwise, plot as a function of computational time (default).
 ```python
 s.plot_fitness(gen=True)
 ```
@@ -235,7 +235,9 @@ s.plot_fitness(gen=True)
 `starfit.Direct` allows to find the best fit to pre-selected group, or groups of stars.
 
 Additional arguments:
-- `stars`: List of lists of models.  For each model, specify a list of database and index.  Both, the database index and the star index, are `0`-based.
+- `stars`: Nested list of lists of models.  For each model, specify a list of database and index.  Both, the database index and the star index, are `0`-based.
+- `offsets`: Nested list of offsets .  For each model, specify a list of offsets.  If not provided, a default (starting) value (`1e-4` total) will be assumed.
+- `optimize`: Whether to find best matching offset or use offsets as is (default: `True`).
 
 The following selects two groups of models: the first selects model index `0` from the first database with index `0`, and the second model (index `1`) from the second database (index `1`); the second selects the third model (index `2`) from the first database (index `0`) and the fourth model (index `3`) from the second database (index `1`):
 ```python
@@ -316,7 +318,7 @@ git checkout -b <new_branch>
 git push --set-upstream origin <new_branch>
 ```
 
-1. If you changed the Fortran code and want to test locally, remeber to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
+1. If you changed the Fortran code and want to test locally, remember to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
 ```shell
 # Set environment variable to allow for editable installs
 export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
@@ -329,12 +331,12 @@ make -C ./src/starfit/fitness clean
 pip3 install -e .[testing]
 ```
 
-To make this step more convenient we povide a `Makefile` in the root directory that does all three steps:
+To make this step more convenient we provide a `Makefile` in the root directory that does all three steps:
 ```shell
 make
 ```
 
-If there are issues with the `fitness` submodule, there is a `Makefile` in its source directory that can be used to compile a test program outside of the python package build process.
+If there are issues with the `fitness` sub-module, there is a `Makefile` in its source directory that can be used to compile a test program outside of the python package build process.
 
 Two automated checks (on Github Actions) must be passed (Items 2 and 3):
 
@@ -343,7 +345,7 @@ Two automated checks (on Github Actions) must be passed (Items 2 and 3):
 pip install pre-commit
 pre-commit install
 ```
-If you have already made non-compliant commits prior to installing pre-commit, then the pre-commit check on Github will fail. To make the code compliant again, run
+If you have already made non-compliant commits prior to installing pre-commit, then the pre-commit check on `GitHub` will fail. To make the code compliant again, run
 ```shell
 pre-commit run --all
 ```
