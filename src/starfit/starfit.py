@@ -540,7 +540,15 @@ class StarFit(Logged):
         return sol, fitness
 
     def text_result(
-        self, n=20, *, n0=0, format="unicode", best=True, wide=12, _return_dbx=False
+        self,
+        n=20,
+        *,
+        n0=0,
+        format="unicode",
+        best=True,
+        wide=12,
+        show_index=True,
+        _return_dbx=False,
     ):
         """Print data of best fit."""
         text = []
@@ -555,6 +563,11 @@ class StarFit(Logged):
         if self.db_n > 1:
             base_title[2:2] = ["DB"]
             base_units[2:2] = [""]
+
+        if not show_index:
+            base_title = base_title[:-1]
+            base_units = base_units[:-1]
+
         empty_title = [""] * len(base_title)
 
         if best:
@@ -656,7 +669,8 @@ class StarFit(Logged):
                 line.append(f"{np.log10(offset):7.2f}")
                 if self.db_n > 1:
                     line.append(f"{self.db_lab[db_idx]}")
-                line.append(f"{dbindex:6d}")
+                if show_index:
+                    line.append(f"{dbindex:6d}")
                 if wide:
                     for k in range(nfield):
                         if k in fieldmap[db_idx]:
