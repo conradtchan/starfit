@@ -527,7 +527,7 @@ contains
              do j1=1, i1-1
                 j = idetco(j1)
                 mx = m1q(i1, j1)
-                f(i,j) = m1s(i1, j1) * &
+                f(i,j) = f(i,j) + m1s(i1, j1) * &
                      (logcdf(diff_det(i) * mx) + logcdf(diff_det(j) * mx))
              end do
           end do
