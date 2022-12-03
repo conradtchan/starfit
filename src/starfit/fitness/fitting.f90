@@ -5,13 +5,16 @@ module fitting
 
   implicit none
 
+
+  logical, parameter :: &
+       test_derivative = .false., &
+       test_matrix = .false.
+
   logical :: &
        stop_on_nonconvergence = .false., &
        stop_on_large_offset = .false., &
        stop_on_zero_offset = .false., &
        detcov_tot = .true., &
-       test_derivative = .false., &
-       test_matrix = .false., &
        print_solver_info = .false.
 
   integer(kind=int64), parameter :: &
@@ -889,6 +892,79 @@ contains
   end subroutine chi2_prime
 
 
+  subroutine chi2_test_prime(c)
+
+    ! test for single NR solver
+
+    use abu_data, only: &
+         abu, nstar
+
+    implicit none
+
+    real(kind=real64), parameter :: &
+         eps = 1.d-4
+
+    real(kind=real64), dimension(nstar), intent(in) :: &
+         c
+
+    real(kind=real64), dimension(nstar) :: &
+         f1, g1
+    real(kind=real64), dimension(nstar, nstar) :: &
+         f2, g2
+
+    real(kind=real64), dimension(nstar) :: &
+         cx
+    real(kind=real64), dimension(-1:1,-1:1,nstar,nstar) :: &
+         fx
+    integer(kind=int64) :: &
+         i,j,i1,j1
+
+    call chi2_prime(g1, g2, c)
+
+    print*, '[chi2_test_prime] func: c(:)', c
+    print*, '[chi2_test_prime] func: g1(:)', g1(:)
+    do i=1,nstar
+       print*, '[chi2_test_prime] func: i,g2(i,:)', i, g2(i,:)
+    end do
+
+    cx(:) = c(:)
+
+    do i=1, nstar
+       do i1=-1,1
+          cx(i) = c(i) * (1.d0 + dble(i1) * eps)
+          call chi2(fx(i1,0,i,i), cx, abu, nstar)
+       enddo
+       do j=1, nstar
+          if (i==j) cycle
+          do i1=-1,1,2
+             do j1=-1,1,2
+                cx(i) = c(i) * (1.d0 + dble(i1) * eps)
+                cx(j) = c(j) * (1.d0 + dble(j1) * eps)
+                call chi2(fx(i1,j1,i,j), cx, abu, nstar)
+                cx(i) = c(i)
+                cx(j) = c(j)
+             end do
+          end do
+       end do
+    end do
+
+    do i=1,nstar
+       f1(i) = (fx(1,0,i,i)-fx(-1,0,i,i)) / (2.d0 * eps * c(i))
+       f2(i,i) = (fx(1,0,i,i)+fx(-1,0,i,i)-2.d0*fx(0,0,i,i)) / (eps * c(i))**2
+       do j=1,nstar
+          if (i == j) cycle
+          f2(i,j) = (fx(1,1,i,j)-fx(-1,1,i,j)-fx(1,-1,i,j)+fx(-1,-1,i,j)) / ((2.d0 * eps * c(i)) * (2.d0 * eps * c(j)))
+       enddo
+    enddo
+
+    print*, '[chi2_test_prime] func: f1(:)', f1(:)
+    do i=1,nstar
+       print*, '[chi2_test_prime] func: i,f2(i,:)', i, f2(i,:)
+    end do
+
+  end subroutine chi2_test_prime
+
+
   subroutine newton_classic(c, abu, nstar, ierr)
 
     use linalg, only: &
@@ -936,6 +1012,9 @@ contains
 
     call set_abu_data(abu, nel, nstar)
 
+    if (test_derivative) &
+         call chi2_test_prime(c)
+
     do i = 1, max_steps
        call chi2_prime(f1, f2, cx)
        dc(:) = leqs(f2, f1, nstar)
@@ -957,7 +1036,9 @@ contains
 
     ierr = 0
     c(:) = cx(:)
-    return
+
+    if (test_derivative) &
+         call chi2_test_prime(c)
 
   end subroutine newton_classic
 
@@ -1096,6 +1177,9 @@ contains
 
     call set_abu_data(abu, nel, nstar)
 
+    if (test_derivative) &
+         call chi2_test_prime(c)
+
     ! Convert offsets to solver space
 
     x = atanh(max(min(c(:), ALMOST_ONE), 1e-12) * 2.d0 - 1.d0)
@@ -1130,6 +1214,9 @@ contains
 
     ierr = 0
     c(:) = 0.5d0 * (1.d0 + tanh(x(:)))
+
+    if (test_derivative) &
+         call chi2_test_prime(c)
 
   end subroutine newton_tanh
 
@@ -1254,6 +1341,9 @@ contains
 
     call set_abu_data(abu, nel, nstar)
 
+    if (test_derivative) &
+         call chi2_test_prime(c)
+
     ! Convert offsets to solver space
 
     x = log(max(c(:), 1e-12))
@@ -1288,6 +1378,9 @@ contains
 
     ierr = 0
     c = exp(x)
+
+    if (test_derivative) &
+         call chi2_test_prime(c)
 
   end subroutine newton_log
 
