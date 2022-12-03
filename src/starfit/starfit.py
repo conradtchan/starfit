@@ -1425,7 +1425,7 @@ class StarFit(Logged):
         if return_plot_data:
             return labels, (x_a, y_a)
 
-    def plot_error_matrix(self, num=0, zoom=1000, nlab=9):
+    def plot_error_matrix(self, num=0, zoom=False, nlab=9):
         stars = self.sorted_stars[[num]]
         sol, fitness = self.run(
             stars=stars["index"],
@@ -1467,7 +1467,7 @@ class StarFit(Logged):
 
         fig.tight_layout()
 
-    def plot_star_matrix(self, zoom=1000, nlab=9, compress=True):
+    def plot_star_matrix(self, zoom=False, nlab=9, compress=True):
 
         m = get_complete_matrix(self.star, self.cdf)
         if zoom is not False:
@@ -1504,7 +1504,7 @@ class StarFit(Logged):
 
         fig.tight_layout()
 
-    def plot_star_inverse(self, zoom=0.1, nlab=9, compress=True):
+    def plot_star_inverse(self, zoom=False, nlab=9, compress=True):
 
         m = get_complete_inverse(self.star, self.cdf)
         if zoom is not False:
