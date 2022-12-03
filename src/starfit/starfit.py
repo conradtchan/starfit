@@ -1436,34 +1436,50 @@ class StarFit(Logged):
         )
         m = fitness[0]
 
+        mx = m.copy()
+        ii = np.arange(mx.shape[0])
+        mx[ii, ii] = 0
+        matrix = np.any(mx != 0)
+
         if zoom is not False:
             y = np.sign(m) * (np.log10(np.abs(m) + 1 / zoom) + np.log10(zoom))
             scale = " (scaled around zero)"
         else:
             y = m
             scale = ""
-
         vmag = np.max(np.abs(y))
 
-        fig, ax = plt.subplots()
-        cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
-        cb = fig.colorbar(cm)
-        cb.set_label(f"error contribution{scale}")
-        if zoom is not False:
-            x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
-            cb.set_ticks(x)
-            y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
-            cb.set_ticklabels([f"{i:5.3f}" for i in y])
-
         data = self.eval_data[~self.exclude_index]
-
         ions = data.element
         ticks = np.arange(len(ions)) + 0.5
         labels = [i.Name() for i in ions]
+
+        label = rf"error contribution to $\chi^2${scale}"
+
+        fig, ax = plt.subplots()
+        if matrix:
+            cm = ax.pcolormesh(y, vmin=-vmag, vmax=vmag, cmap="bwr")
+            cb = fig.colorbar(cm)
+            cb.set_label(label)
+            if zoom is not False:
+                x = ((np.arange(nlab) / (nlab - 1)) * 2 - 1) * vmag
+                cb.set_ticks(x)
+                y = np.sign(x) * (10 ** (np.abs(x) - np.log10(zoom)) - 1 / zoom)
+                cb.set_ticklabels([f"{i:5.3f}" for i in y])
+            ax.set_yticks(ticks)
+            ax.set_yticklabels(labels)
+        else:
+            values = np.diag(y)
+            l = ax.plot([None])
+            c = l[0].get_color()
+            for x, y in zip(ticks, values):
+                mfc = None if y > 0 else "none"
+                ax.plot(x, y, ls="none", color=c, marker="o", mfc=mfc)
+            ax.axhline(0, color="#cfcfcf", ls="-", zorder=-10)
+            ax.set_ylabel(label)
+
         ax.set_xticks(ticks)
         ax.set_xticklabels(labels)
-        ax.set_yticks(ticks)
-        ax.set_yticklabels(labels)
 
         fig.tight_layout()
 
