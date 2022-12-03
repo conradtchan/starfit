@@ -11,6 +11,7 @@ module fitting
        stop_on_zero_offset = .false., &
        detcov_tot = .true., &
        test_derivative = .false., &
+       test_matrix = .false., &
        print_solver_info = .false.
 
   integer(kind=int64), parameter :: &
@@ -266,7 +267,43 @@ contains
        call chi2m(f(k,:,:), c(k,:), abu(k,:,:), nstar)
     enddo
 
+    if (test_matrix) then
+       call fitness_test_m(c, abu, nstar, nsol)
+    endif
+
   end subroutine fitness_m
+
+
+  subroutine fitness_test_m(c, abu, nstar, nsol)
+
+    use star_data, only: &
+         nel
+
+    implicit none
+
+    integer(kind=int64), intent(in) :: &
+         nstar, nsol
+    real(kind=real64), dimension(nsol, nstar, nel), intent(in) :: &
+         abu
+    real(kind=real64), dimension(nsol, nstar), intent(in) :: &
+         c
+
+    real(kind=real64), dimension(nsol, nel, nel) :: &
+         f
+    integer(kind=int64) :: &
+         i,k
+
+    do k = 1, nsol
+       call chi2(f(k,1,1), c(k,:), abu(k,:,:), nstar)
+       print*, 'k', k, 'f1', f(k,1,1)
+       call chi2m(f(k,:,:), c(k,:), abu(k,:,:), nstar)
+       print*, 'k', k, 'fm', sum(f(k,:,:))
+       do i=1, nel
+          print*, 'k', k, 'fij', f(k,i,:)
+       enddo
+    enddo
+
+  end subroutine fitness_test_m
 
 
   subroutine chi2(f, c, abu, nstar)
@@ -474,9 +511,9 @@ contains
        if (detcov_tot) then
           do i1=1,ndetco
              i = idetco(i1)
-             mx = 2.d0 * et2(i) * logcdf(diff_det(i) * eri(i))
+             mx = et2(i) * logcdf(diff_det(i) * eri(i))
              mxx(i1) = mx
-             f(i,i) = f(i,i) + m1c(i1, i1) * mx
+             f(i,i) = f(i,i) + 2.d0 * m1c(i1, i1) * mx
              do j1=1, i1-1
                 j = idetco(j1)
                 my = mxx(j1)
