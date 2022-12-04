@@ -31,7 +31,7 @@ module fitting
        ln10i2p2 = ln10i2**2, &
        ln10ip22 = 2.d0 * ln10i**2, &
        ln10i2m = -ln10i2, &
-       ALMOST_ONE = 1.d0 - 1.d-14
+       ALMOST_ONE = 1.d0 - epsilon(1.d0) * 64.d0
 
   logical :: &
        wall_chi2_prime = .false.
