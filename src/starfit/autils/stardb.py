@@ -291,7 +291,7 @@ class StarDB(AbuData, Logged):
         """
         Overwrite inherited routine.
 
-        There is more different kinsd of data than the original
+        There are more different kinds of data than the original
         version can handle.
         """
         return self.data
@@ -839,7 +839,7 @@ class StarDB(AbuData, Logged):
         Currently only supports 8 byte types float64, int64, uint64.
         """
 
-        for item in data.flatten()[0]:
+        for item, offset in data.dtype.fields.values():
             assert item.itemsize == 8, "trying to write data of wrong size"
         value = np.asfortranarray(data)
         if self.swapbyteorder:
@@ -990,20 +990,20 @@ class StarDB(AbuData, Logged):
         """
 
         nvalues = np.zeros(self.nfield, dtype=np.uint64)
-        values = np.ndarray((self.nfield, self.nstar), dtype=np.float64)
+        values = np.full((self.nstar,), np.nan, self.fielddata.dtype)
         ivalues = np.ndarray((self.nfield, self.nstar), dtype=np.uint64)
-        values[:] = np.nan
         for ifield in range(self.nfield):
             # values
-            v = self.fielddata[self.fieldnames[ifield]]
+            key = self.fieldnames[ifield]
+            v = self.fielddata[key]
             vv, vx = np.unique(v, return_inverse=True)
             nv = len(vv)
-            values[ifield, 0:nv] = vv
+            values[key][0:nv] = vv
             nvalues[ifield] = nv
             ivalues[ifield] = vx
 
         nvalues_max = max(nvalues)
-        values = values[:, 0:nvalues_max]
+        values = values[0:nvalues_max]
 
         self.nvalues = nvalues
         self.values = values
@@ -1071,7 +1071,7 @@ class StarDB(AbuData, Logged):
         l3 = 0
         l4 = max(len(x) for x in self.fieldunits)
         l5 = 0
-        re_len = re.compile("^([0-9]+)", flags=re.I)
+        re_len = re.compile("^(?:<|>)?([0-9]+)", flags=re.I)
         for ifield in range(self.nfield):
             # output formatting
             l5 = max(l5, len(self.type_names[self.fieldtypes[ifield]]))
@@ -1093,7 +1093,7 @@ class StarDB(AbuData, Logged):
                 len(
                     np.argwhere(
                         self.type_names[self.fieldtypes[ifield]]
-                        == np.array(["DOUBLE", "LONG64", "ULONG64"])
+                        == np.array(["DOUBLE", "LONG64", "ULONG64", "ASCII64"])
                     )
                 )
                 == 0
@@ -1109,14 +1109,19 @@ class StarDB(AbuData, Logged):
         for line in s:
             self.logger.info(line)
 
-        # These two b;ock below should become their own function
+        # These two blocks below should become their own function
         xpar = np.argwhere(self.fieldflags == 0)
         if len(xpar) > 0:
             self.logger.info("".ljust(58, "-"))
             self.logger.info("PARAMETER RANGES:")
         for ip in xpar.flat:
-            fmax = max(self.values[ip, 0 : self.nvalues[ip]])
-            fmin = min(self.values[ip, 0 : self.nvalues[ip]])
+            key = self.fieldnames[ip]
+            fmax = max(self.values[key][0 : self.nvalues[ip]])
+            fmin = min(self.values[key][0 : self.nvalues[ip]])
+            if isinstance(fmax, bytes):
+                fmax = fmax.decode()
+            if isinstance(fmin, bytes):
+                fmin = fmin.decode()
             line = (
                 self.fieldnames[ip] + ": ",
                 ("{:" + self.fieldformats[ip] + "}").format(fmin),
@@ -1135,8 +1140,13 @@ class StarDB(AbuData, Logged):
             self.logger.info("".ljust(58, "-"))
             self.logger.info("PROPERTY RANGES:")
         for ip in xprop.flat:
-            fmax = max(self.values[ip, 0 : self.nvalues[ip]])
-            fmin = min(self.values[ip, 0 : self.nvalues[ip]])
+            key = self.fieldnames[ip]
+            fmax = max(self.values[key][0 : self.nvalues[ip]])
+            fmin = min(self.values[key][0 : self.nvalues[ip]])
+            if isinstance(fmax, bytes):
+                fmax = fmax.decode()
+            if isinstance(fmin, bytes):
+                fmin = fmin.decode()
             line = (
                 self.fieldnames[ip] + ": ",
                 ("{:" + self.fieldformats[ip] + "}").format(fmin),
@@ -1162,7 +1172,11 @@ class StarDB(AbuData, Logged):
                 if len(s) >= 50:
                     self.logger.info(s)
                     s = ""
-                s += f.format(self.values[ip, id])
+                key = self.fieldnames[ip]
+                value = self.values[key][id]
+                if isinstance(value, bytes):
+                    value = value.decode()
+                s += f.format(value)
             self.logger.info(s)
 
         maxpropvalues = 100
@@ -1181,7 +1195,11 @@ class StarDB(AbuData, Logged):
                     if len(s) >= 50:
                         self.logger.info(s)
                         s = ""
-                    s += f.format(self.values[ip, id])
+                    key = self.fieldnames[ip]
+                    value = self.values[key][id]
+                    if isinstance(value, bytes):
+                        value = value.decode()
+                    s += f.format(value)
                 self.logger.info(s)
         self.logger.info("".ljust(58, "-"))
 
@@ -1319,7 +1337,7 @@ class StarDB(AbuData, Logged):
         Convert IDL format coding into python format coding.
         """
 
-        fmt_convert = {"I": "D"}
+        fmt_convert = {"I": "D", "S": "s"}
         fmt = format[1:] + fmt_convert.get(format[0], format[0])
         return fmt
 
@@ -1329,7 +1347,7 @@ class StarDB(AbuData, Logged):
         Convert python format coding into IDL format coding.
         """
 
-        fmt_convert = {"D": "I"}
+        fmt_convert = {"D": "I", "s": "S"}
         fmt = fmt_convert.get(format[-1], format[-1]) + format[:-1]
         return fmt
 
