@@ -497,7 +497,7 @@ class AbuData(object):
             if axis != 0:
                 new.data = np.moveaxis(new.data, 0, axis)
         if axis == 0 and along:
-            new.i1 = objects[-1].i1
+            new.i1 = new.data.shape[0]
         return new
 
     @classmethod
