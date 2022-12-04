@@ -675,11 +675,18 @@ class StarFit(Logged):
                     for k in range(nfield):
                         if k in fieldmap[db_idx]:
                             l = np.where(fieldmap[db_idx] == k)[0][0]
-                            line.append(f"{data[l]:{db.fieldformats[l]}}")
+                            d = data[l]
+                            f = db.fieldformats[l]
+                            if isinstance(d, bytes):
+                                d = d.decode()
+                            line.append(f"{d:{f}}")
                         else:
                             line.append("")
                 else:
-                    line.extend([f"{x:{y}}" for x, y in zip(data, db.fieldformats)])
+                    for d, f in zip(data, db.fieldformats):
+                        if isinstance(d, bytes):
+                            d = d.decode()
+                        line.append(f"{d:{f}}")
                     line.extend([""] * (nfield_short - db.nfield))
                 text.append(line)
             if self.sol_size > 1:
@@ -1068,6 +1075,8 @@ class StarFit(Logged):
                 if db.fieldflags[j] != StarDB.Flags.parameter:
                     continue
                 value = db.fielddata[dbindex][j]
+                if isinstance(value, bytes):
+                    value = value.decode()
                 unit = db.fieldunits[j]
                 name = db.fieldnames[j]
                 form = db.fieldformats[j]
