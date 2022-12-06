@@ -268,6 +268,8 @@ class StarDB(AbuData, Logged):
             """
             return "Data seems faulty."
 
+    re_len = re.compile("^[<>+-]?([0-9]+)", flags=re.I)
+
     def __init__(self, filename=None, db=None, **kwargs):
         """
         Initialize data fields and open file.
@@ -1071,11 +1073,10 @@ class StarDB(AbuData, Logged):
         l3 = 0
         l4 = max(len(x) for x in self.fieldunits)
         l5 = 0
-        re_len = re.compile("^(?:<|>)?([0-9]+)", flags=re.I)
         for ifield in range(self.nfield):
             # output formatting
             l5 = max(l5, len(self.type_names[self.fieldtypes[ifield]]))
-            flen = int(re_len.findall(self.fieldformats[ifield])[0])
+            flen = int(self.re_len.findall(self.fieldformats[ifield])[0])
             l2 = max(l2, flen)
             l3 = max(l3, len(f"{self.nvalues[ifield]:d}"))
 
@@ -1122,17 +1123,23 @@ class StarDB(AbuData, Logged):
                 fmax = fmax.decode()
             if isinstance(fmin, bytes):
                 fmin = fmin.decode()
-            line = (
-                self.fieldnames[ip] + ": ",
-                ("{:" + self.fieldformats[ip] + "}").format(fmin),
-                ("{:" + self.fieldformats[ip] + "}").format(fmax),
-                f"{int(self.nvalues[ip]):d}",
-            )
-            format = (
-                "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
+            if fmin == fmax:
+                line = (
+                    self.fieldnames[ip] + ": ",
+                    ("{:" + self.fieldformats[ip] + "}").format(fmin),
+                    f"{int(self.nvalues[ip]):d}",
+                )
+                format = f"{{:<{l1 + 2:d}s}} {{:>{l2:d}s}} ({{:>{l3:d}s}} value)"
+            else:
+                line = (
+                    self.fieldnames[ip] + ": ",
+                    ("{:" + self.fieldformats[ip] + "}").format(fmin),
+                    ("{:" + self.fieldformats[ip] + "}").format(fmax),
+                    f"{int(self.nvalues[ip]):d}",
+                )
+                format = "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
                     l1 + 2, l2, l2, l3
                 )
-            )
             self.logger.info(format.format(*line))
 
         xprop = np.argwhere(self.fieldflags != 0)
@@ -1147,17 +1154,23 @@ class StarDB(AbuData, Logged):
                 fmax = fmax.decode()
             if isinstance(fmin, bytes):
                 fmin = fmin.decode()
-            line = (
-                self.fieldnames[ip] + ": ",
-                ("{:" + self.fieldformats[ip] + "}").format(fmin),
-                ("{:" + self.fieldformats[ip] + "}").format(fmax),
-                f"{int(self.nvalues[ip]):d}",
-            )
-            format = (
-                "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
+            if fmin == fmax:
+                line = (
+                    self.fieldnames[ip] + ": ",
+                    ("{:" + self.fieldformats[ip] + "}").format(fmin),
+                    f"{int(self.nvalues[ip]):d}",
+                )
+                format = f"{{:<{l1 + 2:d}s}} {{:>{l2:d}s}} ({{:>{l3:d}s}} value)"
+            else:
+                line = (
+                    self.fieldnames[ip] + ": ",
+                    ("{:" + self.fieldformats[ip] + "}").format(fmin),
+                    ("{:" + self.fieldformats[ip] + "}").format(fmax),
+                    f"{int(self.nvalues[ip]):d}",
+                )
+                format = "{{:<{:d}s}} {{:>{:d}s}} ... {{:>{:d}s}} ({{:>{:d}s}} values)".format(
                     l1 + 2, l2, l2, l3
                 )
-            )
             self.logger.info(format.format(*line))
 
         if len(xpar) > 0:
@@ -1165,7 +1178,7 @@ class StarDB(AbuData, Logged):
             self.logger.info("PARAMETER VALUES:")
         for ip in xpar.flat:
             self.logger.info(self.fieldnames[ip] + ":")
-            flen = int(re_len.findall(self.fieldformats[ifield])[0])
+            flen = int(self.re_len.findall(self.fieldformats[ifield])[0])
             s = ""
             f = " {:" + self.fieldformats[ip] + "}"
             for id in range(self.nvalues[ip]):
@@ -1188,7 +1201,7 @@ class StarDB(AbuData, Logged):
             if self.nvalues[ip] > maxpropvalues:
                 self.logger.info(f"(more than {maxpropvalues:d} values)")
             else:
-                flen = int(re_len.findall(self.fieldformats[ifield])[0])
+                flen = int(self.re_len.findall(self.fieldformats[ifield])[0])
                 s = ""
                 f = " {:" + self.fieldformats[ip] + "}"
                 for id in range(self.nvalues[ip]):
@@ -1385,7 +1398,7 @@ class StarDB(AbuData, Logged):
         if not isinstance(indices, Iterable):
             indices = (indices,)
         maxlenname = max(len(n) for n in self.fieldnames)
-        maxlenvalue = max(int(f[:-1].split(".")[0]) for f in self.fieldformats)
+        maxlenvalue = max(int(self.re_len.findall(f)[0]) for f in self.fieldformats)
         maxlenunit = max(len(n) for n in self.fieldunits)
         maxlen = maxlenname + maxlenvalue + maxlenunit + 3
         print("-" * maxlen)
