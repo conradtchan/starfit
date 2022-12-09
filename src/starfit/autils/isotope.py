@@ -772,9 +772,9 @@ class Ion(object, metaclass=MetaSingletonHash):
         8: [12, 34],
         9: [14, 38],
         10: [16, 41],
-        11: [18, 44],
+        11: [17, 44],
         12: [19, 47],
-        13: [21, 51],
+        13: [20, 51],
         14: [22, 54],
         15: [23, 57],
         16: [24, 60],
@@ -2389,6 +2389,9 @@ ufunc_is_void = lambda y: np.array(
 ufunc_is_vac = lambda y: np.array(
     np.frompyfunc(lambda x: x.is_vac, 1, 1)(y), dtype=bool
 )
+ufunc_any_void = lambda y: np.any(
+    np.array(np.frompyfunc(lambda x: x.is_void, 1, 1)(y), dtype=bool)
+)
 
 ufunc_type = lambda y: np.array(np.frompyfunc(lambda x: x.type, 1, 1)(y), dtype=np.str)
 
@@ -2503,6 +2506,24 @@ ufunc_ion_from_ZNE = lambda Z, N, E: np.array(
 
 ufunc_isomer_from_ZNE = lambda Z, N, E: np.array(
     np.frompyfunc(lambda z, n, e: ion(Z=z, N=n, E=e, isomer=True), 3, 1)(Z, N, E),
+    dtype=object,
+)
+
+
+ufunc_element_from_Z = lambda Z: np.array(
+    np.frompyfunc(lambda z: ion(Z=z, element=True), 1, 1)(Z),
+    dtype=object,
+)
+
+
+ufunc_isobar_from_A = lambda A: np.array(
+    np.frompyfunc(lambda a: ion(A=a, isobar=True), 1, 1)(A),
+    dtype=object,
+)
+
+
+ufunc_isotone_from_N = lambda N: np.array(
+    np.frompyfunc(lambda n: ion(N=n, isotone=True), 1, 1)(N),
     dtype=object,
 )
 

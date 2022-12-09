@@ -18,13 +18,34 @@ from pathlib import Path
 import numpy as np
 import scipy.sparse
 
-from .abuset import AbuData, IonList
-from .human import byte2human
-from .isotope import ion as I
-from .loader import _loader, loader
-from .logged import Logged
-from .utils import CachedAttribute, prod, xz_file_size
-from .uuidtime import UUID1
+if Path(__file__).parent.name == "autils":
+    from .abuset import AbuData, IonList
+    from .human import byte2human
+    from .isotope import (
+        ufunc_element_from_Z,
+        ufunc_isobar_from_A,
+        ufunc_isomer_from_ZAE,
+        ufunc_isotone_from_N,
+        ufunc_isotope_from_ZA,
+    )
+    from .loader import _loader, loader
+    from .logged import Logged
+    from .utils import CachedAttribute, prod, xz_file_size
+    from .uuidtime import UUID1
+else:
+    from abuset import AbuData, IonList
+    from human import byte2human
+    from isotope import (
+        ufunc_element_from_Z,
+        ufunc_isobar_from_A,
+        ufunc_isomer_from_ZAE,
+        ufunc_isotone_from_N,
+        ufunc_isotope_from_ZA,
+    )
+    from loader import _loader, loader
+    from logged import Logged
+    from utils import CachedAttribute, prod, xz_file_size
+    from uuidtime import UUID1
 
 # used to replace '^' as anker point
 _db_path = "~/starfit_data/db"
@@ -61,7 +82,7 @@ class StarDB(AbuData, Logged):
      16 ASCII8 64-it (8 byte) ASCII String [StarDB]
     """
 
-    current_version = 10200
+    current_version = 10300
     _extension = "stardb"
 
     sys_is_le = sys.byteorder == "little"
@@ -402,12 +423,16 @@ class StarDB(AbuData, Logged):
         self.comments = np.array(self.comments, dtype=object)
         self.comments = np.append(self.comments, f"UUID: {UUID1()}")
 
-        self.ions = kwargs.get("ions", None)
-        self.data = kwargs.get("data", None)
+        self.ions = np.asarray(kwargs.get("ions", None))
+        self.data = np.asarray(kwargs.get("data", None))
         if isinstance(self.data, AbuData):
             if self.ions is None:
                 self.ions = self.data.ions.copy()
             self.data = self.data.data.copy()
+        self.lower = np.asarray(kwargs.get("lower", np.ndarray((0,), dtype=object)))
+        self.ignpore = np.asarray(kwargs.get("lower", np.ndarray((0,), dtype=object)))
+        self.nlower = self.lower.shape[0]
+        self.nexclude = self.exclude.shape[0]
 
         self.fielddata = kwargs.get("fielddata", None)
 
@@ -886,11 +911,17 @@ class StarDB(AbuData, Logged):
         self.nstar = int(self._read_uin())
         self.nfield = int(self._read_uin())
         self.nabu = int(self._read_uin())
+        if self.version < 10300:
+            self.nlower = 0
+            self.nexclude = 0
+        else:
+            self.nlower = int(self._read_uin())
+            self.nexclude = int(self._read_uin())
 
         if self.version < 10100:
             iabutype = self._read_uin()
             if iabutype != 1:
-                self.logger.error("currently only supporting element data (type 1)")
+                self.logger.error("currently only supporting element data (Type 1)")
                 raise self.VersionError()
             self.abundance_type = 2
             self.abundance_class = 2
@@ -925,10 +956,6 @@ class StarDB(AbuData, Logged):
         for i in range(self.nfield):
             self.fieldformats[i] = self._idlformat2pyformat(fieldformats[i])
 
-        # l1 = max(len(x) for x in self.fieldnames)
-        # l2 = max(len(x) for x in self.fieldunits)
-        # l3 = max(len(x) for x in self.type_names)
-
         abu_Z = self._read_uin(self.nabu)
         if self.version < 10100:
             abu_A = np.zeros(self.nabu, dtype=np.uint64)
@@ -936,26 +963,35 @@ class StarDB(AbuData, Logged):
         else:
             abu_A = self._read_uin(self.nabu)
             abu_E = self._read_uin(self.nabu)
+        lower_Z = self._read_uin(self.nlower)
+        lower_A = self._read_uin(self.nlower)
+        lower_E = self._read_uin(self.nlower)
+        exclude_Z = self._read_uin(self.nexclude)
+        exclude_A = self._read_uin(self.nexclude)
+        exclude_E = self._read_uin(self.nexclude)
 
         if self.abundance_type == 0:
-            self.ions = np.array(
-                [
-                    I(Z=int(abu_Z[i]), A=int(abu_A[i]), E=int(abu_E[i]))
-                    for i in range(self.nabu)
-                ]
-            )
+            self.ions = ufunc_isomer_from_ZAE(abu_Z, abu_A, abu_E)
+            self.lower = ufunc_isomer_from_ZAE(lower_Z, lower_A, lower_E)
+            self.exclude = ufunc_isomer_from_ZAE(exclude_Z, exclude_A, exclude_E)
         elif self.abundance_type == 1:
-            self.ions = np.array(
-                [I(Z=int(abu_Z[i]), A=int(abu_A[i])) for i in range(self.nabu)]
-            )
+            self.ions = ufunc_isotope_from_ZA(abu_Z, abu_A)
+            self.lower = ufunc_isotope_from_ZA(lower_Z, lower_A)
+            self.exclude = ufunc_isotope_from_ZA(exclude_Z, exclude_A)
         elif self.abundance_type == 2:
-            self.ions = np.array([I(Z=int(abu_Z[i])) for i in range(self.nabu)])
+            self.ions = ufunc_element_from_Z(abu_Z)
+            self.lower = ufunc_element_from_Z(lower_Z)
+            self.exclude = ufunc_element_from_Z(exclude_Z)
         elif self.abundance_type == 3:
-            self.ions = np.array([I(A=int(abu_A[i])) for i in range(self.nabu)])
+            self.ions = ufunc_isobar_from_A(abu_A)
+            self.lower = ufunc_isobar_from_A(lower_A)
+            self.exclude = ufunc_isobar_from_A(exclude_A)
         elif self.abundance_type == 4:
-            self.ions = np.array([I(N=int(abu_A[i])) for i in range(self.nabu)])
+            self.ions = ufunc_isotone_from_N(abu_A)
+            self.lower = ufunc_isotone_from_N(lower_A)
+            self.exclude = ufunc_isotone_from_N(exclude_A)
         else:
-            self.logger.error("anundance type not defined.")
+            self.logger.error("abundance type not defined.")
             raise self.DataError()
 
         # load field data
@@ -982,7 +1018,7 @@ class StarDB(AbuData, Logged):
 
     def _read_other(self):
         """
-        Dummy routine to link in data writing by derived DB classes
+        Dummy routine to link in data writing by derived DB classes.
         """
         pass
 
@@ -1109,6 +1145,22 @@ class StarDB(AbuData, Logged):
         s = textwrap.wrap(s, 50)
         for line in s:
             self.logger.info(line)
+
+        if self.nlower > 0:
+            self.logger.info("".ljust(58, "-"))
+            self.logger.info("LOWER LIMITS:")
+            s = " ".join(str(i) for i in self.lower)
+            s = textwrap.wrap(s, 50)
+            for line in s:
+                self.logger.info(line)
+
+        if self.nexclude > 0:
+            self.logger.info("".ljust(58, "-"))
+            self.logger.info("EXCLUDE:")
+            s = " ".join(str(i) for i in self.exclude)
+            s = textwrap.wrap(s, 50)
+            for line in s:
+                self.logger.info(line)
 
         # These two blocks below should become their own function
         xpar = np.argwhere(self.fieldflags == 0)
@@ -1241,6 +1293,8 @@ class StarDB(AbuData, Logged):
         self._write_uin(self.nstar)
         self._write_uin(self.nfield)
         self._write_uin(self.nabu)
+        self._write_uin(self.nlower)
+        self._write_uin(self.nexclude)
 
         self._write_uin(self.abundance_type)
         self._write_uin(self.abundance_class)
@@ -1260,20 +1314,34 @@ class StarDB(AbuData, Logged):
         self._write_str(fieldformats)
         self._write_uin(self.fieldflags)
 
-        # set A,Z,E from ions
+        # set A, Z, E from ions
         abu_Z = np.array([ion.Z for ion in self.ions], dtype=np.uint64)
         abu_E = np.array([ion.E for ion in self.ions], dtype=np.uint64)
+        lower_Z = np.array([ion.Z for ion in self.lower], dtype=np.uint64)
+        lower_E = np.array([ion.E for ion in self.lower], dtype=np.uint64)
+        exclude_Z = np.array([ion.Z for ion in self.exclude], dtype=np.uint64)
+        exclude_E = np.array([ion.E for ion in self.exclude], dtype=np.uint64)
         if self.abundance_type in (0, 1, 2, 3):
             abu_A = np.array([ion.A for ion in self.ions], dtype=np.uint64)
+            lower_A = np.array([ion.A for ion in self.lower], dtype=np.uint64)
+            exclude_A = np.array([ion.A for ion in self.exclude], dtype=np.uint64)
         elif self.abundance_type == 4:
             abu_A = np.array([ion.N for ion in self.ions], dtype=np.uint64)
+            lower_A = np.array([ion.N for ion in self.lower], dtype=np.uint64)
+            exclude_A = np.array([ion.N for ion in self.exclude], dtype=np.uint64)
         else:
-            self.logger.error("anundance type not defined.")
+            self.logger.error("abundance type not defined.")
             raise self.DataError()
 
         self._write_uin(abu_Z)
         self._write_uin(abu_A)
         self._write_uin(abu_E)
+        self._write_uin(lower_Z)
+        self._write_uin(lower_A)
+        self._write_uin(lower_E)
+        self._write_uin(exclude_Z)
+        self._write_uin(exclude_A)
+        self._write_uin(exclude_E)
 
         self._write_stu(self.fielddata)
 
