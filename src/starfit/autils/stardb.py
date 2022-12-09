@@ -542,6 +542,22 @@ class StarDB(AbuData, Logged):
         Write data to file.
         """
         self.setup_logger(silent=silent)
+
+        assert np.all(np.array([type(i) for i in self.ions]) == type(self.ions[0])), "Ion type mismatch."
+        if self.nlower > 0:
+            assert np.all(np.array([type(i) for i in self.lower]) == type(self.ions[0])), "Lower ion type mismatch."
+        if self.nexclude > 0:
+            assert np.all(np.array([type(i) for i in self.exclude]) == type(self.ions[0])), "Exclude ion type mismatch."
+        assert self.nabu == self.ions.shape[0] == self.data.shape[1]
+        assert self.nlower == self.lower.shape[0]
+        assert self.nexclude == self.exclude.shape[0]
+        assert (self.nfield == len(self.fielddata.dtype) ==
+                self.fieldflags.shape[0] == self.fieldformats.shape[0] ==
+                self.fieldunits.shape[0] == self.fieldnames.shape[0] ==
+                self.fieldtypes.shape[0])
+        assert self.nstar == self.fielddata.shape[0] == self.data.shape[0]
+        assert self.ncomment == self.comments.shape[0]
+
         saved_byteorder = self.byteorder
         if byteorder is not None:
             self.byteorder = byteorder
@@ -552,6 +568,41 @@ class StarDB(AbuData, Logged):
         self.byteorder = saved_byteorder
         self.swapbyteorder = self.byteorder != self.native_byteorder
         self.close_logger(timing=f"File {filename!s} written in")
+
+    def set_label(self, label):
+        """
+        set database label (Version 10200)
+        """
+        assert label.isascii()
+        assert len(label) <= 8
+        self.label = label
+
+    def set_exclude(self, exclude):
+        """
+        set database excludes (Version 10300)
+        """
+        exclude = np.atleast_1d(exclude)
+        assert np.all(np.array([type(i) for i in exclude]) == type(self.ions[0])), "Exclude ion type mismatch."
+        self.exclude = exclude
+        self.nexclude = self.exclude.shape[0]
+
+    def set_lower(self, lower):
+        """
+        set database lower limits (Version 10300)
+        """
+        lower = np.atleast_1d(lower)
+        assert np.all(np.array([type(i) for i in lower]) == type(self.ions[0])), "Exclude ion type mismatch."
+        self.lower = lower
+        self.nlower = self.lower.shape[0]
+
+    def set_comments(self, comments):
+        """
+        set comments
+        """
+        if isinstance(comments, str):
+            comments = comments.splitlines()
+        self.comments = np.asarray(comments)
+        self.ncomment = len(self.comments)
 
     def _from_file(self, filename=None, silent=False, **kwargs):
         """
