@@ -615,7 +615,7 @@ class StarFit(Logged):
                     word = _title_translate[word]
                     if format == "html":
                         word = _title_translate_html.get(word, word)
-                else:
+                elif np.all([w.isalpha() for w in word.split()]):
                     word = capwords(word)
                 line.append(word)
             text.append(line)
