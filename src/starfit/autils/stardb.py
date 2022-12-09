@@ -543,18 +543,29 @@ class StarDB(AbuData, Logged):
         """
         self.setup_logger(silent=silent)
 
-        assert np.all(np.array([type(i) for i in self.ions]) == type(self.ions[0])), "Ion type mismatch."
+        assert np.all(
+            np.array([i.F for i in self.ions]) == self.ions[0].F
+        ), "Ion type mismatch."
         if self.nlower > 0:
-            assert np.all(np.array([type(i) for i in self.lower]) == type(self.ions[0])), "Lower ion type mismatch."
+            assert np.all(
+                np.array([i.F for i in self.lower]) == self.ions[0].F
+            ), "Lower ion type mismatch."
         if self.nexclude > 0:
-            assert np.all(np.array([type(i) for i in self.exclude]) == type(self.ions[0])), "Exclude ion type mismatch."
+            assert np.all(
+                np.array([i.F for i in self.exclude]) == self.ions[0].F
+            ), "Exclude ion type mismatch."
         assert self.nabu == self.ions.shape[0] == self.data.shape[1]
         assert self.nlower == self.lower.shape[0]
         assert self.nexclude == self.exclude.shape[0]
-        assert (self.nfield == len(self.fielddata.dtype) ==
-                self.fieldflags.shape[0] == self.fieldformats.shape[0] ==
-                self.fieldunits.shape[0] == self.fieldnames.shape[0] ==
-                self.fieldtypes.shape[0])
+        assert (
+            self.nfield
+            == len(self.fielddata.dtype)
+            == self.fieldflags.shape[0]
+            == self.fieldformats.shape[0]
+            == self.fieldunits.shape[0]
+            == self.fieldnames.shape[0]
+            == self.fieldtypes.shape[0]
+        )
         assert self.nstar == self.fielddata.shape[0] == self.data.shape[0]
         assert self.ncomment == self.comments.shape[0]
 
@@ -582,7 +593,9 @@ class StarDB(AbuData, Logged):
         set database excludes (Version 10300)
         """
         exclude = np.atleast_1d(exclude)
-        assert np.all(np.array([type(i) for i in exclude]) == type(self.ions[0])), "Exclude ion type mismatch."
+        assert np.all(
+            np.array([i.F for i in exclude]) == self.ions[0].F
+        ), "Exclude ion type mismatch."
         self.exclude = exclude
         self.nexclude = self.exclude.shape[0]
 
@@ -591,7 +604,9 @@ class StarDB(AbuData, Logged):
         set database lower limits (Version 10300)
         """
         lower = np.atleast_1d(lower)
-        assert np.all(np.array([type(i) for i in lower]) == type(self.ions[0])), "Exclude ion type mismatch."
+        assert np.all(
+            np.array([i.F for i in lower]) == self.ions[0].F
+        ), "Exclude ion type mismatch."
         self.lower = lower
         self.nlower = self.lower.shape[0]
 
