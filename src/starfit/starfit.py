@@ -724,11 +724,11 @@ class StarFit(Logged):
             try:
                 num &= int(lab) == i
             except:
-                pass
+                num = False
         lines = list()
         line = list()
         if not num:
-            line.appaned("NR")
+            line.append("NR")
         line.append(f"{'DB':>{db_len}}")
         if filename:
             line.append("File")
