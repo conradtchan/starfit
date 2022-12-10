@@ -53,8 +53,10 @@ Required arguments:
 
 Optional arguments:
 - `combine`: a list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements)
-- `z_max`: highest element charge number to fit
-- `z_exclude`: element charge numbers to exclude from fit
+- `z_min`: lowest element charge number to fit.
+- `z_max`: highest element charge number to fit.
+- `z_exclude`: element charge numbers to exclude from fit.
+- `lim_exclude`: treat `z_min` and `z_max` limits as exclusions (default: `True`).  Otherwise databases are "trimmed" to save memory and data cannot be plotted in iteractive mode.
 - `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits)
 - `upper_lim`: include observational upper limits in data fitting
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)

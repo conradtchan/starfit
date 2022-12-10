@@ -98,6 +98,7 @@ class StarFit(Logged):
         z_exclude=None,
         z_min=1,
         z_max=999,
+        lim_exclude=True,
         upper_lim=True,
         z_lolim=None,
         y_floor=1.0e-99,
@@ -196,8 +197,8 @@ class StarFit(Logged):
             self.db_num = np.array([self.data.shape[0]], dtype=np.int64)
         else:
             self.db_idx = np.ndarray(self.data.shape[0], dtype=np.int64)
-            self.db_off = np.ndarray(len(self.db), dtype=np.int64)
-            self.db_num = np.ndarray(len(self.db), dtype=np.int64)
+            self.db_off = np.ndarray(self.db_n, dtype=np.int64)
+            self.db_num = np.ndarray(self.db_n, dtype=np.int64)
             n0 = 0
             for i, db in enumerate(self.db):
                 n = db.data.shape[0]
@@ -278,6 +279,14 @@ class StarFit(Logged):
         self.z_exclude = z_exclude
         self.limit_solution = limit_solution
         self.limit_solver = limit_solver
+
+        if lim_exclude:
+            z_min_ = z_min
+            z_min = min(self.ions[0].Z, self.star.element_abundances.element[0].Z)
+            z_exclude = list(range(z_min, z_min_)) + z_exclude
+            z_max_ = z_max
+            z_max = max(self.ions[-1].Z, self.star.element_abundances.element[-1].Z)
+            z_exclude = z_exclude + list(range(z_max_ + 1, z_max + 1))
 
         # Remove elements with Z > z_max and Z < z_min
         mask_zmax = np.array(
@@ -1245,7 +1254,7 @@ class StarFit(Logged):
                         )
 
         if xlim is None:
-            xlim = (zlist_comb[0] - 0.99, zlist_comb[-1] + 0.99)
+            xlim = (self.z_min - 0.5, self.z_max + 0.5)
 
         # Calculate number of pixels per data
         dpi = fig.get_dpi()
