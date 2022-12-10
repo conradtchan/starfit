@@ -58,6 +58,10 @@ _title_translate_html = {
 DB_LABEL_SIZE = 8
 
 
+class ConstraintsParseError(Exception):
+    pass
+
+
 class StarFit(Logged):
     """
     Object for running the various algorithms and a container for the results
@@ -65,9 +69,7 @@ class StarFit(Logged):
 
     def __init__(self, *args, silent=False, **kwargs):
         self.silent = silent
-
         self.setup_logger(silent=self.silent)
-
         self._setup(*args, **kwargs)
 
     @staticmethod
@@ -110,6 +112,8 @@ class StarFit(Logged):
         show=False,
         limit_solution=None,
         limit_solver=None,
+        constraints=None,
+        constraints_error="warn",
     ):
         """Prepare the data for the solvers.  Trims the databases and excludes
         elements.  Combines multiple databases.
@@ -149,16 +153,47 @@ class StarFit(Logged):
                 database.append(d)
         assert len(database) > 0, f"require valid database, {db=}"
 
+        constraintx = {i: list() for i in range(len(database))}
+        self.constraints_ok = True
+        try:
+            if constraints is not None:
+                for c in constraints.split(";"):
+                    cx = [x.strip() for x in c.strip().split(":")]
+                    if len(cx) > 2 or len(cx) == 0:
+                        raise ConstraintsParseError(constraints)
+                    if len(cx) == 2:
+                        try:
+                            idb = int(cx[0])
+                            assert idb >= 0 and idb < len(database)
+                        except:
+                            raise ConstraintsParseError(constraints)
+                        constraintx[idb].append(cx[1])
+                    else:
+                        for v in constraintx.values():
+                            v.append(cx[0])
+        except:
+            self.constraints_ok = False
+        for k, v in constraintx.items():
+            if len(v) == 0:
+                constraintx[k] = None
+            else:
+                constraintx[k] = ", ".join(v)
+
         # read in databases
         self.db = list()
         self.ejecta = list()
         self.db_n = len(database)
         self.data = list()
-        for db in database:
+        for db, c in zip(database, constraintx.values()):
             if not isinstance(db, StarDB):
                 dbpath = find_data(DB, db)
                 # Read the database
                 db = StarDB(dbpath, silent=self.silent)
+            if c is not None:
+                try:
+                    db = db.select(c, error=constraints_error)
+                except:
+                    self.constraints_ok = False
             self.db.append(db)
 
             if "ejecta" in db.fieldnames:
@@ -173,6 +208,8 @@ class StarFit(Logged):
 
             data = AbuData(db.data, db.ions, molfrac=True)
             self.data.append(data)
+        if not self.constraints_ok:
+            self.logger.info("*** Constraints failed. ***")
         if self.db_n == 1:
             self.data = self.data[0]
             self.ejecta = self.ejecta[0]
@@ -503,7 +540,7 @@ class StarFit(Logged):
 
         if show:
             print()
-            self.print_db(ind=4)
+            self.print_db(ind=4, fields=True)
         self.show = show
 
     def run(
@@ -722,7 +759,7 @@ class StarFit(Logged):
         elif full is False:
             self.print_db(dbx=dbx)
 
-    def text_db(self, dbx=None, filename=False):
+    def text_db(self, dbx=None, filename=False, fields=False):
         if dbx is None:
             dbx = range(self.db_n)
         db_len = 2
@@ -744,6 +781,7 @@ class StarFit(Logged):
         else:
             line.append("Name")
         lines.append(line)
+        dbn_len = 0
         for i in dbx:
             db = self.db[i]
             line = list()
@@ -754,7 +792,22 @@ class StarFit(Logged):
                 line.append(Path(db.filename).name)
             else:
                 line.append(db.name)
+            dbn_len = max(dbn_len, len(line[-1]))
             lines.append(line)
+        if fields:
+            lines[0][-1] += " " * (dbn_len - len(lines[0][-1]))
+            lines[0].append("Fields")
+            for j_, i in enumerate(dbx):
+                db = self.db[i]
+                j = j_ + 1
+                fieldinfo = list()
+                for f, u in zip(db.fieldnames, db.fieldunits):
+                    if len(u) > 0:
+                        fieldinfo.append(f"{f} [{u}]")
+                    else:
+                        fieldinfo.append(f)
+                lines[j][-1] += " " * (dbn_len - len(lines[j][-1]))
+                lines[j].append(", ".join(fieldinfo))
         return lines
 
     def format_db(self, ind=0, pad="", **kwargs):
