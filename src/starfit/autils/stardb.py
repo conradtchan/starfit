@@ -51,6 +51,10 @@ else:
 _db_path = "~/starfit_data/db"
 
 
+class SelectError(Exception):
+    pass
+
+
 class StarDB(AbuData, Logged):
     """
     Class for reading STARDB binary files.
@@ -1572,6 +1576,134 @@ class StarDB(AbuData, Logged):
         for ion, abu in zip(self.ions, self.data[indices, :].transpose()):
             print(("{!s:>8}" + " ".join(["{:12.5e}"] * len(indices))).format(ion, *abu))
         print("=" * (9 + 13 * len(indices)))
+
+    def _select_op_eq(a, b):
+        if isinstance(b, str):
+            return a == b
+        return np.isclose(a, b)
+
+    def _select_op_ne(a, b):
+        if isinstance(b, str):
+            return a != b
+        return ~np.isclose(a, b)
+
+    def _select_op_gt(a, b):
+        if isinstance(b, str):
+            return False
+        if b > 0:
+            return a > b * (1 + 1e-7)
+        return a > b * (1 - 1e-7)
+
+    def _select_op_lt(a, b):
+        if isinstance(b, str):
+            return False
+        if b > 0:
+            return a < b * (1 - 1e-7)
+        return a < b * (1 + 1e-7)
+
+    def _select_op_ge(a, b):
+        if isinstance(b, str):
+            return False
+        if b > 0:
+            return a > b * (1 - 1e-7)
+        return a > b * (1 + 1e-7)
+
+    def _select_op_le(a, b):
+        if isinstance(b, str):
+            return False
+        if b > 0:
+            return a < b * (1 + 1e-7)
+        return a < b * (1 - 1e-7)
+
+    _select_op = {
+        ">": _select_op_gt,
+        "<": _select_op_lt,
+        "=": _select_op_eq,
+        ">=": _select_op_ge,
+        "<=": _select_op_le,
+        "==": _select_op_eq,
+        "!=": _select_op_ne,
+    }
+
+    def select(self, condition, error="warn"):
+        """
+        return subset by condidion
+
+        allowed operators:
+            < <= == >= > !=
+        error:
+            warn | raise | ignore
+        """
+        if isinstance(condition, str):
+            condition = condition.split(",")
+        condition = [c.strip() for c in condition]
+        mask = np.full(self.nstar, True)
+        for con in condition:
+            c = re.split("(>=|<=|!=|>|<|==|!=|=)", con)
+            if not len(c) == 3:
+                s = f" [ERROR][StarDB][select][{self.name}]: Could not parse '{con}'"
+                if error == "warn":
+                    print(s)
+                elif error == "raise":
+                    raise SelectError(s)
+                continue
+            field = c[0].strip()
+            if field not in self.fieldnames:
+                s = f" [ERROR][StarDB][select][{self.name}]: Not a valid field name '{field}'"
+                if error == "warn":
+                    print(s)
+                elif error == "raise":
+                    raise SelectError(s)
+                continue
+            for i, f in enumerate(self.fieldnames):
+                if f == field:
+                    ifield = i
+                    break
+            op = c[1].strip()
+            if op not in self._select_op:
+                s = f" [ERROR][StarDB][select][{self.name}]: Not a valid operator '{op}'"
+                if error == "warn":
+                    print(s)
+                elif error == "raise":
+                    raise SelectError(s)
+                continue
+            op = self._select_op[op]
+            value = c[2].strip()
+            try:
+                v = np.array(value, dtype=self.dtypes[self.fieldtypes[ifield]])[()]
+                if isinstance(v, bytes):
+                    v = v.decode()
+            except:
+                s = f" [ERROR][StarDB][select][{self.name}]: Could not parse value '{value}'"
+                if error == "warn":
+                    print(s)
+                elif error == "raise":
+                    raise SelectError(s)
+                continue
+            value = v
+            mask &= op(self.fielddata[field], value)
+        if np.all(mask):
+            return self
+        return self.subset(mask)
+
+    def subset(self, index):
+        """
+        return selected subset of database
+        """
+        index = np.asarray(index)
+        if isinstance(index.flat[0].tolist(), bool):
+            assert index.ndim == 1
+            assert index.shape[0] == self.nstar
+        else:
+            index_ = np.full(self.nstar, False)
+            index_[index] = True
+            index = index_
+        new = copy(self)
+        new.nstar = np.sum(index)
+        new.data = self.data[index].copy()
+        new.fielddata = self.fielddata[index].copy()
+        new.compute_fielddata()
+        return new
 
 
 load = loader(StarDB, __name__ + ".load")
