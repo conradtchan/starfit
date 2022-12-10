@@ -52,21 +52,23 @@ Required arguments:
 - `db`: database file or tuple of data base files.  String or `Path` object.  Can be absolute or relative path.  Files will also be searched in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `db`.  You may also use the "jokers" (`"*"`) in the data base name.  The code will then try to resolve all matching data bases in the first source directory that contains any matching file.  The plain `*` argument will include all data bases in the first source that contains any data base; the matching is done against the pattern `*.stardb.*`.  The `Ellipis` (`...` Python object, not in quotation marks) will do the same as the plain `*` argument, but will continue searching through all data souces.  This allows for an easy way to search across all model data bases available.
 
 Optional arguments:
-- `combine`: a list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements)
+- `combine`: a list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements).
 - `z_min`: lowest element charge number to fit.
 - `z_max`: highest element charge number to fit.
 - `z_exclude`: element charge numbers to exclude from fit.
 - `lim_exclude`: treat `z_min` and `z_max` limits as exclusions (default: `True`).  Otherwise databases are "trimmed" to save memory and data cannot be plotted in iteractive mode.
-- `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits)
-- `upper_lim`: include observational upper limits in data fitting
-- `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error)
+- `z_lolim`: elements that are *model* lower limits (effectively the same as *observational* upper limits).
+- `upper_lim`: include observational upper limits in data fitting.
+- `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error).
 - `det`: use the detection limits when calculating error contribution (experimental).
 - `cov`: use the error covariances when calculating error contribution (experimental).
-- `limit_solver`: solver/search will only allow solutions for each star that contribute no more than 100%
+- `limit_solver`: solver/search will only allow solutions for each star that contribute no more than 100%.
 - `limit_solution`: solver/search will only allow solutions where the total adds up to no more than 100% contributions from all stars.  Results from the search are renormalised accordingly.
 - `y_floor`: floor value for abundances to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
 - `db_label`: a list of labels for the data bases to be used in plots and tables.  Will only be shown if there are more than one databases specified.  If present, needs to match the number of databases specified.  If not present, databases will be numbbeded starting with `0`, unless the `StarDB` has a `label` field that will be used instead.  The maximum label length currently allowed is `8`.
 - `show`: show list of loaded databases with label/number and name, then quit.
+- `constraints`: string with list of conditions separated by comma (acts as "and").  Conditions for specific databases can be prefixed with a number (zero-based) if the index of the database in the list, followed by a colon(`:`).  Entries for different databases are separated by semicolon (`;`).  The filedname has to be given first, then the operator, and finally the comparison value.  Allowed operators are `<`, `<=`, `==`, `>=`, `>`, and `!=`.
+- `constraints_error`: one of `warn` (default), `raise`, `ignore`.  How StarDB deal with errors in `constraints`.
 ```python
 import starfit
 
@@ -79,6 +81,7 @@ s = starfit.Single(
     z_lolim = [21, 29],
     upper_lim = True,
     cdf = True,
+    constraints = 'energy <= 5',
     )
 
 s.print()
