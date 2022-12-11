@@ -62,6 +62,7 @@ Optional arguments:
 - `cdf`: use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error).
 - `det`: use the detection limits when calculating error contribution (experimental).
 - `cov`: use the error covariances when calculating error contribution (experimental).
+- `dst`: use statistical error only for detection treshold (default: True; experimental).
 - `limit_solver`: solver/search will only allow solutions for each star that contribute no more than 100%.
 - `limit_solution`: solver/search will only allow solutions where the total adds up to no more than 100% contributions from all stars.  Results from the search are renormalised accordingly.
 - `y_floor`: floor value for abundances to assume in models (default: `1e.0e-99`).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
