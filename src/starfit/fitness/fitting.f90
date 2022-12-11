@@ -20,7 +20,8 @@ module fitting
   integer(kind=int64), parameter :: &
        FLAGS_LIMIT_SOLUTION_BIT = 0, &
        FLAGS_LIMITED_SOLVER_BIT = 1, &
-       FLAGS_NO_CHI2 = 2
+       FLAGS_NO_CHI2_BIT = 2, &
+       FLAGS_THRESHOLD_STATISTICAL_BIT = 3
 
   private
 
@@ -63,7 +64,8 @@ contains
     use star_data, only: &
          set_star_data, abu_covariance, &
          init_ei2, &
-         init_covaricance_const
+         init_covaricance_const, &
+         threshold_statistical
 
     implicit none
 
@@ -95,6 +97,8 @@ contains
          i, k, ierr, nerr
 
     call set_star_data(obs, err, det, cov, nel, ncov, icdf)
+
+    threshold_statistical = btest(flags, FLAGS_THRESHOLD_STATISTICAL_BIT)
 
     if ((ls > 3).or.(ls < -1)) then
        print*, '[fitness] ls=', ls
@@ -219,7 +223,7 @@ contains
 
 1000 continue
 
-    if (btest(flags, FLAGS_NO_CHI2)) then
+    if (btest(flags, FLAGS_NO_CHI2_BIT)) then
        goto 2000
     endif
     do k = 1, nsol
@@ -262,7 +266,7 @@ contains
     integer(kind=int64) :: &
          k, xflags
 
-    xflags = ibset(flags, FLAGS_NO_CHI2)
+    xflags = ibset(flags, FLAGS_NO_CHI2_BIT)
 
     call fitness(f(:,1,1), c, obs, err, det, cov, abu, nel, ncov, nstar, nsol, ls, icdf, xflags)
 

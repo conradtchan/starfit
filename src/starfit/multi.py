@@ -207,6 +207,7 @@ class Multi(StarFit):
                     ejecta=self.ejecta,
                     sol_size=self.sol_size,
                     cdf=self.cdf,
+                    dst=self.dst,
                     limit_solution=self.limit_solution,
                     limit_solver=self.limit_solver,
                     num=self.group_num,
