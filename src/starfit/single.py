@@ -30,6 +30,7 @@ class Single(StarFit):
             z_exclude_index=self.exclude_index,
             sol=stars,
             cdf=self.cdf,
+            dst=self.dst,
             limit_solver=self.limit_solver,
             limit_solution=self.limit_solution,
             local_search=False,

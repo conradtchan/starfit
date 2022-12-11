@@ -20,6 +20,9 @@ module star_data
   real(kind=real64), parameter :: &
        det_lim = -80.d0
 
+  logical :: &
+       threshold_statistical = .true.
+
   integer(kind=int64) :: &
        nel, ncov
   real(kind=real64), dimension(:), allocatable :: &
@@ -380,10 +383,15 @@ contains
        et2(iupper) = ert(iupper)**2
     endif
     if (ncovar > 0) then
-       do i=1,ncovar
-          et2(icovar(i)) = mm(i,i)
-       enddo
-       ert(icovar) = sqrt(et2(icovar))
+       if (threshold_statistical) then
+          ert(icovar) = err(icovar)
+          et2(icovar) = ert(icovar)**2
+       else
+          do i=1,ncovar
+             et2(icovar(i)) = mm(i,i)
+          enddo
+          ert(icovar) = sqrt(et2(icovar))
+       endif
     endif
     if (nuncor > 0) then
        ert(iuncor) = err(iuncor)

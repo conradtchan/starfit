@@ -108,6 +108,7 @@ class StarFit(Logged):
         cdf=True,
         cov=False,
         det=False,
+        dst=False,
         debug=False,
         show=False,
         limit_solution=None,
@@ -316,6 +317,7 @@ class StarFit(Logged):
         self.z_exclude = z_exclude
         self.limit_solution = limit_solution
         self.limit_solver = limit_solver
+        self.dst = dst
 
         if lim_exclude:
             z_min_ = z_min
@@ -578,6 +580,7 @@ class StarFit(Logged):
             sol,
             self.ejecta,
             cdf=self.cdf,
+            dst=self.dst,
             local_search=local_search,
             limit_solver=self.limit_solver,
             limit_solution=self.limit_solution,

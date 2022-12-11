@@ -24,10 +24,14 @@ ALMOST_ONE = 1.0e0 - 1.0e-14
 # from f90 module
 FLAGS_LIMIT_SOLUTION_BIT = 0
 FLAGS_LIMITED_SOLVER_BIT = 1
+FLAGS_NO_CHI2_BIT = 2
+FLAGS_THRESHOLD_STATISTICAL_BIT = 3
 
 # flags as addable integers
 FLAGS_LIMIT_SOLUTION = 2**FLAGS_LIMIT_SOLUTION_BIT
 FLAGS_LIMITED_SOLVER = 2**FLAGS_LIMITED_SOLVER_BIT
+FLAGS_NO_CHI2 = 2**FLAGS_NO_CHI2_BIT
+FLAGS_THRESHOLD_STATISTICAL = 2**FLAGS_THRESHOLD_STATISTICAL_BIT
 
 # default flags
 FLAGS_DEFAULT = FLAGS_LIMIT_SOLUTION + FLAGS_LIMITED_SOLVER
@@ -54,6 +58,7 @@ def fitness(
     abu,
     offsets,
     cdf=None,
+    dst=None,
     local_search=True,
     limit_solution=None,
     limit_solver=None,
@@ -69,12 +74,16 @@ def fitness(
         limit_solution = True
     if limit_solver is None:
         limit_solver = True
+    if dst is None:
+        dst = True
 
     flags = 0
     if limit_solution:
         flags += FLAGS_LIMIT_SOLUTION
     if limit_solver:
         flags += FLAGS_LIMITED_SOLVER
+    if dst:
+        flags += FLAGS_THRESHOLD_STATISTICAL
 
     if cdf is None:
         cdf = True
