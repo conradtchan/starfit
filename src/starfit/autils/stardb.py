@@ -425,16 +425,19 @@ class StarDB(AbuData, Logged):
         if isinstance(self.comments, str):
             self.comments = (self.comments,)
         self.comments = np.array(self.comments, dtype=object)
+        self.ncomment = kwargs.get("ncomment", len(self.comments))
         self.comments = np.append(self.comments, f"UUID: {UUID1()}")
+        self.ncomment += 1
 
-        self.ions = np.asarray(kwargs.get("ions", None))
-        self.data = np.asarray(kwargs.get("data", None))
+        self.data = kwargs.get("data", None)
+        self.ions = kwargs.get("ions", None)
         if isinstance(self.data, AbuData):
             if self.ions is None:
-                self.ions = self.data.ions.copy()
+                self.ions = self.data.ions
             self.data = self.data.data.copy()
+
         self.lower = np.asarray(kwargs.get("lower", np.ndarray((0,), dtype=object)))
-        self.ignpore = np.asarray(kwargs.get("lower", np.ndarray((0,), dtype=object)))
+        self.exclude = np.asarray(kwargs.get("exclude", np.ndarray((0,), dtype=object)))
         self.nlower = self.lower.shape[0]
         self.nexclude = self.exclude.shape[0]
 
@@ -558,7 +561,7 @@ class StarDB(AbuData, Logged):
             assert np.all(
                 np.array([i.F for i in self.exclude]) == self.ions[0].F
             ), "Exclude ion type mismatch."
-        assert self.nabu == self.ions.shape[0] == self.data.shape[1]
+        assert self.nabu == len(self.ions) == self.data.shape[1]
         assert self.nlower == self.lower.shape[0]
         assert self.nexclude == self.exclude.shape[0]
         assert (
