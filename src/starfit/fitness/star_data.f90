@@ -438,7 +438,7 @@ contains
     allocate(ei2(nel))
 
     ei2(iernoi) = signan()
-    ei2(ierinv) = 1.d0 / ert(ierinv)**2
+    ei2(ierinv) = eri(ierinv)**2
 
   end subroutine init_ei2
 
