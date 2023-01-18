@@ -12,7 +12,7 @@ source = custom_target('solgenmodule.c',
                             input : ['solgen.f90'],
                             output : ['solgenmodule.c', 'solgen-f2pywrappers.f'],
                             command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
-                            '-m', 'solgen', '--lower'])
+                            '-m', 'solgen', '--build-dir', '@OUTDIR@'])
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 
