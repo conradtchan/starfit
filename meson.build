@@ -1,6 +1,11 @@
-project('starfit', 'c',
-    version : '0.1',
-    default_options : ['warning_level=2'])
+project(
+  'starfit',
+  'c',
+# Run command to rewrite version number:
+# meson rewrite kwargs set project / version $(git describe --tags)
+version : '0.0.0',
+default_options : ['warning_level=2']
+)
 
 add_languages('fortran')
 
