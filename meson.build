@@ -22,9 +22,9 @@ incdir_f2py = run_command(py3,
 
 source = custom_target('solgenmodule.c',
                             input : ['src/starfit/solgen/solgen.f90'],
-                            output : ['solgenmodule.c', 'solgen-f2pywrappers2.f90'],
+                            output : ['solgenmodule.c', 'solgen-f2pywrappers.f'],
                             command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
-                            '-m', 'fib', '--lower'])
+                            '-m', 'solgen', '--lower'])
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 

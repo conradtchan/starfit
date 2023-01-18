@@ -45,10 +45,4 @@ module_solver = Extension(
     ],
 )
 
-module_solgen = Extension(
-    "starfit.solgen._solgen",
-    sources=[os.path.join(starfit_src, "solgen/solgen.f90")],
-    extra_f90_compile_args=flags,
-)
-
-setup(ext_modules=[module_solver, module_solgen])
+setup(ext_modules=[module_solver])

@@ -1,7 +1,40 @@
 [build-system]
-# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
-requires = ["setuptools>=46.1.0", "setuptools<=65.5.1", "setuptools_scm[toml]>=5", "numpy>=1.23.3", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["meson-python>=0.9.0", "setuptools>=46.1.0", "setuptools<=65.5.1", "setuptools_scm[toml]>=5", "numpy>=1.23.3", "wheel"]
+build-backend = 'mesonpy'
+
+[project]
+name = "starfit"
+license = {file = "LICENSE"}
+description = "A stellar abundance matching code"
+authors = [
+    { name = "Conrad Chan", email = "ctchan@swin.edu.au" },
+    { name = "Alexander Heger", email = "alexander.heger@monash.edu" },
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy >= 1.21",
+    "scipy",
+    "matplotlib",
+    "setuptools",
+    "psutil",
+    "pyyaml",
+]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dynamic = ['version']
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
 
 [tool.setuptools_scm]
 # See configuration details in https://github.com/pypa/setuptools_scm
