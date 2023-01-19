@@ -21,5 +21,7 @@ py3.extension_module('solgen',
     source,
     incdir_f2py+'/fortranobject.c',
     include_directories: inc_np,
-    dependencies : py3.dependency(),
-    install : true)
+    dependencies: py3.dependency(),
+    install: true,
+    subdir: 'starfit',
+    )
