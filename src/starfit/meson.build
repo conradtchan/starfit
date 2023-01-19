@@ -1,3 +1,5 @@
+path = 'starfit'
+
 python_sources = [
     '__init__.py',
     'direct.py',
@@ -34,9 +36,9 @@ python_sources = [
     'autils/human/value.py',
     'autils/human/version.py',
 ]
-py3.install_sources(python_sources, subdir: 'starfit', preserve_path: true)
+py3.install_sources(python_sources, subdir: path, preserve_path: true)
 
-install_subdir('data', install_dir: py3.get_install_dir() / 'starfit')
+install_subdir('data', install_dir: py3.get_install_dir() / path)
 
 subdir('fitness')
 subdir('solgen')

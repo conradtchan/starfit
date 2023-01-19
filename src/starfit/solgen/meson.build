@@ -8,6 +8,8 @@ python_sources = [
 
 py3.install_sources(python_sources, subdir: path)
 
+# f2py generates the wrapper automatically from the single
+# fortran source file
 f2py_wrapper = custom_target(module_name,
     input : ['solgen.f90'],
     output : [module_name + 'module.c'],
