@@ -10,7 +10,7 @@ py3.install_sources(python_sources, subdir: path)
 
 f2py_wrapper = custom_target(module_name,
     input : ['solgen.f90'],
-    output : [module_name + 'module.c', module_name + '-f2pywrappers.f'],
+    output : [module_name + 'module.c'],
     command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
     '-m', module_name, '--build-dir', '@OUTDIR@'])
 
