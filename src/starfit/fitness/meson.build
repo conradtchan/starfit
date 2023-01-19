@@ -1,5 +1,13 @@
+name = 'fitness'
+path = 'starfit' / name
+module_name = '_solver'
+
+python_sources = [
+    '__init__.py',
+    'solver.py',
+]
+
 fortran_sources = [
-    'solver.pyf',
     'typedef.f90',
     'utils.f90',
     'powell.f90',
@@ -11,31 +19,21 @@ fortran_sources = [
     'solver.f90',
 ]
 
+py3.install_sources(python_sources, subdir: path)
 
-incdir_numpy = run_command(py3,
-    ['-c', 'import os; os.chdir('..'); import numpy; print(numpy.get_include())'],
-    check : true
-).stdout().strip()
+f2py_wrapper = custom_target(module_name,
+    input : ['solver.pyf'],
+    output : [module_name + 'module.c', module_name + '-f2pywrappers.f'],
+    command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
+    '--build-dir', '@OUTDIR@'])
 
-incdir_f2py = run_command(py3,
-    ['-c', 'import os; os.chdir('..'); import numpy.f2py; print(numpy.f2py.get_include())'],
-    check : true
-).stdout().strip()
 
-module = custom_target('solvermodule.c',
-                            input : ['solver.pyf', 'solver.f90'],
-                            output : ['solvermodule.c', 'solver-f2pywrappers.f'],
-                            command : [ py3, '-m', 'numpy.f2py', '-c', '@INPUT@',
-                            '--build-dir', '@OUTDIR@'])
-
-inc_np = include_directories(incdir_numpy, incdir_f2py)
-
-py3.extension_module('fitness',
+py3.extension_module(module_name,
+    f2py_wrapper,
     fortran_sources,
-    module,
     incdir_f2py+'/fortranobject.c',
     include_directories: inc_np,
     dependencies: py3.dependency(),
     install: true,
-    subdir: 'starfit',
+    subdir: path,
     )

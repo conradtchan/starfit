@@ -1,27 +1,26 @@
-incdir_numpy = run_command(py3,
-    ['-c', 'import os; os.chdir(".."); import numpy; print(numpy.get_include())'],
-    check : true
-).stdout().strip()
+name = 'solgen'
+path = 'starfit' / name
+module_name = '_' + name
 
-incdir_f2py = run_command(py3,
-    ['-c', 'import os; os.chdir(".."); import numpy.f2py; print(numpy.f2py.get_include())'],
-    check : true
-).stdout().strip()
+python_sources = [
+    '__init__.py',
+]
 
-source = custom_target('solgenmodule.c',
-                            input : ['solgen.f90'],
-                            output : ['solgenmodule.c', 'solgen-f2pywrappers.f'],
-                            command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
-                            '-m', 'solgen', '--build-dir', '@OUTDIR@'])
+py3.install_sources(python_sources, subdir: path)
 
-inc_np = include_directories(incdir_numpy, incdir_f2py)
+f2py_wrapper = custom_target(module_name,
+    input : ['solgen.f90'],
+    output : [module_name + 'module.c', module_name + '-f2pywrappers.f'],
+    command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
+    '-m', module_name, '--build-dir', '@OUTDIR@'])
 
-py3.extension_module('solgen',
+
+py3.extension_module(module_name,
+    f2py_wrapper,
     'solgen.f90',
-    source,
     incdir_f2py+'/fortranobject.c',
     include_directories: inc_np,
     dependencies: py3.dependency(),
     install: true,
-    subdir: 'starfit',
+    subdir: path,
     )
