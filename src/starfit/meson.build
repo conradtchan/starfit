@@ -38,4 +38,5 @@ py3.install_sources(python_sources, subdir: 'starfit', preserve_path: true)
 
 install_subdir('data', install_dir: py3.get_install_dir() / 'starfit')
 
+subdir('fitness')
 subdir('solgen')
