@@ -1,13 +1,12 @@
 project(
   'starfit',
+  'fortran',
   'c',
 # Run command to rewrite version number:
 # meson rewrite kwargs set project / version $(git describe --tags)
 version : '0.0.0',
-default_options : ['warning_level=2']
+default_options : ['buildtype=debugoptimized', 'optimization=3']
 )
-
-add_languages('fortran')
 
 py_mod = import('python')
 py3 = py_mod.find_installation('python3')
