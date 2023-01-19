@@ -32,7 +32,7 @@ classifiers = [
 dynamic = ['version']
 
 [project.optional-dependencies]
-test = [
+testing = [
     "pytest",
 ]
 
