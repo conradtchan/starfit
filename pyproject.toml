@@ -35,8 +35,3 @@ dynamic = ['version']
 testing = [
     "pytest",
 ]
-
-[tool.setuptools_scm]
-# See configuration details in https://github.com/pypa/setuptools_scm
-version_scheme = "no-guess-dev"
-fallback_version = "0.0.0"
