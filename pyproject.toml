@@ -35,3 +35,9 @@ dynamic = ['version']
 testing = [
     "pytest",
 ]
+
+[tool.isort]
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+known_third_party = ["isotope", "matplotlib" ,"numpy", "scipy"]
