@@ -22,10 +22,10 @@ fortran_sources = [
 py3.install_sources(python_sources, subdir: path)
 
 f2py_wrapper = custom_target(module_name,
-    input : ['solver.pyf'],
-    output : [module_name + 'module.c', module_name + '-f2pywrappers.f'],
-    command : [ py3, '-m', 'numpy.f2py', '@INPUT@',
-    '--build-dir', '@OUTDIR@'])
+    input : ['solver.pyf', '.f2py_f2cmap'],
+    output : [module_name + 'module.c'],
+    command : [ py3, '-m', 'numpy.f2py', '@INPUT0@',
+    '--build-dir', '@OUTDIR@', '--f2cmap', '@INPUT1@'])
 
 
 py3.extension_module(module_name,
