@@ -2,9 +2,7 @@ project(
   'starfit',
   'fortran',
   'c',
-# Run command to rewrite version number:
-# meson rewrite kwargs set project / version $(git describe --tags)
-version : '0.0.0',
+version: run_command('python3', '-m', 'setuptools_scm', check: true).stdout().strip(),
 default_options : ['buildtype=debugoptimized', 'optimization=3']
 )
 
