@@ -7,7 +7,7 @@ default_options : ['buildtype=debugoptimized', 'optimization=3']
 )
 
 py_mod = import('python')
-py3 = py_mod.find_installation('python3')
+py3 = py_mod.find_installation('python3', pure: false)
 
 incdir_numpy = run_command(py3,
     ['-c', 'import os; os.chdir(".."); import numpy; print(numpy.get_include())'],
