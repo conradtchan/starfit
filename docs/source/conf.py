@@ -16,7 +16,6 @@ author = "Conrad Chan, Alexander Heger, Thomas Nordlander, David Liptai"
 extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
 ]
 
 templates_path = ["_templates"]
