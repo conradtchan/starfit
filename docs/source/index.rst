@@ -21,7 +21,7 @@ An online interface (with a subset of functionality) is available at `starfit.or
    usage.md
    custom_data.md
    contributions.md
-   api
+   modules
 
 
 Indices and tables
