@@ -18,6 +18,9 @@ An online interface (with a subset of functionality) is available at `starfit.or
    :caption: Contents:
 
    installation.md
+   usage.md
+   custom_data.md
+   contributions.md
 
 
 Indices and tables
