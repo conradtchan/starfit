@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to starfit's documentation!
+Welcome to StarFit's documentation!
 ===================================
 
 Python package for matching stellar abundance measurements against a database of model stellar explosions. Based on the `old IDL code <https://2sn.org/starfit/>`_ by `Alexander Heger <https://2sn.org>`_.
@@ -17,6 +17,7 @@ An online interface (with a subset of functionality) is available at `starfit.or
    :maxdepth: 2
    :caption: Contents:
 
+   installation.md
 
 
 Indices and tables
