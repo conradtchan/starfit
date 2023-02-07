@@ -13,6 +13,7 @@ build:
     - gfortran
   jobs:
     pre_build:
+    #                              include     exclude
     - sphinx-apidoc -o docs/source src/starfit src/starfit/autils
     - pip install .
 
