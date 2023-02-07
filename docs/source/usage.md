@@ -3,7 +3,7 @@
 
 ## Single star matches
 
-.. :py:class:starfit.Single fits an abundance pattern to a single model from the database.
+{py:class}`starfit.Single` fits an abundance pattern to a single model from the database.
 
 Required arguments:
 - `filename`: filename of star.  Can be absolute or relative path.  The files will also be searched for in the distribution files and in the search path specified by environment variable `STARFIT_DATA` in subdirectory `stars`.
