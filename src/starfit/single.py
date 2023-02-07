@@ -7,7 +7,28 @@ from .starfit import StarFit, get_fitness
 
 
 class Single(StarFit):
-    """Find the best fit for single stars (complete search)"""
+    """
+    Find the best fit for single stars (complete search)
+
+    Example:
+    ```
+    import starfit
+
+    s = starfit.Single(
+        filename = 'HE1327-2326.dat',
+        db = 'znuc2012.S4.star.el.y.stardb.gz',
+        combine = [[6, 7, 8]],
+        z_max = 30,
+        z_exclude = [3, 24, 30],
+        z_lolim = [21, 29],
+        upper_lim = True,
+        cdf = True,
+        constraints = 'energy <= 5',
+        )
+
+    s.print()
+    ```
+    """
 
     sol_size = 1
 
