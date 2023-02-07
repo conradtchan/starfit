@@ -69,4 +69,4 @@ When adding new databases into `data/db`, add corresponding labels into the file
 New database files can be made using the `StarDB` class in `autils/stardb.py`.  A demonstration may be found at  `src/starfit/example/lc12_stardb.py`.  This file serves as a demonstration only and will not work as is.
 
 # Publishing to PyPI
-Github releases will automatically be published to https://pypi.org/project/starfit/
+Github releases will automatically be published to [pypi.org/project/starfit/](https://pypi.org/project/starfit/)
