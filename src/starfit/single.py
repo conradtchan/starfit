@@ -26,12 +26,10 @@ class Single(StarFit):
             constraints = 'energy <= 5',
             )
 
-        s.print()
-
     """
 
     #: ``Single`` has ``sol_size`` hardcoded to 1.
-    #: All other arguments are inherited from :clas:`starfit.StarFit`
+    #: All other arguments are inherited from :class:`StarFit`
     sol_size = 1
 
     def __init__(self, *args, **kwargs):
