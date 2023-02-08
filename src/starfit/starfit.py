@@ -71,6 +71,61 @@ class StarFit(Logged):
 
     :param db: database file or tuple of data base files.  String or ``Path`` object.  Can be absolute or relative path.  Files will also be searched in the distribution files and in the search path specified by environment variable ``STARFIT_DATA`` in subdirectory ``db``.  You may also use the wildcard (``"*"``) in the data base name.  The code will then try to resolve all matching data bases in the first source directory that contains any matching file.  The plain ``*`` argument will include all data bases in the first source that contains any data base; the matching is done against the pattern ``*.stardb.*``.  The ``Ellipis`` (``...`` Python object, not in quotation marks) will do the same as the plain ``*`` argument, but will continue searching through all data souces.  This allows for an easy way to search across all model data bases available.
     :type db: string or :class:`pathlib.Path`
+
+    :param combine: A list of lists of element charge numbers to treat as combined abundances (e.g. combine the CNO elements using ``[[6,7,8]]``).
+    :type combine: list, optional
+
+    :param z_min: Lowest element charge number to fit.
+    :type z_min: int, optional
+
+    :param z_max: Highest element charge number to fit.
+    :type z_max: int, optional
+
+    :param z_exclude: Element charge numbers to exclude from fit.
+    :type z_exclude: list, optional
+
+    :param lim_exclude: Treat ``z_min`` and ``z_max`` limits as exclusions (default: ``True``).  Otherwise databases are "trimmed" to save memory and data cannot be plotted in interactive mode.
+    :type lim_exclude: bool, optional
+
+    :param z_lolim: Elements that are *model* lower limits (effectively the same as *observational* upper limits).
+    :type z_lolim: list, optional
+
+    :param upper_lim: Include observational upper limits in data fitting.
+    :type upper_lim: bool, optional
+
+    :param cdf: Use the uncertainty of upper limits to calculate a cumulative distribution function when calculating error contribution (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2; error).
+    :type cdf: bool, optional
+
+    :param det: Use the detection limits when calculating error contribution (experimental).
+    :type det: bool, optional
+
+    :param cov: Use the error covariances when calculating error contribution (experimental).
+    :type cov: bool, optional
+
+    :param dst: Use statistical error only for detection treshold (default: True; experimental).
+    :type dst: bool, optional
+
+    :param limit_solver: Solver/search will only allow solutions for each star that contribute no more than 100%.
+    :type limit_solver: bool, optional
+
+    :param limit_solution: Solver/search will only allow solutions where the total adds up to no more than 100% contributions from all stars.  Results from the search are renormalised accordingly.
+    :type limit_solution: bool, optional
+
+    :param y_floor: Floor value for abundances to assume in models (default: ``1e.0e-99``).  This is useful for elements not produced in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
+    :type y_floor: bool, optional
+
+    :param db_label: A list of labels for the data bases to be used in plots and tables.  Will only be shown if there is more than one database specified.  If present, needs to match the number of databases specified.  If not present, databases will be numbered starting with ``0``, unless the ``StarDB`` has a ``label`` field that will be used instead.  The maximum label length currently allowed is ``8``.
+    :type db_label: bool, optional
+
+    :param show: Show list of loaded databases with label/number and name, then quit.
+    :type show: bool, optional
+
+    :param constraints: String with list of conditions separated by comma (acts as "and").  Conditions for specific databases can be prefixed with a number (zero-based) if the index of the database in the list, followed by a colon(``:``).  Entries for different databases are separated by semicolon (``;``).  The fieldname has to be given first, then the operator, and finally the comparison value.  Allowed operators are ``<``, ``<=``, ``==``, ``>=``, ``>``, and ``!=``.
+    :type constraints: str, optional
+
+    :param constraints_error: one of ``warn`` (default), ``raise``, ``ignore``.  How StarDB deal with errors in ``constraints``.
+    :type constraints_error: str, optional
+
     """
 
     def __init__(self, *args, silent=False, **kwargs):
