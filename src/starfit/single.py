@@ -10,6 +10,26 @@ class Single(StarFit):
     """
     Find the best fit for single stars (complete search)
 
+    :param filename: Filename of star. Can be absolute or relative path. The
+    files will also be searched for in the distribution files and in the search
+    path specified by environment variable ``STARFIT_DATA`` insubdirectory
+    ``stars``.
+    :type filename: string
+
+    :param db: database file or tuple of data base files.  String or ``Path``
+    object.  Can be absolute or relative path.  Files will also be searched in
+    the distribution files and in the search path specified by environment
+    variable ``STARFIT_DATA`` in subdirectory ``db``.  You may also use the
+    wildcard (``"*"``) in the data base name.  The code will then try to resolve
+    all matching data bases in the first source directory that contains any
+    matching file.  The plain ``*`` argument will include all data bases in the
+    first source that contains any data base; the matching is done against the
+    pattern ``*.stardb.*``.  The ``Ellipis`` (``...`` Python object, not in
+    quotation marks) will do the same as the plain ``*`` argument, but will
+    continue searching through all data souces.  This allows for an easy way to
+    search across all model data bases available.
+    :type db: string or Path
+
     Example::
 
         import starfit
@@ -36,27 +56,6 @@ class Single(StarFit):
         """
         Create an instance of the single-star fitting object and calculate the
         best fit.
-
-        :param filename: Filename of star. Can be absolute or relative path. The
-        files will also be searched for in the distribution files and in the
-        search path specified by environment variable ``STARFIT_DATA`` in
-        subdirectory ``stars``.
-        :type filename: string
-
-        :param db: database file or tuple of data base files.  String or
-        ``Path`` object.  Can be absolute or relative path.  Files will also be
-        searched in the distribution files and in the search path specified by
-        environment variable ``STARFIT_DATA`` in subdirectory ``db``.  You may
-        also use the wildcard (``"*"``) in the data base name.  The code will
-        then try to resolve all matching data bases in the first source
-        directory that contains any matching file.  The plain ``*`` argument
-        will include all data bases in the first source that contains any data
-        base; the matching is done against the pattern ``*.stardb.*``.  The
-        ``Ellipis`` (``...`` Python object, not in quotation marks) will do the
-        same as the plain ``*`` argument, but will continue searching through
-        all data souces.  This allows for an easy way to search across all model
-        data bases available.
-        :type db: string or Path
         """
         super().__init__(*args, **kwargs)
         if self.show:
