@@ -64,29 +64,6 @@ If you want to plot a solution other than the best one, use the parameter `num` 
 s.plot(num=4)
 ```
 The legend as well as the star name and copyright string can be moved (dragged).
-Plot parameters include
-- `num`: Number of solution, from the top (default: `0`).
-- `yscale`: select the y-scale of the plot.  Numerical value identical to those used for the star data formats.
-- `ynorm`: elements to use a norm for `[X/Y]' plots (`yscale=3`).
-- `multi`: plot this many best solutions as grey lines (default: `0`).  For `multi=-1` lines will be shaded according to relative data point probability based on &#x1D6D8;&sup2; and assuming multi-dimensional Gaussian error.
-- `save`: filename to save plot.
-- `range_det`: adjust range to include detection thresholds (default: `False`)
-- `range_lim`: adjust range to include detection limits (default: `True`)
-- `range_zmin`: minimum Z to consider for determining y range (default: `3`)
-- `pad_abu`: fraction of plot range to use at bottom/top boundary (default: `0.1`).
-- `pad_det`: fraction of plot range to pad detection thresholds (default: `0.05`).
-- `figsize`: dimensions of figure in inches (default: `(10, 6)`).
-- `dpi`: resolution of image (default: `102`).
-- `xlim`: overwrite x range (low, high).
-- `ylim`: overwrite y range (low, high).
-- `data_size`: Size of data lines and symbols (default: `3`).
-- `fontsize`: size used for axis labels (default: `12`).
-- `annosize`: size used for element symbols (default: `small`).
-- `dist`:  distance of labels from data points.
-- `fig`: figure object to use as canvas, otherwise as new figure is created.
-- `ax`: axis objects to use for drawing, otherwise axis and parent figure are created as needed.
-- `xlabel`: overwrite label for x-axis.
-- `ylabel`: overwrite label for y-axis.
 
 ## Full multi-star search
 

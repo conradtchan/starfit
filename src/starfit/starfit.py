@@ -1039,6 +1039,10 @@ class StarFit(Logged):
         r"""
         Create a plot of the solution.
 
+        Note:
+            The legend as well as the star name and copyright string can be
+            moved (dragged).
+
         Args:
             num (int): Number of solution, from the top (default: ``0``).
             yscale (int): select the y-scale of the plot.  Numerical value
