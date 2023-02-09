@@ -22,7 +22,7 @@ s = starfit.Single(
 
 s.print()
 ```
-The {py:meth}`starfit.StarFit.print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
+The {py:meth}`.StarFit.print` method allows to specify the number of lines to be printed (`n`), the offset for the first entry to print (`n0`, default is `0`) and the maximum number of columns to use as a "wide" table (`wide`, default `12`).  A `format` and be specified as `"html"` or `"unicode"`, plain text otherwise.  Default is `unicode`.
 ```python
 s.print(n0=3, n=1, wide=8, format=None)
 ```

@@ -28,8 +28,8 @@ class Single(StarFit):
 
     """
 
-    #: ``Single`` has ``sol_size`` hardcoded to 1.
-    #: All other arguments are inherited from :class:`StarFit`
+    #: :class:``Single`` has ``sol_size`` hardcoded to 1.
+    #: All other arguments are inherited from :class:`.StarFit`
     sol_size = 1
 
     def __init__(self, *args, **kwargs):
