@@ -114,7 +114,7 @@ class StarFit(Logged):
             stars.  Results from the search are renormalised accordingly.
         y_floor (bool, optional): Floor value for abundances to assume in models
             (default: ``1e.0e-99``).  This is useful for elements not produced
-            in a model, otherwise :math:`{\chi^2}`; or :math:`{-\inf}`; may result.
+            in a model, otherwise :math:`{\chi^2}`; or :math:`{-\infty}`; may result.
         db_label (list, optional): A list of labels for the data bases to be
             used in plots and tables.  Will only be shown if there is more than
             one database specified.  If present, needs to match the number of
