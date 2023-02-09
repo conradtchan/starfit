@@ -67,71 +67,73 @@ class StarFit(Logged):
     Base class for running the various fitting algorithms.
 
     Args:
-    filename (str): Filename of star. Can be absolute or relative path. The
-        files will also be searched for in the distribution files and in the
-        search path specified by environment variable ``STARFIT_DATA``
-        in subdirectory ``stars``.
-    db (str or :class:`pathlib.Path`, optional): database file or tuple of data
-        base files.  String or ``Path`` object.  Can be absolute or relative
-        path.  Files will also be searched in the distribution files and in the
-        search path specified by environment variable ``STARFIT_DATA`` in
-        subdirectory ``db``.  You may also use the wildcard (``"*"``) in the
-        data base name.  The code will then try to resolve all matching data
-        bases in the first source directory that contains any matching file.
-        The plain ``*`` argument will include all data bases in the first source
-        that contains any data base; the matching is done against the pattern
-        ``*.stardb.*``.  The ``Ellipis`` (``...`` Python object, not in
-        quotation marks) will do the same as the plain ``*`` argument, but will
-        continue searching through all data souces.  This allows for an easy way
-        to search across all model data bases available.
-    combine (list, optional): A list of lists of element charge numbers to treat
-        as combined abundances (e.g. combine the CNO elements using
-        ``[[6,7,8]]``).
-    z_min (int, optional): Lowest element charge number to fit.
-    z_max (int, optional): Highest element charge number to fit.
-    z_exclude (list, optional): Element charge numbers to exclude from fit.
-    lim_exclude (bool, optional): Treat ``z_min`` and ``z_max`` limits as
-        exclusions (default: ``True``).  Otherwise databases are "trimmed" to
-        save memory and data cannot be plotted in interactive mode.
-    z_lolim (list, optional): Elements that are *model* lower limits
-        (effectively the same as *observational* upper limits).
-    upper_lim (bool, optional): Include observational upper limits in data
-        fitting.
-    cdf (bool, optional): Use the uncertainty of upper limits to calculate a
-        cumulative distribution function when calculating error contribution
-        (otherwise treat the upper limit as a simple one-sided &#x1D6D8;&sup2;
-        error).
-    det (bool, optional): Use the detection limits when calculating error
-        contribution (experimental).
-    cov (bool, optional): Use the error covariances when calculating error
-        contribution (experimental).
-    dst (bool, optional): Use statistical error only for detection treshold
-        (default: True; experimental).
-    limit_solver (bool, optional): Solver/search will only allow solutions for
-        each star that contribute no more than 100%.
-    limit_solution (bool, optional): Solver/search will only allow solutions
-        where the total adds up to no more than 100% contributions from all
-        stars.  Results from the search are renormalised accordingly.
-    y_floor (bool, optional): Floor value for abundances to assume in models
-        (default: ``1e.0e-99``).  This is useful for elements not produced in a
-        model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
-    db_label (list, optional): A list of labels for the data bases to be used in
-        plots and tables.  Will only be shown if there is more than one database
-        specified.  If present, needs to match the number of databases
-        specified.  If not present, databases will be numbered starting with
-        ``0``, unless the ``StarDB`` has a ``label`` field that will be used
-        instead.  The maximum label length currently allowed is ``8``.
-    show (bool, optional): Show list of loaded databases with label/number and
-        name, then quit.
-    constraints (str, optional): String with list of conditions separated by
-        comma (acts as "and").  Conditions for specific databases can be
-        prefixed with a number (zero-based) if the index of the database in the
-        list, followed by a colon(``:``).  Entries for different databases are
-        separated by semicolon (``;``).  The fieldname has to be given first,
-        then the operator, and finally the comparison value.  Allowed operators
-        are ``<``, ``<=``, ``==``, ``>=``, ``>``, and ``!=``.
-    constraints_error (str, optional): one of ``warn`` (default), ``raise``,
-        ``ignore``.  How StarDB deal with errors in ``constraints``.
+        filename (str): Filename of star. Can be absolute or relative path. The
+            files will also be searched for in the distribution files and in the
+            search path specified by environment variable ``STARFIT_DATA``
+            in subdirectory ``stars``.
+        db (str or :class:`pathlib.Path`, optional): database file or tuple of
+            data base files.  String or ``Path`` object.  Can be absolute or
+            relative path.  Files will also be searched in the distribution
+            files and in the search path specified by environment variable
+            ``STARFIT_DATA`` in subdirectory ``db``.  You may also use the
+            wildcard (``"*"``) in the data base name.  The code will then try to
+            resolve all matching data bases in the first source directory that
+            contains any matching file. The plain ``*`` argument will include
+            all data bases in the first source that contains any data base; the
+            matching is done against the pattern ``*.stardb.*``.  The
+            ``Ellipis`` (``...`` Python object, not in quotation marks) will do
+            the same as the plain ``*`` argument, but will continue searching
+            through all data souces.  This allows for an easy way to search
+            across all model data bases available. combine (list, optional): A
+            list of lists of element charge numbers to treat as combined
+            abundances (e.g. combine the CNO elements using ``[[6,7,8]]``).
+        z_min (int, optional): Lowest element charge number to fit.
+        z_max (int, optional): Highest element charge number to fit.
+        z_exclude (list, optional): Element charge numbers to exclude from fit.
+        lim_exclude (bool, optional): Treat ``z_min`` and ``z_max`` limits as
+            exclusions (default: ``True``).  Otherwise databases are "trimmed"
+            to save memory and data cannot be plotted in interactive mode.
+        z_lolim (list, optional): Elements that are *model* lower limits
+            (effectively the same as *observational* upper limits).
+        upper_lim (bool, optional): Include observational upper limits in data
+            fitting.
+        cdf (bool, optional): Use the uncertainty of upper limits to calculate a
+            cumulative distribution function when calculating error contribution
+            (otherwise treat the upper limit as a simple one-sided
+            &#x1D6D8;&sup2; error).
+        det (bool, optional): Use the detection limits when calculating error
+            contribution (experimental).
+        cov (bool, optional): Use the error covariances when calculating error
+            contribution (experimental).
+        dst (bool, optional): Use statistical error only for detection treshold
+            (default: True; experimental).
+        limit_solver (bool, optional): Solver/search will only allow solutions
+            for each star that contribute no more than 100%.
+        limit_solution (bool, optional): Solver/search will only allow solutions
+            where the total adds up to no more than 100% contributions from all
+            stars.  Results from the search are renormalised accordingly.
+        y_floor (bool, optional): Floor value for abundances to assume in models
+            (default: ``1e.0e-99``).  This is useful for elements not produced
+            in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
+        db_label (list, optional): A list of labels for the data bases to be
+            used in plots and tables.  Will only be shown if there is more than
+            one database specified.  If present, needs to match the number of
+            databases specified.  If not present, databases will be numbered
+            starting with ``0``, unless the ``StarDB`` has a ``label`` field
+            that will be used instead.  The maximum label length currently
+            allowed is ``8``.
+        show (bool, optional): Show list of loaded databases with label/number
+        and name, then quit.
+        constraints (str, optional): String with list of conditions separated by
+            comma (acts as "and").  Conditions for specific databases can be
+            prefixed with a number (zero-based) if the index of the database in
+            the list, followed by a colon(``:``).  Entries for different
+            databases are separated by semicolon (``;``).  The fieldname has to
+            be given first, then the operator, and finally the comparison value.
+            Allowed operators are ``<``, ``<=``, ``==``, ``>=``, ``>``, and
+            ``!=``.
+        constraints_error (str, optional): one of ``warn`` (default), ``raise``,
+            ``ignore``.  How StarDB deal with errors in ``constraints``.
 
     """
 
