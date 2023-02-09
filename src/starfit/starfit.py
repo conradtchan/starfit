@@ -1036,43 +1036,44 @@ class StarFit(Logged):
         xlabel=None,
         ylabel=None,
     ):
-        """
+        r"""
         Create a plot of the solution.
 
         Args:
-            filename (str):
-            num (int): Number of solution, from the top (default: `0`).
+            num (int): Number of solution, from the top (default: ``0``).
             yscale (int): select the y-scale of the plot.  Numerical value
                 identical to those used for the star data formats.
-            ynorm (str): elements to use a norm for `[X/Y]' plots (`yscale=3`).
+            ynorm (str): elements to use a norm for ``[X/Y]`` plots
+                (``yscale=3``).
             multi (int): plot this many best solutions as grey lines
-                (default: `0`).  For `multi=-1` lines will be shaded according
-                to relative data point probability based on &#x1D6D8;&sup2; and
+                (default: ``0``).  For ``multi=-1`` lines will be shaded
+                according to relative data point probability based on
+                :math:`{\Chi^2}`; and
                 assuming multi-dimensional Gaussian error.
             save (str): filename to save plot.
             range_det (bool): adjust range to include detection thresholds
-                (default: `False`)
+                (default: ``False``)
             range_lim: (bool) adjust range to include detection limits
-                (default: `True`)
+                (default: ``True``)
             range_zmin (int): minimum Z to consider for determining y range
-                (default: `3`)
+                (default: ``3``)
             pad_abu (float): fraction of plot range to use at bottom/top
-                boundary (default: `0.1`).
+                boundary (default: ``0.1``).
             pad_det (float): fraction of plot range to pad detection thresholds
-                (default: `0.05`).
+                (default: ``0.05``).
             figsize (tuple): dimensions of figure in inches
-                (default: `(10, 6)`).
-            dpi (int): resolution of image (default: `102`).
+                (default: ``(10, 6)``).
+            dpi (int): resolution of image (default: ``102``).
             xlim (tuple): overwrite x range (low, high).
             ylim (tuple): overwrite y range (low, high).
-            data_size (int): Size of data lines and symbols (default: `3`).
-            fontsize (int): size used for axis labels (default: `12`).
-            annosize (str): size used for element symbols (default: `small`).
+            data_size (int): Size of data lines and symbols (default: ``3``).
+            fontsize (int): size used for axis labels (default: ``12``).
+            annosize (str): size used for element symbols (default: ``small``).
             dist (float):  distance of labels from data points.
-            fig (:class:`matplotlib.figure.Figure`): figure object to use as
+            fig (:class:``matplotlib.figure.Figure``): figure object to use as
                 canvas, otherwise as new figure is created.
-            ax (:class:`matplotlib.axis.Axis`): axis objects to use for drawing,
-                otherwise axis and parent figure are created as needed.
+            ax (:class:``matplotlib.axis.Axis``): axis objects to use for
+                drawing, otherwise axis and parent figure are created as needed.
             xlabel (str): overwrite label for x-axis.
             ylabel (str): overwrite label for y-axis.
         """

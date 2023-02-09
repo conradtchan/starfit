@@ -55,7 +55,7 @@ list(zip(s.list_db, s.full_abudata[:, i_bestfit]))
 
 ### Plots
 
-To make the same plots as the web version:
+{py:meth}`.StarFit.plot` can be used to make the same plots as the web version:
 ```python
 s.plot()
 ```
