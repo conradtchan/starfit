@@ -27,7 +27,7 @@ The {py:meth}`.StarFit.print` method allows to specify the number of lines to be
 s.print(n0=3, n=1, wide=8, format=None)
 ```
 
-The `info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info use
+The {py:meth}`.StarFit.info` method allows to print information about individual table entries, starting with index `0` (default).  For example, to print the third model info use
 ```python
 s.info(2)
 ```

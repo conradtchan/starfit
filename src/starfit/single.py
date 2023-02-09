@@ -28,7 +28,7 @@ class Single(StarFit):
 
     """
 
-    #: :class:``Single`` has ``sol_size`` hardcoded to 1.
+    #: :class:`.Single` has ``sol_size`` hardcoded to 1.
     #: All other arguments are inherited from :class:`.StarFit`
     sol_size = 1
 
