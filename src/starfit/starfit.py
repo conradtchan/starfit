@@ -63,7 +63,7 @@ class ConstraintsParseError(Exception):
 
 
 class StarFit(Logged):
-    """
+    r"""
     Base class for running the various fitting algorithms.
 
     Args:
@@ -100,7 +100,7 @@ class StarFit(Logged):
         cdf (bool, optional): Use the uncertainty of upper limits to calculate a
             cumulative distribution function when calculating error contribution
             (otherwise treat the upper limit as a simple one-sided
-            &#x1D6D8;&sup2; error).
+            :math:`{\chi^2}` error).
         det (bool, optional): Use the detection limits when calculating error
             contribution (experimental).
         cov (bool, optional): Use the error covariances when calculating error
@@ -114,7 +114,7 @@ class StarFit(Logged):
             stars.  Results from the search are renormalised accordingly.
         y_floor (bool, optional): Floor value for abundances to assume in models
             (default: ``1e.0e-99``).  This is useful for elements not produced
-            in a model, otherwise &#x1D6D8;&sup2; of -&infin; may result.
+            in a model, otherwise :math:`{\chi^2}`; or :math:`{-\inf}`; may result.
         db_label (list, optional): A list of labels for the data bases to be
             used in plots and tables.  Will only be shown if there is more than
             one database specified.  If present, needs to match the number of
@@ -1048,7 +1048,7 @@ class StarFit(Logged):
             multi (int): plot this many best solutions as grey lines
                 (default: ``0``).  For ``multi=-1`` lines will be shaded
                 according to relative data point probability based on
-                :math:`{\Chi^2}`; and
+                :math:`{\chi^2}`; and
                 assuming multi-dimensional Gaussian error.
             save (str): filename to save plot.
             range_det (bool): adjust range to include detection thresholds
