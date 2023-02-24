@@ -23,7 +23,7 @@ fortran_interface_source = 'solver.f90'
 py3.install_sources(python_sources, subdir: path)
 
 # Build static library with the actual code
-fortran_library = static_library(module_name, fortran_library_sources)
+fortran_library = static_library(module_name, fortran_library_sources, dependencies: omp)
 
 # Create the f2py wrapper using only the interface
 f2py_wrapper = custom_target(module_name,
@@ -41,7 +41,7 @@ py3.extension_module(module_name,
     incdir_f2py+'/fortranobject.c',
     link_with: fortran_library,
     include_directories: inc_np,
-    dependencies: py3.dependency(),
+    dependencies: [py3.dependency(), omp],
     install: true,
     subdir: path,
     )
