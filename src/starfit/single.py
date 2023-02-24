@@ -7,11 +7,36 @@ from .starfit import StarFit, get_fitness
 
 
 class Single(StarFit):
-    """Find the best fit for single stars (complete search)"""
+    """
+    Find the best fit for single stars (complete search)
 
+    Example::
+
+        import starfit
+
+        s = starfit.Single(
+            filename = 'HE1327-2326.dat',
+            db = 'znuc2012.S4.star.el.y.stardb.gz',
+            combine = [[6, 7, 8]],
+            z_max = 30,
+            z_exclude = [3, 24, 30],
+            z_lolim = [21, 29],
+            upper_lim = True,
+            cdf = True,
+            constraints = 'energy <= 5',
+            )
+
+    """
+
+    #: :class:`.Single` has ``sol_size`` hardcoded to 1.
+    #: All other arguments are inherited from :class:`.StarFit`
     sol_size = 1
 
     def __init__(self, *args, **kwargs):
+        """
+        Create an instance of the single-star fitting object and calculate the
+        best fit.
+        """
         super().__init__(*args, **kwargs)
         if self.show:
             return

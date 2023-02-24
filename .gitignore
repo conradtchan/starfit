@@ -12,3 +12,5 @@ a.out
 /build/
 /src/starfit.egg-info
 __pycache__
+
+docs/build/
