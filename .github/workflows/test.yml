@@ -36,3 +36,11 @@ jobs:
 
     - name: run pytest
       run: pytest
+
+    - name: install starfit as editable install
+      run: |
+        pip uninstall starfit
+        pip install -e ".[testing]" --no-build-isolation
+
+    - name: run pytest for editable install
+      run: pytest
