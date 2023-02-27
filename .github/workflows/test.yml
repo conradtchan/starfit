@@ -43,6 +43,7 @@ jobs:
         pip install ninja
         pip install meson-python>=0.13.0rc0
         pip install setuptools_scm
+        pip install numpy
         pip install -e ".[testing]" --no-build-isolation
 
     - name: run pytest for editable install
