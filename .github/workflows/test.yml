@@ -40,6 +40,7 @@ jobs:
     - name: install starfit as editable install
       run: |
         pip uninstall -y starfit
+        pip install meson-python>=0.13.0rc0
         pip install -e ".[testing]" --no-build-isolation
 
     - name: run pytest for editable install
