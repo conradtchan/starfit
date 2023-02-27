@@ -4,7 +4,7 @@ project(
   'c',
 version: run_command('python3', '-m', 'setuptools_scm', check: true).stdout().strip(),
 default_options: ['buildtype=debugoptimized', 'optimization=3'],
-meson_version: '>=0.64.0'
+meson_version: '>=1.0.1'
 )
 
 py_mod = import('python')
