@@ -41,6 +41,7 @@ jobs:
       run: |
         pip uninstall -y starfit
         pip install meson-python>=0.13.0rc0
+        pip install setuptools_scm
         pip install -e ".[testing]" --no-build-isolation
 
     - name: run pytest for editable install
