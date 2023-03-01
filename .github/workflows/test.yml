@@ -36,3 +36,15 @@ jobs:
 
     - name: run pytest
       run: pytest
+
+    - name: install starfit as editable install
+      run: |
+        pip uninstall -y starfit
+        pip install ninja
+        pip install "meson-python>=0.13.0rc0"
+        pip install setuptools_scm
+        pip install numpy
+        pip install -e ".[testing]" --no-build-isolation --no-deps
+
+    - name: run pytest for editable install
+      run: pytest
