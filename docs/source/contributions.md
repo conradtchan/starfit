@@ -5,17 +5,10 @@ git checkout -b <new_branch>
 git push --set-upstream origin <new_branch>
 ```
 
-1. If you changed the Fortran code and want to test locally, remember to re-compile / re-install the package.  First, set the legacy environment variable, and then install as editable packages (see instructions above):
+1. If you changed the Fortran code and want to test locally, remember to re-compile or install as editable packages:
 ```shell
-# Set environment variable to allow for editable installs
-export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
-
-# remove artefacts from previous build
-rm -rf ./build
-make -C ./src/starfit/fitness clean
-
 # "-e" creates an editable install, "[testing]" installs additional dependencies for testing
-pip3 install -e .[testing]
+pip install -e ".[testing]" --no-build-isolation
 ```
 
 To make this step more convenient we provide a `Makefile` in the root directory that does all three steps:

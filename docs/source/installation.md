@@ -18,11 +18,8 @@ cd starfit
 # Download data files
 ./download-data.sh
 
-# Set environment variable to allow for editable installs
-export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
-
 # "-e" creates an editable install, "[testing]" installs additional dependencies for testing
-pip3 install -e .[testing]
+pip install -e ".[testing]" --no-build-isolation
 
 # Run all tests
 python -m pytest
