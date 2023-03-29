@@ -20,6 +20,11 @@ fortran_library_sources = [
 
 fortran_interface_source = 'solver.f90'
 
+fortran_test_sources = [
+    'test.f90',
+    'tests.f90',
+]
+
 py3.install_sources(python_sources, subdir: path)
 
 # Build static library with the actual code
@@ -45,3 +50,9 @@ py3.extension_module(module_name,
     install: true,
     subdir: path,
     )
+
+# Build target for directly building the test executable
+executable('fitness_test',
+    fortran_test_sources,
+    link_with: fortran_library,
+    build_by_default: false)
