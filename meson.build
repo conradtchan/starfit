@@ -7,13 +7,14 @@ default_options: ['buildtype=plain'],
 meson_version: '>=1.0.1'
 )
 
-fc_flags = ['-Ofast', '-fno-finite-math-only', '-fPIC']
 fc = meson.get_compiler('fortran')
-foreach f: fc_flags
-  if fc.has_argument(f)
-    add_project_arguments(f, language: 'fortran')
-  endif
-endforeach
+
+# Try -Ofast, but if that's not available, use -O3
+if fc.has_argument('-Ofast')
+  add_project_arguments(['-Ofast', '-fno-finite-math-only'], language: 'fortran')
+else
+  add_project_arguments(['-O3'], language: 'fortran')
+endif
 
 py_mod = import('python')
 py3 = py_mod.find_installation('python3', pure: false)
