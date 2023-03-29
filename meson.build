@@ -3,9 +3,18 @@ project(
   'fortran',
   'c',
 version: run_command('python3', '-m', 'setuptools_scm', check: true).stdout().strip(),
-default_options: ['buildtype=debugoptimized', 'optimization=3'],
+default_options: ['buildtype=plain'],
 meson_version: '>=1.0.1'
 )
+
+fc = meson.get_compiler('fortran')
+
+# Try -Ofast, but if that's not available, use -O3
+if fc.has_argument('-Ofast')
+  add_project_arguments(['-Ofast', '-fno-finite-math-only'], language: 'fortran')
+else
+  add_project_arguments(['-O3'], language: 'fortran')
+endif
 
 py_mod = import('python')
 py3 = py_mod.find_installation('python3', pure: false)
