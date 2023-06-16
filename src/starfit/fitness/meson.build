@@ -46,7 +46,7 @@ py3.extension_module(module_name,
     incdir_f2py+'/fortranobject.c',
     link_with: fortran_library,
     include_directories: inc_np,
-    dependencies: [py3.dependency(), omp],
+    dependencies: py3.dependency(),
     install: true,
     subdir: path,
     )

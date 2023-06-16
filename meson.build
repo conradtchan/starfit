@@ -33,9 +33,9 @@ inc_np = include_directories(incdir_numpy, incdir_f2py)
 
 if meson.get_compiler('c').get_id() == 'clang'
   # Meson's OpenMP dependency does not work on mac yet
-  omp = declare_dependency(compile_args: ['-Xpreprocessor', '-fopenmp'], link_args: ['-lgomp'])
+  omp = declare_dependency(compile_args: ['-fopenmp'], link_args: ['-fopenmp'])
 else
-  omp = dependency('openmp')
+omp = dependency('openmp')
 endif
 
 subdir('src/starfit')
