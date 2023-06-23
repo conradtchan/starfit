@@ -576,7 +576,7 @@ contains
          m1c, m1s, m1q
 
     use abu_data, only: &
-         abu, nstar
+         get_abu_data,nstar
 
     use norm, only: &
          logcdf, logcdfp
@@ -595,6 +595,9 @@ contains
     real(kind=real64), intent(out), dimension(nstar, nstar) :: &
          f2
 
+    real(kind=real64), dimension(nstar, nel) :: &
+         abu
+
     logical, dimension(nel) :: &
          detz
     real(kind=real64), dimension(nel) :: &
@@ -610,6 +613,7 @@ contains
     integer(kind=int64) :: &
          i, i1, l, l1, j, k
 
+    call get_abu_data(abu)
     do i = 1, nel
        y(i) = sum(c(:) * abu(:,i))
     enddo
@@ -1407,7 +1411,7 @@ contains
          m1s, m1c, m1q
 
     use abu_data, only: &
-         logabu
+         get_logabu
 
     use norm, only: &
          logcdfp
@@ -1423,12 +1427,13 @@ contains
     logical, dimension(nel) :: &
          detz
     real(kind=real64), dimension(nel) :: &
-         diff_obs, diff_det, detd, dfx, dex
+         diff_obs, diff_det, detd, dfx, dex, logabu
     real(kind=real64) :: &
          de, df, mx, ms
     integer(kind=int64) :: &
          i, i1, j, j1
 
+    call get_logabu(logabu)
     diff_obs(:) = logabu(:) - obs(:) + x
     diff_det(idetec) = logabu(idetec) - det(idetec) + x
 
@@ -1893,7 +1898,7 @@ contains
   subroutine psolve_tanh_chi2(nstar, x, f)
 
     use abu_data, only: &
-         abu
+         get_abu_data, nel
 
     implicit none
 
@@ -1908,6 +1913,9 @@ contains
     real(kind=real64), intent(out) :: &
          f
 
+    real(kind=real64), dimension(nstar,nel) :: &
+         abu
+
     real(kind=real64), dimension(nstar) :: &
          c
     integer(kind=int64) :: &
@@ -1920,6 +1928,7 @@ contains
 
     ! Calculate the chi2
 
+    call get_abu_data(abu)
     call chi2(f, c(:), abu(:,:), nstar)
 
     ! Build a wall at zero
@@ -2006,7 +2015,7 @@ contains
   subroutine psolve_log_chi2(nstar, x, f)
 
     use abu_data, only: &
-         abu
+         get_abu_data, nel
 
     implicit none
 
@@ -2021,6 +2030,9 @@ contains
     real(kind=real64), intent(out) :: &
          f
 
+    real(kind=real64), dimension(nstar,nel) :: &
+         abu
+
     real(kind=real64), dimension(nstar) :: &
          c
     integer(kind=int64) :: &
@@ -2032,7 +2044,7 @@ contains
     c = exp(x)
 
     ! Calculate the chi2
-
+    call get_abu_data(abu)
     call chi2(f, c(:), abu(:,:), nstar)
 
     ! Build a wall at zero

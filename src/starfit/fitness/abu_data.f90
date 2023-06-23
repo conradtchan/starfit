@@ -11,11 +11,12 @@ module abu_data
 
   integer(kind=int64) :: &
        nel, nstar
-  real(kind=real64), dimension(:, :), allocatable :: &
-       abu
+  real(kind=real64), dimension(:, :), allocatable :: abu
 
   real(kind=real64), dimension(:), allocatable :: &
        abumix, logabumix, logabu
+
+  !$omp threadprivate(abu, abumix, logabumix, logabu)
 
   real(kind=real64), parameter, private :: &
        ln10 = log(10.0d0), &
@@ -76,6 +77,27 @@ contains
 
   end subroutine set_abu_data
 
+  subroutine get_abu_data(abu_)
+
+   implicit none
+
+   real(kind=real64), dimension(:,:), intent(out), target :: &
+         abu_
+
+   abu_(:,:) = abu(:,:)
+
+  end subroutine get_abu_data
+
+  subroutine get_logabu(logabu_)
+
+   implicit none
+
+   real(kind=real64), dimension(:), intent(out), target :: &
+         logabu_
+
+   logabu_(:) = logabu(:)
+
+  end subroutine get_logabu
 
   subroutine init_logabu()
 
