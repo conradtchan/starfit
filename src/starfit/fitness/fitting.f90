@@ -164,6 +164,7 @@ contains
        call init_ei2()
        call init_covaricance_const()
        if (btest(flags, FLAGS_LIMITED_SOLVER_BIT)) then
+          !$omp parallel do private(k, ierr)
           do k = 1, nsol
              call newton_tanh(c(k,:), abu(k,:,:), nstar, ierr)
              if (ierr == 1) then
@@ -171,6 +172,7 @@ contains
                 call newton_tanh(c(k,:), abu(k,:,:), nstar, ierr)
              endif
           enddo
+          !$omp end parallel do
        else
           do k = 1, nsol
              call newton_log(c(k,:), abu(k,:,:), nstar, ierr)
