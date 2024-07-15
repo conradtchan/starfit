@@ -1,5 +1,5 @@
 [build-system]
-requires = ["meson-python>=0.13.0", "numpy>=1.24.2", "setuptools_scm[toml]>=5", "wheel"]
+requires = ["meson-python>=0.13.0", "numpy>=1.24.2", "setuptools>=67.3.0", "setuptools_scm[toml]>=5", "wheel"]
 build-backend = 'mesonpy'
 
 [project]
@@ -15,7 +15,7 @@ dependencies = [
     "numpy >= 1.24.2",
     "scipy",
     "matplotlib",
-    "setuptools>=67.3.0",
+    "setuptools",
     "psutil",
     "pyyaml",
 ]
